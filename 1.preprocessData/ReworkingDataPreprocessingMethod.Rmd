@@ -1,0 +1,183 @@
+---
+title: "Reworking Statewide Data Preprocessing"
+author: "Emma Jones"
+date: "2/18/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(sf)
+library(readxl)
+```
+
+
+This project is a stream of consciousness walk through of how to rebuild the data preprocessing steps of the automated assessment methodology. 
+
+## Data Organization
+
+### Conventionals
+
+This script was taken from the 2020 ambient network planning project. It combines the 2020IR conventionals data pull (2013-2018) with a special data pull for the ambient planning project that encompassed 2018-2019. 
+
+```{r conventionals}
+# Bring in 2020 IR data pull (2013-2018 data), will still need to bring in 2017&2018 sites
+# Goal: filter out all BRRO sites to get a list of which sites were sampled each year
+#  and frequency if possible
+conventionals <- read_csv('C:/HardDriveBackup/R/GitHub/Rivers-StreamsAssessment/R&S_app_v4/data/final2020data/CEDSWQM_2020_IR_DATA-CONVENTIONALS_20190305.csv') 
+conventionals$FDT_DATE_TIME2 <- as.POSIXct(conventionals$FDT_DATE_TIME, format="%m/%d/%Y %H:%M")
+
+#summary(conventionals$FDT_DATE_TIME2)
+
+# Now add recent data (2018-Nov 2019- the day Roger made the data pull)
+# already limited to BRRO (SCRO and WCRO)
+conventionals2 <- read_excel('C:/HardDriveBackup/R/GitHub/AmbientNetworkPlanning/for2020/data/CEDSWQM_CONVENTIONALS_2018+.xlsx')
+conventionals2$FDT_DATE_TIME2 <- as.POSIXct(conventionals2$FDT_DATE_TIME, format="%m/%d/%Y %H:%M")
+conventionals2$FDT_DATE_TIME <- as.character(conventionals2$FDT_DATE_TIME) # for smashing with original conventionals
+summary(conventionals2$FDT_DATE_TIME2)
+
+# filter data to just 2019 to not duplicate data from 2018
+conventionals2019 <- filter(conventionals2, FDT_DATE_TIME2 > '2018-12-31 23:59:00')
+summary(conventionals2019$FDT_DATE_TIME2)
+# cool.
+#glimpse(conventionals2019)
+
+# what is in conventionals that isn't in conventionals2019??
+names(conventionals)[!names(conventionals) %in% names(conventionals2019)]
+
+conventionalsAll <- bind_rows(conventionals,conventionals2019) %>%
+  # get groundwater sites out of here
+  filter(FDT_SPG_CODE != 'GW')
+
+conventionals <- filter(conventionalsAll, !is.na(Latitude)|!is.na(Longitude)) # remove sites without coordinates
+
+rm(conventionalsAll);rm(conventionals2);rm(conventionals2019)
+```
+
+So we will use this as a pretend dataset to simuate what one could expect from 2022 IR, e.g. some attributed (AU and WQS) stations as well as some new stuff. This exercise will be conducted for BRRO, but the methods will apply statewide.
+
+Before we can do any spatial subsetting work, we need to make a dataset of all UNIQUE StationID's for the regional offices to work with. 
+
+```{r conventionalsDistinct, echo=FALSE}
+conventionals_D <- distinct(conventionals, FDT_STA_ID, .keep_all = T) %>%
+  select(FDT_STA_ID:FDT_SPG_CODE, Latitude:STA_CBP_NAME) #%>%# drop data to avoid any confusion
+  #st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+  #         remove = F, # don't remove these lat/lon cols from df
+  #         crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
+rm(conventionals) # remove full conventionals dataset to save memory
+
+#View(conventionals_D) # to look at dataset use this command
+```
+
+
+### Citizen Data
+
+Play with organizing citmon from the start this time?
+
+Bring in James' raw dataset, knowing disaster lies ahead.  Dropping Group_Station_ID for now in hopes that user manipulation steps and better product from James can avoid that second name/layer of confusion.
+
+```{r citmon}
+# too big to read in using read_excel
+cit <- read_csv('C:/HardDriveBackup/R/GitHub/Rivers-StreamsAssessment/CitizenNonAgency/2020IR Citizen Ambient4.14.19 (2).csv') %>%
+  dplyr::select(Group_Station_ID:`DEQ QA Comments`) %>% # drop junk columns
+  filter(!is.na(Latitude)|!is.na(Longitude)) %>% # drop sites without location information
+  distinct(Group_Station_ID, FDT_STA_ID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
+  dplyr::select(Group_Station_ID,FDT_STA_ID:FDT_SPG_CODE, Latitude:STA_CBP_NAME)# %>%# drop data to avoid confusion
+#  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+#          remove = F, # don't remove these lat/lon cols from df
+#           crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
+```
+
+### Non Agency
+
+Add non agency data from the start this IR. 
+
+Bring in James' raw dataset, knowing disaster lies ahead.  Dropping Group_Station_ID for now in hopes that user manipulation steps and better product from James can avoid that second name/layer of confusion.
+
+```{r non agency}
+# too big to read in using read_excel
+# too big to read in using read_excel
+nonA <- read_csv('C:/HardDriveBackup/R/GitHub/Rivers-StreamsAssessment/CitizenNonAgency/2020IR NONA ambient.csv')  %>%
+  dplyr::select(Group_Station_ID:`DEQ QA Comments`) %>% # drop junk columns for now
+  filter(!is.na(Latitude)|!is.na(Longitude)) %>% # drop sites without location information
+  distinct(Group_Station_ID, FDT_STA_ID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
+  dplyr::select(Group_Station_ID,FDT_STA_ID:FDT_SPG_CODE, Latitude:STA_CBP_NAME) #%>%# drop data to avoid confusion
+#  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+#           remove = F, # don't remove these lat/lon cols from df
+#           crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
+```
+
+
+### Single Input Dataset
+
+By combining the conventionals, citmon, and non agency data, we can have a single starting point.
+
+```{r one input dataset}
+irData <- bind_rows(cit, nonA) %>%
+  bind_rows(conventionals_D) %>%
+  filter(is.na(Group_Station_ID)) %>%
+  dplyr::select(Group_Station_ID, FDT_STA_ID, Latitude, Longitude)
+
+rm(conventionals_D); rm(cit); rm(nonA)
+```
+
+
+### Last Cycle Stations Table 2.0
+
+Joining last cycle's station table 2.0 (station table with AU and WQS information) will save a lot of effort this year.
+
+Since we are using BRRO as the testing region, we will bring in their final stations table 2.0 as a starting point. As this is scaled statewide we will smash all regions stations table 2.0 together as a starting point.
+
+Since leftover 2018 IR results are still tucked in there we want to drop those columns to not confuse anyone.
+
+```{r station table 2.0} 
+RegionalResultsCombined <- read_csv('C:/HardDriveBackup/R/GitHub/Rivers-StreamsAssessment/R&S_app_v4/processedStationData/RegionalResultsRiverine_BRROCitMonNonAgencyFINAL.csv') %>%
+  bind_rows(read_csv('C:/HardDriveBackup/R/GitHub/LakesAssessment2020/app2020/LakeAssessmentApp_citmon/processedStationData/lakeStations2020_BRRO_citmonNonAgency.csv')) %>%
+  dplyr::select(FDT_STA_ID:VAHU6, Point.Unique.Identifier:Assess_TYPE) %>%
+  mutate(Huc6_Huc_8 = paste0(0, Huc6_Huc_8))
+```
+
+
+## Initial Join: Free Metadata
+
+So by using a simple join to existing information that has been QAed by a human, we can limit the amount of computational work and additional human QA.
+
+```{r joinTime}
+c('FDT_STA_ID', 'STA_DESC', 'Deq_Region', 'STA_REC_CODE', 'FDT_DATE_TIME', 'FDT_DEPTH', 'FDT_DEPTH_DESC', 'FDT_PERCENT_FRB', 'FDT_SSC_CODE', 'FDT_SPG_CODE', 'Latitude', 'Longitude', 'Huc6_Huc_8', 'Huc6_Huc_8_Name', 'Huc6_Name', 'Huc6_Vahu5', 'Huc6_Huc_12', 'Huc6_Huc_12_Name', 'Huc6_Vahu6', 'STA_LV1_CODE', 'LV1_DESCRIPTION', 'STA_LV2_CODE', 'LV2_DESCRIPTION', 'STA_LV3_CODE', 'LV3_DESCRIPTION', 'STA_CBP_NAME')
+
+#irData_BRRO <- filter(irData, Deq_Region == 'Blue Ridge')
+
+test <- dplyr::left_join(irData, RegionalResultsCombined,
+                  by = c('FDT_STA_ID', 'Latitude', 'Longitude'))
+
+
+
+test <- dplyr::left_join(dplyr::select(irData, -c(FDT_DATE_TIME, FDT_SSC_CODE)),
+                  dplyr::select(RegionalResultsCombined, -c(FDT_DATE_TIME, FDT_SSC_CODE)), 
+                  by = c('FDT_STA_ID',# 'STA_DESC', 'Deq_Region', 'STA_REC_CODE', 
+                         #'FDT_DEPTH', 'FDT_DEPTH_DESC', 'FDT_PERCENT_FRB', 
+                        #  'FDT_SPG_CODE',
+                         'Latitude', 'Longitude'))#, 'FDT_SPG_CODE',
+                        # 'Huc6_Huc_8', 'Huc6_Huc_8_Name', 'Huc6_Name', 'Huc6_Vahu5', 
+                        # 'Huc6_Huc_12', 'Huc6_Huc_12_Name', 'Huc6_Vahu6', 'STA_LV1_CODE',
+                        # 'LV1_DESCRIPTION', 'STA_LV2_CODE', 'LV2_DESCRIPTION', 
+                        # 'STA_LV3_CODE', 'LV3_DESCRIPTION', 'STA_CBP_NAME'))
+
+, 'Huc6_Huc_8', 'Huc6_Huc_8_Name', 'Huc6_Name', 'Huc6_Vahu5', 'Huc6_Huc_12', 'Huc6_Huc_12_Name', 'Huc6_Vahu6', 'STA_LV1_CODE', 'LV1_DESCRIPTION', 'STA_LV2_CODE', 'LV2_DESCRIPTION', 'STA_LV3_CODE', 'LV3_DESCRIPTION', 'STA_CBP_NAME'))
+```
+
+
+```{r}
+x <- sf::read_sf(system.file("shape/nc.shp", package="sf"))
+y <- st_drop_geometry(x) %>% mutate(geometry = 1)
+
+lj <- left_join(x, y, by = c("CNTY_ID"))
+
+sloop::s3_dispatch(left_join(x, y, by = c("CNTY_ID")))
+```
+
+
+
+## Assessment Units
