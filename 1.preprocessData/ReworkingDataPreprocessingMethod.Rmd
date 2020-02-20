@@ -62,10 +62,8 @@ Before we can do any spatial subsetting work, we need to make a dataset of all U
 
 ```{r conventionalsDistinct, echo=FALSE}
 conventionals_D <- distinct(conventionals, FDT_STA_ID, .keep_all = T) %>%
-  select(FDT_STA_ID:FDT_SPG_CODE, Latitude:STA_CBP_NAME) #%>%# drop data to avoid any confusion
-  #st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
-  #         remove = F, # don't remove these lat/lon cols from df
-  #         crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
+  select(FDT_STA_ID:FDT_SPG_CODE, Latitude:STA_CBP_NAME) # drop data to avoid any confusion
+
 rm(conventionals) # remove full conventionals dataset to save memory
 
 #View(conventionals_D) # to look at dataset use this command
@@ -84,10 +82,7 @@ cit <- read_csv('C:/HardDriveBackup/R/GitHub/Rivers-StreamsAssessment/CitizenNon
   dplyr::select(Group_Station_ID:`DEQ QA Comments`) %>% # drop junk columns
   filter(!is.na(Latitude)|!is.na(Longitude)) %>% # drop sites without location information
   distinct(Group_Station_ID, FDT_STA_ID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
-  dplyr::select(Group_Station_ID,FDT_STA_ID:FDT_SPG_CODE, Latitude:STA_CBP_NAME)# %>%# drop data to avoid confusion
-#  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
-#          remove = F, # don't remove these lat/lon cols from df
-#           crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
+  dplyr::select(Group_Station_ID,FDT_STA_ID:FDT_SPG_CODE, Latitude:STA_CBP_NAME)# drop data to avoid confusion
 ```
 
 ### Non Agency
@@ -103,24 +98,19 @@ nonA <- read_csv('C:/HardDriveBackup/R/GitHub/Rivers-StreamsAssessment/CitizenNo
   dplyr::select(Group_Station_ID:`DEQ QA Comments`) %>% # drop junk columns for now
   filter(!is.na(Latitude)|!is.na(Longitude)) %>% # drop sites without location information
   distinct(Group_Station_ID, FDT_STA_ID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
-  dplyr::select(Group_Station_ID,FDT_STA_ID:FDT_SPG_CODE, Latitude:STA_CBP_NAME) #%>%# drop data to avoid confusion
-#  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
-#           remove = F, # don't remove these lat/lon cols from df
-#           crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
+  dplyr::select(Group_Station_ID,FDT_STA_ID:FDT_SPG_CODE, Latitude:STA_CBP_NAME) # drop data to avoid confusion
 ```
 
 
 ### Single Input Dataset
 
-By combining the conventionals, citmon, and non agency data, we can have a single starting point.
+By combining the conventionals, citmon, and non agency data, we can have a single starting point. We are also going to drop everything but station name and lat/lng as our joining information to avoid duplicating too much data.
 
 ```{r one input dataset}
 irData <- bind_rows(cit, nonA) %>%
   bind_rows(conventionals_D) %>%
-  filter(is.na(Group_Station_ID)) %>%
   dplyr::select(Group_Station_ID, FDT_STA_ID, Latitude, Longitude)
 
-rm(conventionals_D); rm(cit); rm(nonA)
 ```
 
 
@@ -145,39 +135,64 @@ RegionalResultsCombined <- read_csv('C:/HardDriveBackup/R/GitHub/Rivers-StreamsA
 So by using a simple join to existing information that has been QAed by a human, we can limit the amount of computational work and additional human QA.
 
 ```{r joinTime}
-c('FDT_STA_ID', 'STA_DESC', 'Deq_Region', 'STA_REC_CODE', 'FDT_DATE_TIME', 'FDT_DEPTH', 'FDT_DEPTH_DESC', 'FDT_PERCENT_FRB', 'FDT_SSC_CODE', 'FDT_SPG_CODE', 'Latitude', 'Longitude', 'Huc6_Huc_8', 'Huc6_Huc_8_Name', 'Huc6_Name', 'Huc6_Vahu5', 'Huc6_Huc_12', 'Huc6_Huc_12_Name', 'Huc6_Vahu6', 'STA_LV1_CODE', 'LV1_DESCRIPTION', 'STA_LV2_CODE', 'LV2_DESCRIPTION', 'STA_LV3_CODE', 'LV3_DESCRIPTION', 'STA_CBP_NAME')
+irData_BRRO <- filter(irData, str_detect(FDT_STA_ID,'9-'))
 
-#irData_BRRO <- filter(irData, Deq_Region == 'Blue Ridge')
-
-test <- dplyr::left_join(irData, RegionalResultsCombined,
-                  by = c('FDT_STA_ID', 'Latitude', 'Longitude'))
-
-
-
-test <- dplyr::left_join(dplyr::select(irData, -c(FDT_DATE_TIME, FDT_SSC_CODE)),
-                  dplyr::select(RegionalResultsCombined, -c(FDT_DATE_TIME, FDT_SSC_CODE)), 
-                  by = c('FDT_STA_ID',# 'STA_DESC', 'Deq_Region', 'STA_REC_CODE', 
-                         #'FDT_DEPTH', 'FDT_DEPTH_DESC', 'FDT_PERCENT_FRB', 
-                        #  'FDT_SPG_CODE',
-                         'Latitude', 'Longitude'))#, 'FDT_SPG_CODE',
-                        # 'Huc6_Huc_8', 'Huc6_Huc_8_Name', 'Huc6_Name', 'Huc6_Vahu5', 
-                        # 'Huc6_Huc_12', 'Huc6_Huc_12_Name', 'Huc6_Vahu6', 'STA_LV1_CODE',
-                        # 'LV1_DESCRIPTION', 'STA_LV2_CODE', 'LV2_DESCRIPTION', 
-                        # 'STA_LV3_CODE', 'LV3_DESCRIPTION', 'STA_CBP_NAME'))
-
-, 'Huc6_Huc_8', 'Huc6_Huc_8_Name', 'Huc6_Name', 'Huc6_Vahu5', 'Huc6_Huc_12', 'Huc6_Huc_12_Name', 'Huc6_Vahu6', 'STA_LV1_CODE', 'LV1_DESCRIPTION', 'STA_LV2_CODE', 'LV2_DESCRIPTION', 'STA_LV3_CODE', 'LV3_DESCRIPTION', 'STA_CBP_NAME'))
+irData_join <- dplyr::left_join(irData_BRRO, RegionalResultsCombined,
+                  by = c('FDT_STA_ID', 'Latitude', 'Longitude')) %>%
+  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+           remove = F, # don't remove these lat/lon cols from df
+           crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
 ```
 
 
-```{r}
-x <- sf::read_sf(system.file("shape/nc.shp", package="sf"))
-y <- st_drop_geometry(x) %>% mutate(geometry = 1)
+## Just missing data from here
 
-lj <- left_join(x, y, by = c("CNTY_ID"))
+Now we will only deal with stations that did not join to the previous stations table by name, lat, and long. These stations are missing all CEDS attribute information, so that will be repopulated from the CEDS pull or James' notes.
 
-sloop::s3_dispatch(left_join(x, y, by = c("CNTY_ID")))
+```{r irData missing}
+irData_missing <- filter(irData_join, is.na(ID305B_1)) # these had no previous records
+
+irData_final <- filter(irData_join, !is.na(ID305B_1))
+
+# make sure we didn't lose anyone
+nrow(irData_final) + nrow(irData_missing) == nrow(irData_join)
+```
+
+Join back previously populated station information.
+
+
+```{r repopulate station information}
+irData_missing1 <- filter(cit, FDT_STA_ID %in% irData_missing$FDT_STA_ID) %>%
+   bind_rows(filter(nonA, FDT_STA_ID %in% irData_missing$FDT_STA_ID)) %>%
+  bind_rows(filter(conventionals_D, FDT_STA_ID %in% irData_missing$FDT_STA_ID))
+
+rm(conventionals_D); rm(cit); rm(nonA)
+
 ```
 
 
 
 ## Assessment Units
+
+### Statewide Assessment Layer
+
+We are going to first associate a river basin with each station to make processing easier.
+
+First, read in the statewide assessment layer.
+
+```{r Statewide Assessment Layer, echo=FALSE, message=FALSE, warning=FALSE, results = 'hide'}
+assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
+  st_transform( st_crs(4326)) # transform to WQS84 for spatial intersection
+``` 
+
+Then join to irData_join if the stations did not connect to the previous stations table.
+
+```{r basin connection}
+irData_missing1 <- st_join(irData_missing, assessmentLayer, join = st_intersects) %>%
+  mutate(Basin = Basin.y,
+         
+    VAHU6 = ifelse(VAHU6 == Huc6_Vahu6, T, F)) %>% # double check the VAHU6 watershed matches from CEDS to actual spatial layer
+  dplyr::select(FDT_STA_ID:STA_CBP_NAME, Basin, VAHU6, sameVAHU6)  # just get columns we are interested in, compare here if desired
+```
+
+
