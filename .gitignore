@@ -36,6 +36,9 @@ vignettes/*.pdf
 *.utf8.md
 *.knit.md
 
+
+## Preprocessing
+1.preprocessData/GIS/
 # R Environment Variables
 .Renviron
 

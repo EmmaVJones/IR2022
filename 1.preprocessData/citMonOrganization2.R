@@ -62,23 +62,8 @@ z <- st_is_within_distance(citUnique, citUnique, dist= 150)
 str(z)
 
 
-CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE) %>%
-  setView(-78, 37.5, zoom=6) %>%
-  addCircleMarkers(data=citUnique,color='yellow', fillColor='blue', radius = 5,
-                   fillOpacity = 0.5,opacity=1,weight = 2,stroke=T,group="sites",
-                   clusterOptions = markerClusterOptions(),
-                   label = ~originalStationID,
-                   popup = leafpop::popupTable(citUnique, zcol=c( "UID","originalStationID" ))) %>%
-  
- 
-  #addPolylines(data=riverineAUs, group = 'Riverine AUs', label = ~riverineAUs$ID305B) %>% hideGroup('Riverine AUs') %>%
-  inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
-  inlmisc::AddSearchButton(group = "sites", zoom = 15,propertyName = "label",
-                           textPlaceholder = "Search stations") %>%
-  addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
-                   overlayGroups = c('sites','Riverine AUs'),
-                   options=layersControlOptions(collapsed=T),
-                   position='topleft')
+
+
 
 
 
@@ -115,7 +100,17 @@ ui <- fluidPage(
                               fluidRow(shinycssloaders::withSpinner(leaflet::leafletOutput("map", height="600px"),size=2, color="#0080b7"))
               ),
               
-              bsCollapsePanel(list(icon('cog'), 'Review reactive '), value = 4,
+              bsCollapsePanel(list(icon('cog'), 'Review Selection'), value = 4,
+                              # Reviewer actions
+                              fluidRow(
+                                actionButton('clear_all', 'Clear all', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('backspace'))
+                              ),
+                              fluidRow(div(DT::dataTableOutput("selected_sites_table"), style = "font-size:70%")),
+                              br(),
+                              br(),
+                              br(),
+                              br(),
+                              br(),
                               
                               verbatimTextOutput('test'))
     )
@@ -147,7 +142,15 @@ server <- function(input, output, session){
   read_csv(inFile$datapath)  })
   
   observe(reactive_objects$sites_input <- inputFile() )
-  observe(reactive_objects$reviewr <- input$reviewer)
+  observe(reactive_objects$reviewer <- input$reviewer)
+  
+  # note selections on Map
+  observe({
+    req(reactive_objects$sites_input)
+    isolate({
+      reactive_objects$selected_sites=vector()
+    })
+  })
 
 
   output$originalTable <- DT::renderDataTable({
@@ -228,7 +231,7 @@ server <- function(input, output, session){
                          position='topleft') %>%
         hideGroup("Existing Stations") }) # })
   
-  map_proxy=leafletProxy("map")
+  map_proxy <- leafletProxy("map")
   
   
   # Add sites via proxy on site_types change
@@ -245,11 +248,25 @@ server <- function(input, output, session){
                        options=layersControlOptions(collapsed=T),
                        position='topleft') })
   
-
   
+  
+  
+
+#### Review Selected Sites ####
+  
+  output$selected_sites_table <- DT::renderDataTable({
+    req()
+  })
   
   
 ### Review data structure  ###  
+  
+  ## Clear all selected sites
+  observeEvent(input$clear_all, {
+    reactive_objects$selected_sites=NULL
+    #reactive_objects$table_selected_mlids=NULL
+  })
+  
   output$test <- renderText({
     str(reactive_objects$sitesUnique)
   })

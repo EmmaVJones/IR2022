@@ -1,0 +1,209 @@
+ui <- fluidPage(
+  headerPanel(
+    title='Citmon organization'),
+  
+  mainPanel(width=11,
+            bsCollapsePanel(list(icon('exchange'),"Establish Variables"), value=2,
+                            fluidRow(
+                              column(2, uiOutput('IDfield1')),
+                              column(2, uiOutput('IDfield2')),
+                              column(2, uiOutput('IDfield3')),
+                              column(2, actionButton('adjustInput', icon=icon("refresh"), label='', style = "margin-top: 25px;"))
+                            ),
+                            dataTableOutput('updatedTable')
+            ),
+            bsCollapsePanel(list(icon('map-marked-alt'), 'Review Sites'), value = 3,
+                            
+                            # Map
+                            fluidRow(shinycssloaders::withSpinner(leaflet::leafletOutput("map", height="600px"),size=2, color="#0080b7"))
+            ),
+            
+            bsCollapsePanel(list(icon('cog'), 'Review Selection'), value = 4,
+                            # Reviewer actions
+                            fluidRow(
+                              actionButton('clear_all', 'Clear all', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('backspace')),
+                              actionButton('accept', 'Accept', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('check-circle')),
+                              actionButton('reject', 'Reject', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('minus-circle')),
+                              actionButton('add_reject_reason', 'Add rejection reason', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('plus-circle')),
+                              actionButton('merge', 'Merge', style='color: #fff; background-color: #337ab7; border-color: #2e6da4', icon=icon('object-group'))
+                              
+                            ),
+                            fluidRow(
+                              h5(strong('User Entered Station Data')),
+                              div(DT::dataTableOutput("selected_sites_table"), style = "font-size:80%")),
+                            br(),
+                            fluidRow(
+                              h5(strong('Existing DEQ Station Data')),
+                              div(DT::dataTableOutput("existing_selected_sites_table"), style = "font-size:80%")),
+                            br(),
+                            br(),
+                            br(),
+                            br(),
+                            br(),
+                            verbatimTextOutput('test'))
+  )
+)
+
+server <- function(input, output, session){
+  
+  pal <- colorFactor(
+    palette = topo.colors(7),
+    domain = assessmentRegions$ASSESS_REG)
+  
+  # empty reactive objects list
+  reactive_objects=reactiveValues()
+  
+  
+  
+  
+  observe(reactive_objects$sites_input <- cit )
+  observe(reactive_objects$reviewer <- 'evj')
+  
+  
+  
+  observeEvent(input$adjustInput, {
+    reactive_objects$sites_Adjusted = reassignColumns(reactive_objects$sites_input, Group_Station_ID, Latitude, Longitude)})
+  
+  observeEvent(input$adjustInput, {
+    reactive_objects$notEnoughInfo <- filter(reactive_objects$sites_Adjusted, is.na(originalStationID), is.na(Latitude)|is.na(Longitude)) })# separate sites without location information or identifier)
+  observeEvent(input$adjustInput, {
+    reactive_objects$sitesUnique <- filter(reactive_objects$sites_Adjusted, !is.na(originalStationID), !is.na(Latitude)|!is.na(Longitude))  %>% # drop sites without location information
+      distinct(originalStationID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
+      mutate(UID = row_number()) %>%
+      dplyr::select(UID, everything()) %>%
+      st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+               remove = F, # don't remove these lat/lon cols from df
+               crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng
+  })
+  
+  observeEvent(input$adjustInput, {
+    reactive_objects$sitesData <- reactive_objects$sites_Adjusted %>%
+      group_by(originalStationID, Latitude, Longitude) %>%
+      mutate(UID = row_number()) %>%
+      dplyr::select(UID, everything()) })
+  
+# for testing, keeps things smaller  
+#  output$updatedTable <- DT::renderDataTable({
+#    req(reactive_objects$sitesUnique)
+#    datatable(reactive_objects$sitesUnique, rownames = F, options=list(scrollX = TRUE, scrollY = "300px"))  })
+  
+  
+
+#### Review Map ####
+  
+  # Map output
+  #session$onFlushed(once = T, function() {
+  output$map <- renderLeaflet({
+
+    CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE) %>%
+      setView(-78, 37.5, zoom=6) %>%
+      #addCircleMarkers(data=reactive_objects$sitesUnique, label=~originalStationID, group="Sites", 
+      #                 color='yellow', fillColor='red', radius = 5,
+      #                 fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
+      addCircleMarkers(data = existingStations, color='orange', fillColor='black', radius = 3,
+                       fillOpacity = 0.5,opacity=0.5,weight = 1,stroke=T,group="Existing Stations",
+                       label = ~FDT_STA_ID, layerId = ~FDT_STA_ID, 
+                       popup = leafpop::popupTable(existingStations, 
+                                                   zcol=c( "FDT_STA_ID", "STA_DESC", "Deq_Region",
+                                                           "Huc6_Vahu6","ID305B_1", "ID305B_2", 
+                                                           "ID305B_3"  ))) %>% 
+#      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
+#                  fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
+#                  group="Assessment Regions",
+#                  popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG','VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
+      inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
+      inlmisc::AddSearchButton(group = "Existing Stations", zoom = 15,propertyName = "label",
+                               textPlaceholder = "Search Existing Stations") %>%
+      addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                       overlayGroups = c('Existing Stations','Assessment Regions'),
+                       options=layersControlOptions(collapsed=T),
+                       position='topleft') %>%
+      hideGroup("Existing Stations")  }) # })
+  
+  map_proxy=leafletProxy("map")
+  
+  
+  # Add sites via proxy on site_types change
+  observeEvent(input$adjustInput, {
+    map_proxy %>%
+      addCircleMarkers(data=reactive_objects$sitesUnique,
+                       layerId = ~originalStationID,
+                       label=~originalStationID, group="Sites", 
+                       color='yellow', fillColor='red', radius = 5,
+                       fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T,
+                       popup=leafpop::popupTable(reactive_objects$sitesUnique, 
+                                                 zcol=c('UID','originalStationID','finalStationID'))) %>%
+      addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                       overlayGroups = c('Sites','Existing Stations','Assessment Regions'),
+                       options=layersControlOptions(collapsed=T),
+                       position='topleft') })
+  
+  
+  
+  
+  
+  # Map marker click (to identify selected sites, will also select sites w/ identical (round(lat/long, 4) but different names
+  observeEvent(input$map_marker_click, {
+    site_click <- input$map_marker_click # this is all the info based on your click
+    siteid <- site_click$id # this is just the layerID associated with your click
+
+    if(!is.null(siteid)){ # if you clicked a point with info, find all Stations that match (with a round)
+      # first find site matches from user input dataset, by lat and long
+      siteMatches <- filter(reactive_objects$sitesUnique, 
+                            originalStationID %in% siteid |
+                              Latitude %in% round(site_click$lat, 4) & 
+                              Longitude %in% round(site_click$lng, 4)) %>%
+        mutate(sites = originalStationID) %>%
+        dplyr::select(sites) %>% 
+        st_drop_geometry() %>%
+        pull()
+      # then existing sites
+      existingSiteMatches <- filter(existingStations, 
+                                    FDT_STA_ID %in% siteid |
+                                      Latitude %in% round(site_click$lat, 4) & 
+                                      Longitude %in% round(site_click$lng, 4)) %>%
+        mutate(sites = FDT_STA_ID) %>%
+        dplyr::select(sites) %>% 
+        st_drop_geometry() %>%
+        pull()
+      
+      # and save all this info for later
+      reactive_objects$namesToSmash <-  c(siteMatches, existingSiteMatches)
+    } 
+  })
+  
+  
+  # Update map marker highlights
+#  observeEvent(reactive_objects$selected_sites, ignoreNULL=F, {
+#    req(reactive_objects$map_sites)
+#    map_proxy %>%
+#      clearGroup(group='highlight') %>%
+#      addCircleMarkers(data=reactive_objects$map_sites[reactive_objects$map_sites$MonitoringLocationIdentifier %in% reactive_objects$selected_sites,],
+#                       group='highlight', options = pathOptions(pane = "highlight"), radius = 20, color='chartreuse', opacity = 0.75, fillOpacity = 0.4)
+#  })
+  
+  
+#### Review Selected Sites ####
+  
+  output$selected_sites_table <- DT::renderDataTable({
+    #req(reactive_objects$namesToSmash)
+    datatable(filter(reactive_objects$sitesUnique, originalStationID %in% reactive_objects$namesToSmash),
+              rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px')) 
+  })
+  
+  output$existing_selected_sites_table <- DT::renderDataTable({
+    #req(reactive_objects$namesToSmash)
+    datatable(filter(existingStations, FDT_STA_ID %in% reactive_objects$namesToSmash),
+              rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px')) 
+  })
+  
+  
+  ### Review data structure  ###  
+  #output$test <- renderText({
+  #  str(reactive_objects$sitesUnique)
+  #})
+  
+}
+
+
+shinyApp(ui, server)
