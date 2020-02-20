@@ -8,6 +8,17 @@ library(leaflet)
 library(inlmisc)
 library(DT)
 
+assessmentRegions <- st_read('GIS/AssessmentRegions_VA84_basins.shp')
+
+# Make existing stations layer
+existingStations <- read_csv('C:/HardDriveBackup/R/GitHub/Rivers-StreamsAssessment/R&S_app_v4/processedStationData/RegionalResultsRiverine_BRROCitMonNonAgencyFINAL.csv') %>%
+  bind_rows(read_csv('C:/HardDriveBackup/R/GitHub/LakesAssessment2020/app2020/LakeAssessmentApp_v2/processedStationData/final2020data/lakeStations2020_BRRO_citmonNonAgency.csv')) %>%
+  mutate_if(is.character, function(x) {Encoding(x) <- 'latin1'; return(x)}) %>% 
+  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+           remove = F, # don't remove these lat/lon cols from df
+           crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
+
+
 
 
 # too big to read in using read_excel
@@ -30,7 +41,11 @@ notEnoughInfo <- filter(cit, is.na(originalStationID), is.na(Latitude)|is.na(Lon
 citUnique <- filter(cit, !is.na(originalStationID), !is.na(Latitude)|!is.na(Longitude))  %>% # drop sites without location information
   distinct( originalStationID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
   mutate(UID = row_number()) %>%
-  dplyr::select(UID, everything())
+  dplyr::select(UID, everything()) %>%
+  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+           remove = F, # don't remove these lat/lon cols from df
+           crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
+
 
 citData <- cit %>%
   group_by(originalStationID, Latitude, Longitude) %>%
@@ -39,6 +54,31 @@ citData <- cit %>%
 
 test <- full_join(citUnique, citData, by = 'UID')
 
+
+
+### For testing within distance (150m = ~500ft)
+st_distance(citUnique, citUnique) < 150
+z <- st_is_within_distance(citUnique, citUnique, dist= 150)
+str(z)
+
+
+CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE) %>%
+  setView(-78, 37.5, zoom=6) %>%
+  addCircleMarkers(data=citUnique,color='yellow', fillColor='blue', radius = 5,
+                   fillOpacity = 0.5,opacity=1,weight = 2,stroke=T,group="sites",
+                   clusterOptions = markerClusterOptions(),
+                   label = ~originalStationID,
+                   popup = leafpop::popupTable(citUnique, zcol=c( "UID","originalStationID" ))) %>%
+  
+ 
+  #addPolylines(data=riverineAUs, group = 'Riverine AUs', label = ~riverineAUs$ID305B) %>% hideGroup('Riverine AUs') %>%
+  inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
+  inlmisc::AddSearchButton(group = "sites", zoom = 15,propertyName = "label",
+                           textPlaceholder = "Search stations") %>%
+  addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                   overlayGroups = c('sites','Riverine AUs'),
+                   options=layersControlOptions(collapsed=T),
+                   position='topleft')
 
 
 
@@ -69,7 +109,13 @@ ui <- fluidPage(
                               ),
                               dataTableOutput('updatedTable')
               ),
-              bsCollapsePanel(list(icon('cog'), 'Review reactive '), value = 3,
+              bsCollapsePanel(list(icon('map-marked-alt'), 'Review Sites'), value = 3,
+                              
+                              # Map
+                              fluidRow(shinycssloaders::withSpinner(leaflet::leafletOutput("map", height="600px"),size=2, color="#0080b7"))
+              ),
+              
+              bsCollapsePanel(list(icon('cog'), 'Review reactive '), value = 4,
                               
                               verbatimTextOutput('test'))
     )
@@ -77,6 +123,10 @@ ui <- fluidPage(
                         
 
 server <- function(input, output, session){
+  
+  pal <- colorFactor(
+    palette = topo.colors(7),
+    domain = assessmentRegions2$ASSESS_REG)
   
   # empty reactive objects list
   reactive_objects=reactiveValues()
@@ -128,9 +178,13 @@ server <- function(input, output, session){
     reactive_objects$notEnoughInfo <- filter(reactive_objects$sites_Adjusted, is.na(originalStationID), is.na(Latitude)|is.na(Longitude)) })# separate sites without location information or identifier)
   observeEvent(input$adjustInput, {
     reactive_objects$sitesUnique <- filter(reactive_objects$sites_Adjusted, !is.na(originalStationID), !is.na(Latitude)|!is.na(Longitude))  %>% # drop sites without location information
-    distinct(originalStationID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
-    mutate(UID = row_number()) %>%
-    dplyr::select(UID, everything()) })
+      distinct(originalStationID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
+      mutate(UID = row_number()) %>%
+      dplyr::select(UID, everything()) %>%
+      st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+               remove = F, # don't remove these lat/lon cols from df
+               crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng
+    })
   
   observeEvent(input$adjustInput, {
     reactive_objects$sitesData <- reactive_objects$sites_Adjusted %>%
@@ -145,14 +199,114 @@ server <- function(input, output, session){
 
 #### Review Map ####
   
+  # Map output
+  #session$onFlushed(once = T, function() {
+    output$map <- renderLeaflet({
+      
+      CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE) %>%
+        setView(-78, 37.5, zoom=6) %>%
+        addCircleMarkers(data = existingStations, color='orange', fillColor='black', radius = 3,
+                         fillOpacity = 0.5,opacity=0.5,weight = 1,stroke=T,group="Existing Stations",
+                         label = ~FDT_STA_ID,
+                         popup = leafpop::popupTable(existingStations, 
+                                                     zcol=c( "FDT_STA_ID", "STA_DESC", "Deq_Region",
+                                                             "Huc6_Vahu6","ID305B_1", "ID305B_2", 
+                                                             "ID305B_3"  ))) %>% hideGroup("Existing Stations") %>%
+      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
+                    fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
+                    group="Assessment Regions",
+                    popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG','VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
+        inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
+        #inlmisc::AddSearchButton(group = "sites", zoom = 15,propertyName = "label",
+        #                         textPlaceholder = "Search stations") %>%
+        addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                         overlayGroups = c('Existing Stations','Assessment Regions'),
+                         options=layersControlOptions(collapsed=T),
+                         position='topleft')    }) # })
+  
+  map_proxy=leafletProxy("map")
   
   
-  
-  output$test <- renderText({
-    print(str(reactive_objects))
+  # Add sites via proxy on site_types change
+  observeEvent(input$adjustInput, {
+    map_proxy %>% 
+      #clearGroup(group='sites') %>% 
+      addCircleMarkers(data=reactive_objects$sitesUnique, label=~originalStationID, group="sites", 
+                       color='yellow', fillColor='red', radius = 5,
+                       fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
+      addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                       overlayGroups = c('sites','Existing Stations','Assessment Regions'),
+                       options=layersControlOptions(collapsed=T),
+                       position='topleft') 
   })
   
+  
+  
+### Review data structure  ###  
+  output$test <- renderText({
+    str(reactive_objects$sitesUnique)
+  })
 
 }
 
+
 shinyApp(ui, server)
+
+
+
+
+
+
+
+
+
+
+
+#observeEvent(#{
+#  reactive_objects$sitesUnique,{#}, ignoreNULL = F, ignoreInit=T, {
+#    #if(dim(reactive_objects$sitesUnique)[1]>0){
+#      map_proxy %>% 
+#        clearGroup(group='sites') %>% 
+#        #clearGroup(group='Merged sites') %>% clearGroup(group='Site IDs') %>%  clearGroup(group='Site names') %>% 
+#        addCircleMarkers(data=reactive_objects$sitesUnique, label=~originalStationID, group="sites", 
+#                         color='yellow', fillColor='red', radius = 5,
+#                         fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T)#,  options = pathOptions(pane = "markers"))
+
+
+# %>%
+#addCircles(data=mlocs, group="locationID", stroke=F, fill=F, label=~MonitoringLocationIdentifier,
+#           popup = paste0(
+#             mlocs$MonitoringLocationIdentifier,
+#             "<br>", mlocs$MonitoringLocationName)) %>%
+#addCircles(data=mlocs, group="locationName", stroke=F, fill=F, label=~MonitoringLocationName,
+#           popup = paste0(
+#             mlocs$MonitoringLocationIdentifier,
+#             "<br>", mlocs$MonitoringLocationName)) %>%
+#addLabelOnlyMarkers(data=reactive_objects$map_sites, group="Site IDs", lat=~lat, lng=~long, options = pathOptions(pane = "labels"),
+#                    label=~MonitoringLocationIdentifier,labelOptions = labelOptions(noHide = T, textsize = "15px"),
+#                    clusterOptions=markerClusterOptions(spiderfyOnMaxZoom=T)) %>%
+#addLabelOnlyMarkers(data=reactive_objects$map_sites, group="Site names", lat=~lat, lng=~long, options = pathOptions(pane = "labels"),
+#                    label=~MonitoringLocationName,labelOptions = labelOptions(noHide = T, textsize = "15px"),
+#                    clusterOptions=markerClusterOptions(spiderfyOnMaxZoom=T)) %>%
+#          inlmisc::AddSearchButton(group = "sites", zoom = 15, propertyName = "label",
+#                                   textPlaceholder = "Search stations")  
+#leaflet.extras::removeSearchFeatures() %>%
+#leaflet.extras::addSearchFeatures(
+#  targetGroups = c('au_ids','au_names','locationID'),
+#  options = leaflet.extras::searchFeaturesOptions(
+#    zoom=12, openPopup = TRUE, firstTipSubmit = TRUE,
+#    autoCollapse = TRUE, hideMarkerOnCollapse = TRUE ))
+
+
+#if(input$auto_zoom){
+#  map_proxy %>% fitBounds(min(reactive_objects$map_sites$long)*0.99, min(reactive_objects$map_sites$lat)*0.99, max(reactive_objects$map_sites$long)*1.01, max(reactive_objects$map_sites$lat)*1.01)
+#}
+
+
+
+
+#}
+#    })
+
+
+
