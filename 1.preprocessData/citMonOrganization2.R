@@ -126,7 +126,7 @@ server <- function(input, output, session){
   
   pal <- colorFactor(
     palette = topo.colors(7),
-    domain = assessmentRegions2$ASSESS_REG)
+    domain = assessmentRegions$ASSESS_REG)
   
   # empty reactive objects list
   reactive_objects=reactiveValues()
@@ -205,40 +205,47 @@ server <- function(input, output, session){
       
       CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE) %>%
         setView(-78, 37.5, zoom=6) %>%
+        #addCircleMarkers(data=reactive_objects$sitesUnique, label=~originalStationID, group="Sites", 
+        #                 color='yellow', fillColor='red', radius = 5,
+        #                 fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
         addCircleMarkers(data = existingStations, color='orange', fillColor='black', radius = 3,
                          fillOpacity = 0.5,opacity=0.5,weight = 1,stroke=T,group="Existing Stations",
                          label = ~FDT_STA_ID,
                          popup = leafpop::popupTable(existingStations, 
                                                      zcol=c( "FDT_STA_ID", "STA_DESC", "Deq_Region",
                                                              "Huc6_Vahu6","ID305B_1", "ID305B_2", 
-                                                             "ID305B_3"  ))) %>% hideGroup("Existing Stations") %>%
-      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
+                                                             "ID305B_3"  ))) %>% 
+        addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
                     fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
                     group="Assessment Regions",
                     popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG','VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
         inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
-        #inlmisc::AddSearchButton(group = "sites", zoom = 15,propertyName = "label",
-        #                         textPlaceholder = "Search stations") %>%
+        inlmisc::AddSearchButton(group = "Existing Stations", zoom = 15,propertyName = "label",
+                                 textPlaceholder = "Search Existing Stations") %>%
         addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                          overlayGroups = c('Existing Stations','Assessment Regions'),
                          options=layersControlOptions(collapsed=T),
-                         position='topleft')    }) # })
+                         position='topleft') %>%
+        hideGroup("Existing Stations") }) # })
   
   map_proxy=leafletProxy("map")
   
   
   # Add sites via proxy on site_types change
   observeEvent(input$adjustInput, {
-    map_proxy %>% 
-      #clearGroup(group='sites') %>% 
-      addCircleMarkers(data=reactive_objects$sitesUnique, label=~originalStationID, group="sites", 
+    map_proxy %>%
+      addCircleMarkers(data=reactive_objects$sitesUnique,
+                       label=~originalStationID, group="Sites", 
                        color='yellow', fillColor='red', radius = 5,
-                       fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
+                       fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T,
+                       popup=leafpop::popupTable(reactive_objects$sitesUnique, 
+                                                 zcol=c('UID','originalStationID','finalStationID'))) %>%
       addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
-                       overlayGroups = c('sites','Existing Stations','Assessment Regions'),
+                       overlayGroups = c('Sites','Existing Stations','Assessment Regions'),
                        options=layersControlOptions(collapsed=T),
-                       position='topleft') 
-  })
+                       position='topleft') })
+  
+
   
   
   
