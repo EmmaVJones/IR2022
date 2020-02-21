@@ -13,7 +13,7 @@ ui <- fluidPage(
                             dataTableOutput('updatedTable')
             ),
             bsCollapsePanel(list(icon('map-marked-alt'), 'Review Sites'), value = 3,
-                            
+                            fluidRow(actionButton('plotInputSites', icon=icon("map-pin"), label='Plot User Data On Map', style = "margin-top: 25px;")),
                             # Map
                             fluidRow(shinycssloaders::withSpinner(leaflet::leafletOutput("map", height="600px"),size=2, color="#0080b7"))
             ),
@@ -46,6 +46,7 @@ ui <- fluidPage(
 
 server <- function(input, output, session){
   
+  # color palette for assessment polygons
   pal <- colorFactor(
     palette = topo.colors(7),
     domain = assessmentRegions$ASSESS_REG)
@@ -58,8 +59,6 @@ server <- function(input, output, session){
   
   observe(reactive_objects$sites_input <- cit )
   observe(reactive_objects$reviewer <- 'evj')
-  observe({isolate({reactive_objects$namesToSmash=vector()})})
-  
   
   # Renamed columns into reproducible format for app
   observeEvent(input$adjustInput, {
@@ -68,6 +67,13 @@ server <- function(input, output, session){
   # Sites without spatial data to be given back to user as separate sheet upon download
   observeEvent(input$adjustInput, {
     reactive_objects$notEnoughInfo <- filter(reactive_objects$sites_Adjusted, is.na(originalStationID), is.na(Latitude)|is.na(Longitude)) })# separate sites without location information or identifier)
+  
+  # note selections on Map
+  observe({
+    req(reactive_objects$sites_input)
+    isolate({
+      reactive_objects$selected_sites=vector()  })  })
+  
   
   # Unique sites spatial dataset for map and table
   observeEvent(input$adjustInput, {
@@ -120,7 +126,7 @@ server <- function(input, output, session){
                       ) %>% 
 #      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
 #                  fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
-#                  group="Assessment Regions"#,
+#                  group="Assessment Regions",
 #                  popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG','VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
       inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
       inlmisc::AddSearchButton(group = "Existing Stations", zoom = 15,propertyName = "label",
@@ -135,7 +141,9 @@ server <- function(input, output, session){
   
   
   # Add sites via proxy on site_types change
-  observeEvent(input$adjustInput, {
+  # need to add extra button bc user will not intuitively load map before pressing input$adjustInput
+  # and a proxy layer needs the map loaded first
+  observeEvent(input$plotInputSites, {
     map_proxy %>%
       addCircleMarkers(data=reactive_objects$sitesUnique,
                        layerId = ~originalStationID,
