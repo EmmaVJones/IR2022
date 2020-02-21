@@ -28,8 +28,8 @@ reassignColumns <- function(df, stationName, latName, longName){
   mutate(df, 
          finalStationID = NA,
          originalStationID = !! stationName_en, 
-         Latitude = !! latName_en, 
-         Longitude = !! longName_en) %>%
+         Latitude = as.numeric(as.character( !! latName_en )), 
+         Longitude = as.numeric(as.character( !! longName_en))) %>%
     dplyr::select(originalStationID, finalStationID, Latitude, Longitude, everything())#,
   # -c(!! stationName_en, !! latName_en,!! longName_en))
   
@@ -47,6 +47,9 @@ reassignColumns <- function(df, stationName, latName, longName){
 #write.csv(cit, 'cit_FC.csv', row.names = F)
 
 cit <- read_csv('cit_FC.csv')
+# for testing to make sure different column times get fixed
+#cit$Longitude <- as.character(cit$Longitude)
+#cit$Latitude <- as.character(cit$Latitude)
 
 
 cit <- reassignColumns(cit, Group_Station_ID, Latitude, Longitude)
@@ -111,6 +114,7 @@ ui <- fluidPage(
                               dataTableOutput('updatedTable')
               ),
               bsCollapsePanel(list(icon('map-marked-alt'), 'Review Sites'), value = 3,
+                              h4(strong("When the map has finished rendering you can click the 'Plot User Data' button to update the map with your sites")),
                               fluidRow(actionButton('plotInputSites', icon=icon("map-pin"), label='Plot User Data On Map', style = "margin-top: 25px;")),
                               # Map
                               fluidRow(shinycssloaders::withSpinner(leaflet::leafletOutput("map", height="600px"),size=2, color="#0080b7"))

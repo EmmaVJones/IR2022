@@ -25,7 +25,10 @@ ui <- fluidPage(
                               actionButton('accept', 'Accept', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('check-circle')),
                               actionButton('reject', 'Reject', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('minus-circle')),
                               actionButton('add_reject_reason', 'Add rejection reason', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('plus-circle')),
-                              actionButton('merge', 'Merge', style='color: #fff; background-color: #337ab7; border-color: #2e6da4', icon=icon('object-group'))
+                              actionButton('merge', 'Merge', style='color: #fff; background-color: #337ab7; border-color: #2e6da4', icon=icon('object-group')),
+                              downloadButton('exp_rev', label = "Export reviews",style='color: #fff; background-color: #228b22; border-color: #134e13'),
+                              actionButton('checkOut', 'checkMeOut', style='color: #fff; background-color: #337ab7; border-color: #2e6da4', icon=icon('object-group'))
+                              
                               
                             ),
                             fluidRow(
@@ -56,9 +59,18 @@ server <- function(input, output, session){
   
   
   
-  
   observe(reactive_objects$sites_input <- cit )
   observe(reactive_objects$reviewer <- 'evj')
+
+######  
+  # Empty accepted sites 
+  observeEvent(input$adjustInput, { 
+    reactive_objects$sites_Accepted <- reactive_objects$sites_Adjusted[0,]})
+  # Empty rejected sites 
+#  observeEvent(input$adjustInput, { reactive_objects$sites_Rejected = reactive_objects$sites_Adjusted[0,]})
+  # Empty nothing happenened sites 
+#  observeEvent(input$adjustInput, { reactive_objects$sites_NothingChanged = reactive_objects$sites_Adjusted[0,]})
+#####
   
   # Renamed columns into reproducible format for app
   observeEvent(input$adjustInput, {
@@ -159,9 +171,6 @@ server <- function(input, output, session){
                        position='topleft') })
   
   
-  
-  
-  
   # Map marker click (to identify selected sites, will also select sites w/ identical (round(lat/long, 4) but different names
   observeEvent(input$map_marker_click, {
     site_click <- input$map_marker_click # this is all the info based on your click
@@ -199,6 +208,11 @@ server <- function(input, output, session){
     } 
   })
   
+  # reactive to hold selected (user uploaded) data for tables
+  userEnteredStationDataTable <- reactive({
+    req(reactive_objects$namesToSmash, reactive_objects$sitesUnique)
+      filter(reactive_objects$sitesUnique, originalStationID %in% reactive_objects$namesToSmash) })
+  
   
   # Update map marker highlights
   observeEvent(reactive_objects$namesToSmash, ignoreNULL=F, {
@@ -209,6 +223,83 @@ server <- function(input, output, session){
                        group='highlight', #options = pathOptions(pane = "highlight"), 
                        radius = 20, 
                        color='chartreuse', opacity = 0.75, fillOpacity = 0.4)  })
+  
+  # Accept selected site(s) Modal
+  observeEvent(input$accept, {
+    showModal(modalDialog(title = 'Confirm Site Acceptance', size = 'l',
+                          DT::renderDataTable({
+                            datatable(userEnteredStationDataTable(),
+                                          selection='none', rownames=FALSE, 
+                                          options = list(scrollY = '125px', paging = FALSE, scrollX=TRUE, dom="t"))}),
+                          br(), br(),
+                          textInput('acceptComment', 'Additional Comments and Documentation'),
+                          actionButton('accept_ok', 'Accept', 
+                                       style='color: #fff; background-color: #337ab7; border-color: #2e6da4;font-size:120%', 
+                                       icon=icon('check-circle')),
+                          actionButton('accept_cancel', 'Cancel', 
+                                       style='color: #fff; background-color: #337ab7; border-color: #2e6da4;font-size:120%', 
+                                       icon=icon('window-close'))    ))  })
+  
+  # Do something with Accepted Site(s)
+  observeEvent(input$accept_cancel, {removeModal()})
+  observeEvent(input$accept_ok, {
+    # update data with finalStationID, reviewer, and reviewer comments
+    updatedData <- userEnteredStationDataTable() %>%
+      st_drop_geometry() %>%
+      mutate(finalStationID = originalStationID,
+             Reviewer = reactive_objects$reviewer, 
+             ReviewComment = input$acceptComment)
+    
+    # add the current site(s) to the accepted list 
+    reactive_objects$sites_Accepted <- bind_rows(reactive_objects$sites_Accepted, updatedData)
+    
+    ## Add site to accepted list for plotting purposes
+    reactive_objects$sitesUnique <- filter(reactive_objects$sitesUnique, originalStationID %in% reactive_objects$sites_Accepted)
+    
+    ## Remove Site from "to do' list
+    reactive_objects$sitesUnique <- filter(reactive_objects$sitesUnique, !(originalStationID %in% reactive_objects$sites_Accepted))
+    
+    ### Clear modal
+    removeModal()
+  })
+  
+  # add accepted sites to map if they exist?
+  observe({
+    req(reactive_objects$sites_Accepted)
+    ## Update proxy map
+    map_proxy %>%
+      addCircleMarkers(data=reactive_objects$sites_Accepted,
+                       layerId = ~finalStationID,
+                       label=~finalStationID, group="Accepted Sites", 
+                       color='black', fillColor='green', radius = 5,
+                       fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
+      addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                       overlayGroups = c('Sites','Accepted Sites','Existing Stations','Assessment Regions'),
+                       options=layersControlOptions(collapsed=T),
+                       position='topleft') 
+  })
+    
+  # Export reviews
+  export_file=reactive(paste0('site-reviews-', input$reviewer,'-', Sys.Date(),'.xlsx'))
+  output$exp_rev <- downloadHandler(
+    filename=function(){export_file()},
+    content = function(file) {writexl::write_xlsx(
+      list(sites=as.data.frame(reactive_objects$sites_Accepted)),
+      path = file, format_headers=F, col_names=T)}
+  ) 
+  
+
+  
+  observeEvent(input$checkOut, {
+    showModal(modalDialog(title = 'reactive check out', size = 'l',
+                          DT::renderDataTable({
+                            datatable(as.data.frame(reactive_objects$sites_Accepted), rownames=FALSE, 
+                                      options = list(scrollY = '400px', paging = FALSE, scrollX=TRUE, dom="t"))})
+    ))
+  })
+  
+  
+  
   
   ## Clear all selected sites
   observeEvent(input$clear_all, {
@@ -223,7 +314,7 @@ server <- function(input, output, session){
   
   output$selected_sites_table <- DT::renderDataTable({
     req(reactive_objects$namesToSmash)
-    datatable(filter(reactive_objects$sitesUnique, originalStationID %in% reactive_objects$namesToSmash),
+    datatable(userEnteredStationDataTable(),
               rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px')) 
   })
   
@@ -241,6 +332,11 @@ server <- function(input, output, session){
   #  print(glimpse(reactive_objects$allSites))
     #str(reactive_objects$sitesUnique)
   #})
+  
+  
+  
+  
+  
   
 }
 
