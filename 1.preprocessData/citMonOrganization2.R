@@ -20,6 +20,21 @@ existingStations <- read_csv('C:/HardDriveBackup/R/GitHub/Rivers-StreamsAssessme
 
 
 
+reassignColumns <- function(df, stationName, latName, longName){
+  stationName_en <- enquo(stationName)
+  latName_en <- enquo(latName)
+  longName_en <- enquo(longName)
+  
+  mutate(df, 
+         finalStationID = NA,
+         originalStationID = !! stationName_en, 
+         Latitude = !! latName_en, 
+         Longitude = !! longName_en) %>%
+    dplyr::select(originalStationID, finalStationID, Latitude, Longitude, everything())#,
+  # -c(!! stationName_en, !! latName_en,!! longName_en))
+  
+}
+
 
 # too big to read in using read_excel
 #cit <- read_csv('C:/HardDriveBackup/R/GitHub/Rivers-StreamsAssessment/CitizenNonAgency/2020IR Citizen Ambient4.14.19 (2).csv') %>%

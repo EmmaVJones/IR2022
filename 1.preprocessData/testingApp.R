@@ -60,12 +60,15 @@ server <- function(input, output, session){
   observe(reactive_objects$reviewer <- 'evj')
   
   
-  
+  # Renamed columns into reproducible format for app
   observeEvent(input$adjustInput, {
     reactive_objects$sites_Adjusted = reassignColumns(reactive_objects$sites_input, Group_Station_ID, Latitude, Longitude)})
   
+  # Sites without spatial data to be given back to user as separate sheet upon download
   observeEvent(input$adjustInput, {
     reactive_objects$notEnoughInfo <- filter(reactive_objects$sites_Adjusted, is.na(originalStationID), is.na(Latitude)|is.na(Longitude)) })# separate sites without location information or identifier)
+  
+  # Unique sites spatial dataset for map and table
   observeEvent(input$adjustInput, {
     reactive_objects$sitesUnique <- filter(reactive_objects$sites_Adjusted, !is.na(originalStationID), !is.na(Latitude)|!is.na(Longitude))  %>% # drop sites without location information
       distinct(originalStationID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
@@ -76,6 +79,16 @@ server <- function(input, output, session){
                crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng
   })
   
+  # Make dataset of all sites for highlighting purposes
+  observeEvent(input$adjustInput, {
+    reactive_objects$allSites <- suppressWarnings(
+      dplyr::select(reactive_objects$sitesUnique, originalStationID, Latitude, Longitude) %>%
+      dplyr::rename('uniqueID' = 'originalStationID') %>%
+      # sf objects use rbind for quieter results than dplyr::bind_rows()
+        rbind(dplyr::select(existingStations, FDT_STA_ID, Latitude, Longitude) %>%
+                  dplyr::rename('uniqueID' = 'FDT_STA_ID')) )  })
+  
+  # Data associated with each unique site combo (orginalStationID, Lat, Long) for joining back on download
   observeEvent(input$adjustInput, {
     reactive_objects$sitesData <- reactive_objects$sites_Adjusted %>%
       group_by(originalStationID, Latitude, Longitude) %>%
@@ -97,19 +110,16 @@ server <- function(input, output, session){
 
     CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE) %>%
       setView(-78, 37.5, zoom=6) %>%
-      #addCircleMarkers(data=reactive_objects$sitesUnique, label=~originalStationID, group="Sites", 
-      #                 color='yellow', fillColor='red', radius = 5,
-      #                 fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
       addCircleMarkers(data = existingStations, color='orange', fillColor='black', radius = 3,
                        fillOpacity = 0.5,opacity=0.5,weight = 1,stroke=T,group="Existing Stations",
-                       label = ~FDT_STA_ID, layerId = ~FDT_STA_ID, 
-                       popup = leafpop::popupTable(existingStations, 
-                                                   zcol=c( "FDT_STA_ID", "STA_DESC", "Deq_Region",
-                                                           "Huc6_Vahu6","ID305B_1", "ID305B_2", 
-                                                           "ID305B_3"  ))) %>% 
+                       label = ~FDT_STA_ID, layerId = ~FDT_STA_ID#, 
+                       #popup = leafpop::popupTable(existingStations, 
+                      #                             zcol=c( "FDT_STA_ID", "STA_DESC", "Deq_Region",
+                      #                                     "Huc6_Vahu6","ID305B_1", "ID305B_2",  "ID305B_3"  ))
+                      ) %>% 
 #      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
 #                  fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
-#                  group="Assessment Regions",
+#                  group="Assessment Regions"#,
 #                  popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG','VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
       inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
       inlmisc::AddSearchButton(group = "Existing Stations", zoom = 15,propertyName = "label",
@@ -130,9 +140,10 @@ server <- function(input, output, session){
                        layerId = ~originalStationID,
                        label=~originalStationID, group="Sites", 
                        color='yellow', fillColor='red', radius = 5,
-                       fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T,
-                       popup=leafpop::popupTable(reactive_objects$sitesUnique, 
-                                                 zcol=c('UID','originalStationID','finalStationID'))) %>%
+                       fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T#,
+                       #popup=leafpop::popupTable(reactive_objects$sitesUnique, 
+                       #                          zcol=c('UID','originalStationID','finalStationID'))
+                       ) %>%
       addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                        overlayGroups = c('Sites','Existing Stations','Assessment Regions'),
                        options=layersControlOptions(collapsed=T),
@@ -174,33 +185,45 @@ server <- function(input, output, session){
   
   
   # Update map marker highlights
-#  observeEvent(reactive_objects$selected_sites, ignoreNULL=F, {
-#    req(reactive_objects$map_sites)
-#    map_proxy %>%
-#      clearGroup(group='highlight') %>%
-#      addCircleMarkers(data=reactive_objects$map_sites[reactive_objects$map_sites$MonitoringLocationIdentifier %in% reactive_objects$selected_sites,],
-#                       group='highlight', options = pathOptions(pane = "highlight"), radius = 20, color='chartreuse', opacity = 0.75, fillOpacity = 0.4)
-#  })
+  observeEvent(reactive_objects$namesToSmash, ignoreNULL=F, {
+    req(reactive_objects$namesToSmash)
+    map_proxy %>%
+      clearGroup(group='highlight') %>%
+      addCircleMarkers(data=filter(reactive_objects$allSites, uniqueID %in% reactive_objects$namesToSmash),
+                       group='highlight', #options = pathOptions(pane = "highlight"), 
+                       radius = 20, 
+                       color='chartreuse', opacity = 0.75, fillOpacity = 0.4)  })
+  
+  ## Clear all selected sites
+  observeEvent(input$clear_all, {
+    reactive_objects$namesToSmash=NULL
+    map_proxy %>%
+      clearGroup(group='highlight')
+  })
+  
   
   
 #### Review Selected Sites ####
   
   output$selected_sites_table <- DT::renderDataTable({
-    #req(reactive_objects$namesToSmash)
+    req(reactive_objects$namesToSmash)
     datatable(filter(reactive_objects$sitesUnique, originalStationID %in% reactive_objects$namesToSmash),
               rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px')) 
   })
   
   output$existing_selected_sites_table <- DT::renderDataTable({
-    #req(reactive_objects$namesToSmash)
+    req(reactive_objects$namesToSmash)
     datatable(filter(existingStations, FDT_STA_ID %in% reactive_objects$namesToSmash),
-              rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px')) 
+              # neat trick to avoid text wrapping of super long columns, keeps size of table consistent at single row
+              class = 'nowrap display',
+              rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '75px')) 
   })
   
   
   ### Review data structure  ###  
   #output$test <- renderText({
-  #  str(reactive_objects$sitesUnique)
+  #  print(glimpse(reactive_objects$allSites))
+    #str(reactive_objects$sitesUnique)
   #})
   
 }
