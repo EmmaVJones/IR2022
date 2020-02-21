@@ -58,6 +58,7 @@ server <- function(input, output, session){
   
   observe(reactive_objects$sites_input <- cit )
   observe(reactive_objects$reviewer <- 'evj')
+  observe({isolate({reactive_objects$namesToSmash=vector()})})
   
   
   # Renamed columns into reproducible format for app
@@ -179,7 +180,14 @@ server <- function(input, output, session){
         pull()
       
       # and save all this info for later
-      reactive_objects$namesToSmash <-  c(siteMatches, existingSiteMatches)
+      siteid_current <-  c(siteMatches, existingSiteMatches)
+      
+      # add the current site(s) to the selected list for highlighting and displaying in table
+      if(is.null(reactive_objects$namesToSmash)){
+        reactive_objects$namesToSmash <- siteid_current
+      } else {
+        reactive_objects$namesToSmash <- append(siteid_current, reactive_objects$namesToSmash)
+      }
     } 
   })
   
