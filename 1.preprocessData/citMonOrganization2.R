@@ -58,7 +58,7 @@ notEnoughInfo <- filter(cit, is.na(originalStationID), is.na(Latitude)|is.na(Lon
 
 citUnique <- filter(cit, !is.na(originalStationID), !is.na(Latitude)|!is.na(Longitude))  %>% # drop sites without location information
   distinct( originalStationID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
-  mutate(UID = row_number()) %>%
+  mutate(UID = group_indices()) %>% # group indiced works for df but not in shiny structure, use row_number() instead
   dplyr::select(UID, everything()) %>%
   st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
            remove = F, # don't remove these lat/lon cols from df
@@ -67,7 +67,7 @@ citUnique <- filter(cit, !is.na(originalStationID), !is.na(Latitude)|!is.na(Long
 
 citData <- cit %>%
   group_by(originalStationID, Latitude, Longitude) %>%
-  mutate(UID = row_number()) %>%
+  mutate(UID = group_indices()) %>% # use row_number() in shiny structure
   dplyr::select(UID, everything())
 
 test <- full_join(citUnique, citData, by = 'UID')
@@ -147,8 +147,11 @@ ui <- fluidPage(
                                          br(),
                                          fluidRow(
                                            h5(strong('Rejected Sites Station Data')),
-                                           div(DT::dataTableOutput("rejected_sites_table"), style = "font-size:80%")))),
-                              
+                                           div(DT::dataTableOutput("rejected_sites_table"), style = "font-size:80%")),
+                                         br(),
+                                         fluidRow(
+                                           h5(strong('Merged Sites Station Data')),
+                                           div(DT::dataTableOutput("merged_sites_table"), style = "font-size:80%")))),
                               br(), br(), br(), br(), br(), br(),
                               verbatimTextOutput('test'))
     )
@@ -212,19 +215,12 @@ server <- function(input, output, session){
   observeEvent(input$adjustInput, {
     reactive_objects$notEnoughInfo <- filter(reactive_objects$sites_Adjusted, is.na(originalStationID), is.na(Latitude)|is.na(Longitude)) })# separate sites without location information or identifier)
   
-#### Is this necessary?  
-  # note selections on Map
-  observe({
-    req(reactive_objects$sites_input)
-    isolate({
-      reactive_objects$selected_sites=vector()  })  })
-####
   
   # Unique sites spatial dataset for map and table
   observeEvent(input$adjustInput, {
     reactive_objects$sitesUnique <- filter(reactive_objects$sites_Adjusted, !is.na(originalStationID), !is.na(Latitude)|!is.na(Longitude))  %>% # drop sites without location information
       distinct(originalStationID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
-      mutate(UID = row_number()) %>%
+      mutate(UID = row_number()) %>% #group_indices()) %>% # group indiced works for df but no in shiny structure
       dplyr::select(UID, everything()) %>%
       st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
                remove = F, # don't remove these lat/lon cols from df
@@ -242,14 +238,15 @@ server <- function(input, output, session){
   observeEvent(input$adjustInput, {
     reactive_objects$sitesData <- reactive_objects$sites_Adjusted %>%
       group_by(originalStationID, Latitude, Longitude) %>%
-      mutate(UID = row_number()) %>%
+      mutate(UID = row_number()) %>% #group_indices()) %>% # group indiced works for df but no in shiny structure
       dplyr::select(UID, everything()) })
   
   # Empty accepted sites 
   observeEvent(input$adjustInput, { reactive_objects$sites_Accepted <- reactive_objects$sites_Adjusted[0,]})
   # Empty rejected sites 
   observeEvent(input$adjustInput, { reactive_objects$sites_Rejected <- reactive_objects$sites_Adjusted[0,]})
-  
+  # Empty merged sites 
+  observeEvent(input$adjustInput, { reactive_objects$sites_Merged = reactive_objects$sites_Adjusted[0,]})
   
   # Table to review updated column names
   output$updatedTable <- DT::renderDataTable({
@@ -356,6 +353,19 @@ server <- function(input, output, session){
         siteid_current <-  c(siteid_current, rejectedSiteMatches)
       }
       
+      # now for merged sites
+      if(!is.null(reactive_objects$sites_Merged)){
+        mergedSiteMatches <- filter(reactive_objects$sites_Merged, finalStationID %in% siteid |
+                                      Latitude %in% round(site_click$lat, 4) & 
+                                      Longitude %in% round(site_click$lng, 4)) %>%
+          mutate(sites = finalStationID) %>%
+          dplyr::select(sites) %>% 
+          pull()
+        
+        # and save all this info for later
+        siteid_current <-  c(siteid_current, mergedSiteMatches)
+      }
+      
       # add the current site(s) to the selected list for highlighting and displaying in table
       if(is.null(reactive_objects$namesToSmash)){
         reactive_objects$namesToSmash <- siteid_current
@@ -430,7 +440,8 @@ server <- function(input, output, session){
                          color='black', fillColor='green', radius = 5,
                          fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
         addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
-                         overlayGroups = c('Sites','Accepted Sites','Existing Stations','Assessment Regions'),
+                         overlayGroups = c('Sites','Accepted Sites','Rejected Sites',
+                                           'Merged Sites','Existing Stations','Assessment Regions'),
                          options=layersControlOptions(collapsed=T),
                          position='topleft') }  })
   
@@ -489,6 +500,87 @@ server <- function(input, output, session){
                          position='topleft') }  })
   
   
+  # Merge selected site(s) Modal
+  observeEvent(input$merge, {
+    req(reactive_objects$namesToSmash)
+    showModal(modalDialog(title = 'Confirm Site Merge', size = 'l',
+                          DT::renderDataTable({
+                            datatable(userEnteredStationDataTable(),
+                                      selection='none', rownames=FALSE, 
+                                      options = list(scrollY = '200px', paging = FALSE, scrollX=TRUE, dom="t"))}),
+                          br(), br(),
+                          selectInput('mergeSiteName','Choose site to merge name and location information to all selected sites',
+                                      choices = reactive_objects$namesToSmash),
+                          textInput('mergeComment', 'Additional Comments and Documentation'),
+                          actionButton('merge_ok', 'Merge', 
+                                       style='color: #fff; background-color: #337ab7; border-color: #2e6da4;font-size:120%', 
+                                       icon=icon('check-circle')),
+                          actionButton('merge_cancel', 'Cancel', 
+                                       style='color: #fff; background-color: #337ab7; border-color: #2e6da4;font-size:120%', 
+                                       icon=icon('window-close'))    ))  })
+  
+  # Do something with Accepted Site(s)
+  observeEvent(input$merge_cancel, {removeModal()})
+  observeEvent(input$merge_ok, {
+    # Get name and location information from all site data
+    finalName <- input$mergeSiteName
+    finalLat <- filter(reactive_objects$allSites, uniqueID %in% finalName) %>%
+      st_drop_geometry() %>%
+      dplyr::select(Latitude) %>% 
+      pull()
+    finalLong <- filter(reactive_objects$allSites, uniqueID %in% finalName) %>%
+      st_drop_geometry() %>%
+      dplyr::select(Longitude) %>% 
+      pull()
+    
+    
+    # update data with finalStationID, reviewer, and reviewer comments
+    sites_Merged <- userEnteredStationDataTable() %>% 
+      st_drop_geometry() %>%
+      mutate(finalStationID = finalName,
+             Reviewer = reactive_objects$reviewer, 
+             ReviewComment = input$mergeComment,
+             Latitude = finalLat,
+             Longitude = finalLong)
+    
+    # add the current site(s) to the merged list 
+    reactive_objects$sites_Merged <- bind_rows(reactive_objects$sites_Merged, sites_Merged)
+    
+    dropMe <- reactive_objects$sites_Merged['originalStationID'] %>% pull()
+    
+    ## Remove Site from "to do' list
+    reactive_objects$sitesUnique <- filter(reactive_objects$sitesUnique, !(originalStationID %in% dropMe))
+    
+    
+    ### Clear modal
+    removeModal()
+  })
+  
+  # add merged sites to map if they exist?
+  observe({
+    req(reactive_objects$sites_Merged)
+    ## Update proxy map
+    if(nrow(reactive_objects$sites_Merged) > 0){
+      map_proxy %>% 
+        # have to manually clear old sites to 'wipe' leaflet memory of joined sites
+        clearGroup("Sites") %>%
+        addCircleMarkers(data=reactive_objects$sites_Merged,
+                         layerId = ~finalStationID,
+                         label=~finalStationID, group="Merged Sites", 
+                         color='black', fillColor='purple', radius = 5,
+                         fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
+        addCircleMarkers(data=reactive_objects$sitesUnique,
+                         layerId = ~originalStationID,
+                         label=~originalStationID, group="Sites", 
+                         color='yellow', fillColor='red', radius = 5,
+                         fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
+        addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                         overlayGroups = c('Sites','Accepted Sites','Rejected Sites',
+                                           'Merged Sites','Existing Stations','Assessment Regions'),
+                         options=layersControlOptions(collapsed=T),
+                         position='topleft') }  })
+  
+  
   ## Clear all selected sites
   observeEvent(input$clear_all, {
     reactive_objects$namesToSmash=NULL
@@ -538,6 +630,12 @@ server <- function(input, output, session){
               class = 'nowrap display',
               rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '75px')) })
   
+  output$merged_sites_table <- DT::renderDataTable({
+    req(reactive_objects$sites_Merged)
+    datatable(filter(reactive_objects$sites_Merged, finalStationID %in% reactive_objects$namesToSmash),
+              # neat trick to avoid text wrapping of super long columns, keeps size of table consistent at single row
+              class = 'nowrap display',
+              rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '75px')) })
   
   
   ### Review data structure  ###  
