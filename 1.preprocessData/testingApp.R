@@ -30,14 +30,24 @@ ui <- fluidPage(
                               actionButton('checkOut', 'checkMeOut', style='color: #fff; background-color: #337ab7; border-color: #2e6da4', icon=icon('object-group'))
                               
                               
-                            ),
-                            fluidRow(
-                              h5(strong('User Entered Station Data')),
-                              div(DT::dataTableOutput("selected_sites_table"), style = "font-size:80%")),
-                            br(),
-                            fluidRow(
-                              h5(strong('Existing DEQ Station Data')),
-                              div(DT::dataTableOutput("existing_selected_sites_table"), style = "font-size:80%")),
+                            ), br(),
+                            tabsetPanel(
+                              tabPanel(strong('Original User Uploaded and Existing DEQ Stations Data'),
+                                       br(),
+                                       fluidRow(
+                                         h5(strong('Original User Entered Station Data')),
+                                         div(DT::dataTableOutput("selected_sites_table"), style = "font-size:80%")),
+                                       br(),
+                                       fluidRow(
+                                         h5(strong('Existing DEQ Station Data')),
+                                         div(DT::dataTableOutput("existing_selected_sites_table"), style = "font-size:80%")) ),
+                              tabPanel(strong('Updated User Uploaded Stations Data'),
+                                       br(),
+                                       fluidRow(
+                                         h5(strong('Accepted Sites Station Data')),
+                                         div(DT::dataTableOutput("accepted_sites_table"), style = "font-size:80%")),
+                                       br())),
+                            
                             br(),
                             br(),
                             br(),
@@ -199,6 +209,20 @@ server <- function(input, output, session){
       # and save all this info for later
       siteid_current <-  c(siteMatches, existingSiteMatches)
       
+      # now for accepted sites
+      if(!is.null(reactive_objects$sites_Accepted)){
+        acceptedSiteMatches <- filter(reactive_objects$sites_Accepted, finalStationID %in% siteid |
+                                        Latitude %in% round(site_click$lat, 4) & 
+                                        Longitude %in% round(site_click$lng, 4)) %>%
+          mutate(sites = finalStationID) %>%
+          dplyr::select(sites) %>% 
+          pull()
+        
+        # and save all this info for later
+        siteid_current <-  c(siteid_current, acceptedSiteMatches)
+      }
+      
+       
       # add the current site(s) to the selected list for highlighting and displaying in table
       if(is.null(reactive_objects$namesToSmash)){
         reactive_objects$namesToSmash <- siteid_current
@@ -244,7 +268,7 @@ server <- function(input, output, session){
   observeEvent(input$accept_cancel, {removeModal()})
   observeEvent(input$accept_ok, {
     # update data with finalStationID, reviewer, and reviewer comments
-    updatedData <- userEnteredStationDataTable() %>%
+    updatedData <- userEnteredStationDataTable() %>% #filter(reactive_objects$sitesUnique, originalStationID %in% reactive_objects$namesToSmash) %>%  # Fix sitesUnique for table to populate accepted information #
       st_drop_geometry() %>%
       mutate(finalStationID = originalStationID,
              Reviewer = reactive_objects$reviewer, 
@@ -253,9 +277,7 @@ server <- function(input, output, session){
     # add the current site(s) to the accepted list 
     reactive_objects$sites_Accepted <- bind_rows(reactive_objects$sites_Accepted, updatedData)
     
-    ## Add site to accepted list for plotting purposes
-    reactive_objects$sitesUnique <- filter(reactive_objects$sitesUnique, originalStationID %in% reactive_objects$sites_Accepted)
-    
+
     ## Remove Site from "to do' list
     reactive_objects$sitesUnique <- filter(reactive_objects$sitesUnique, !(originalStationID %in% reactive_objects$sites_Accepted))
     
@@ -315,7 +337,7 @@ server <- function(input, output, session){
   output$selected_sites_table <- DT::renderDataTable({
     req(reactive_objects$namesToSmash)
     datatable(userEnteredStationDataTable(),
-              rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px')) 
+              rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px')) 
   })
   
   output$existing_selected_sites_table <- DT::renderDataTable({
@@ -324,6 +346,14 @@ server <- function(input, output, session){
               # neat trick to avoid text wrapping of super long columns, keeps size of table consistent at single row
               class = 'nowrap display',
               rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '75px')) 
+  })
+  
+  output$accepted_sites_table <- DT::renderDataTable({
+    req(reactive_objects$sites_Accepted)
+    datatable(filter(reactive_objects$sites_Accepted, finalStationID %in% reactive_objects$namesToSmash),
+              # neat trick to avoid text wrapping of super long columns, keeps size of table consistent at single row
+              class = 'nowrap display',
+              rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '75px'))
   })
   
   

@@ -21,7 +21,7 @@ CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE) %>%
   setView(-78, 37.5, zoom=6) %>%
   addCircleMarkers(data=cit,color='yellow', fillColor='blue', radius = 5,
                    fillOpacity = 0.5,opacity=1,weight = 2,stroke=T,group="sites",
-                   label = ~FDT_STA_ID,
+                   label = ~UID,
                    popup = leafpop::popupTable(cit, zcol=c( "UID","FDT_STA_ID","Huc6_Vahu6" ))) %>%
                    #popup=~paste(sep='',
                   #              paste(strong('StationID : '), FDT_STA_ID),
