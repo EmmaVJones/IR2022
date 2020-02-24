@@ -144,7 +144,10 @@ ui <- fluidPage(
                                          fluidRow(
                                            h5(strong('Accepted Sites Station Data')),
                                            div(DT::dataTableOutput("accepted_sites_table"), style = "font-size:80%")),
-                                         br())),
+                                         br(),
+                                         fluidRow(
+                                           h5(strong('Rejected Sites Station Data')),
+                                           div(DT::dataTableOutput("rejected_sites_table"), style = "font-size:80%")))),
                               
                               br(), br(), br(), br(), br(), br(),
                               verbatimTextOutput('test'))
@@ -243,8 +246,10 @@ server <- function(input, output, session){
       dplyr::select(UID, everything()) })
   
   # Empty accepted sites 
-  observeEvent(input$adjustInput, { 
-    reactive_objects$sites_Accepted <- reactive_objects$sites_Adjusted[0,]})
+  observeEvent(input$adjustInput, { reactive_objects$sites_Accepted <- reactive_objects$sites_Adjusted[0,]})
+  # Empty rejected sites 
+  observeEvent(input$adjustInput, { reactive_objects$sites_Rejected <- reactive_objects$sites_Adjusted[0,]})
+  
   
   # Table to review updated column names
   output$updatedTable <- DT::renderDataTable({
@@ -338,6 +343,19 @@ server <- function(input, output, session){
         siteid_current <-  c(siteid_current, acceptedSiteMatches)
       }
       
+      # now for rejected sites
+      if(!is.null(reactive_objects$sites_Rejected)){
+        rejectedSiteMatches <- filter(reactive_objects$sites_Rejected, originalStationID %in% siteid |
+                                        Latitude %in% round(site_click$lat, 4) & 
+                                        Longitude %in% round(site_click$lng, 4)) %>%
+          mutate(sites = originalStationID) %>%
+          dplyr::select(sites) %>% 
+          pull()
+        
+        # and save all this info for later
+        siteid_current <-  c(siteid_current, rejectedSiteMatches)
+      }
+      
       # add the current site(s) to the selected list for highlighting and displaying in table
       if(is.null(reactive_objects$namesToSmash)){
         reactive_objects$namesToSmash <- siteid_current
@@ -417,6 +435,58 @@ server <- function(input, output, session){
                          position='topleft') }  })
   
   
+  # Reject selected site(s) Modal
+  observeEvent(input$reject, {
+    showModal(modalDialog(title = 'Confirm Site Rejection', size = 'l',
+                          DT::renderDataTable({
+                            datatable(userEnteredStationDataTable(),
+                                      selection='none', rownames=FALSE, 
+                                      options = list(scrollY = '125px', paging = FALSE, scrollX=TRUE, dom="t"))}),
+                          br(), br(),
+                          textInput('rejectComment', 'Additional Comments and Documentation'),
+                          actionButton('reject_ok', 'Reject', 
+                                       style='color: #fff; background-color: #337ab7; border-color: #2e6da4;font-size:120%', 
+                                       icon=icon('check-circle')),
+                          actionButton('reject_cancel', 'Cancel', 
+                                       style='color: #fff; background-color: #337ab7; border-color: #2e6da4;font-size:120%', 
+                                       icon=icon('window-close'))    ))  })
+  
+  # Do something with Rejected Site(s)
+  observeEvent(input$reject_cancel, {removeModal()})
+  observeEvent(input$reject_ok, {
+    # update data with finalStationID, reviewer, and reviewer comments
+    updatedData <- userEnteredStationDataTable() %>% #filter(reactive_objects$sitesUnique, originalStationID %in% reactive_objects$namesToSmash) %>%  # Fix sitesUnique for table to populate accepted information #
+      st_drop_geometry() %>%
+      mutate(Reviewer = reactive_objects$reviewer, 
+             ReviewComment = input$rejectComment)
+    
+    # add the current site(s) to the rejected list 
+    reactive_objects$sites_Rejected <- bind_rows(reactive_objects$sites_Rejected, updatedData)
+    
+    
+    ## Remove Site from "to do' list
+    reactive_objects$sitesUnique <- filter(reactive_objects$sitesUnique, !(originalStationID %in% reactive_objects$sites_Rejected))
+    
+    ### Clear modal
+    removeModal()
+  })
+  
+  # add rejected sites to map if they exist?
+  observe({
+    req(reactive_objects$sites_Rejected)
+    ## Update proxy map
+    if(nrow(reactive_objects$sites_Rejected) > 0){
+      map_proxy %>%
+        addCircleMarkers(data=reactive_objects$sites_Rejected,
+                         layerId = ~originalStationID,
+                         label=~originalStationID, group="Rejected Sites", 
+                         color='black', fillColor='red', radius = 5,
+                         fillOpacity = 0.7,opacity=0.5,weight = 2,stroke=T) %>%
+        addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                         overlayGroups = c('Sites','Accepted Sites','Rejected Sites',
+                                           'Merged Sites','Existing Stations','Assessment Regions'),
+                         options=layersControlOptions(collapsed=T),
+                         position='topleft') }  })
   
   
   ## Clear all selected sites
@@ -432,9 +502,11 @@ server <- function(input, output, session){
   output$exp_rev <- downloadHandler(
     filename=function(){export_file()},
     content = function(file) {writexl::write_xlsx(
-      list(sites=as.data.frame(reactive_objects$sites_Accepted)),
-      path = file, format_headers=F, col_names=T)}
-  ) 
+      list(Accepted_and_Merged_Sites = as.data.frame(reactive_objects$sites_Accepted),
+           Rejected_Sites = as.data.frame(reactive_objects$sites_Rejected),
+           Missing_Data = as.data.frame(reactive_objects$notEnoughInfo),
+           inputData = as.data.frame(reactive_objects$sites_input)),
+      path = file, format_headers=F, col_names=T) }) 
   
   
   #### Review Selected Sites ####
@@ -450,16 +522,22 @@ server <- function(input, output, session){
     datatable(filter(existingStations, FDT_STA_ID %in% reactive_objects$namesToSmash),
               # neat trick to avoid text wrapping of super long columns, keeps size of table consistent at single row
               class = 'nowrap display',
-              rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '75px')) 
-  })
+              rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '75px')) })
   
   output$accepted_sites_table <- DT::renderDataTable({
     req(reactive_objects$sites_Accepted)
     datatable(filter(reactive_objects$sites_Accepted, finalStationID %in% reactive_objects$namesToSmash),
               # neat trick to avoid text wrapping of super long columns, keeps size of table consistent at single row
               class = 'nowrap display',
-              rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '75px'))
-  })
+              rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '75px')) })
+  
+  output$rejected_sites_table <- DT::renderDataTable({
+    req(reactive_objects$sites_Rejected)
+    datatable(filter(reactive_objects$sites_Rejected, originalStationID %in% reactive_objects$namesToSmash),
+              # neat trick to avoid text wrapping of super long columns, keeps size of table consistent at single row
+              class = 'nowrap display',
+              rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '75px')) })
+  
   
   
   ### Review data structure  ###  

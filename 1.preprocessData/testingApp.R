@@ -76,7 +76,7 @@ server <- function(input, output, session){
   # Empty accepted sites 
   observeEvent(input$adjustInput, { reactive_objects$sites_Accepted <- reactive_objects$sites_Adjusted[0,]})
   # Empty rejected sites 
-  observeEvent(input$adjustInput, { reactive_objects$sites_Rejected = reactive_objects$sites_Adjusted[0,]})
+  observeEvent(input$adjustInput, { reactive_objects$sites_Rejected <- reactive_objects$sites_Adjusted[0,]})
   # Empty nothing happenened sites 
 #  observeEvent(input$adjustInput, { reactive_objects$sites_NothingChanged = reactive_objects$sites_Adjusted[0,]})
 #####
@@ -89,12 +89,7 @@ server <- function(input, output, session){
   observeEvent(input$adjustInput, {
     reactive_objects$notEnoughInfo <- filter(reactive_objects$sites_Adjusted, is.na(originalStationID), is.na(Latitude)|is.na(Longitude)) })# separate sites without location information or identifier)
   
-  # note selections on Map
-  observe({
-    req(reactive_objects$sites_input)
-    isolate({
-      reactive_objects$selected_sites=vector()  })  })
-  
+ 
   
   # Unique sites spatial dataset for map and table
   observeEvent(input$adjustInput, {
@@ -377,8 +372,7 @@ server <- function(input, output, session){
            Rejected_Sites = as.data.frame(reactive_objects$sites_Rejected),
            Missing_Data = as.data.frame(reactive_objects$notEnoughInfo),
            inputData = as.data.frame(reactive_objects$sites_input)),
-      path = file, format_headers=F, col_names=T)}
-  ) 
+      path = file, format_headers=F, col_names=T) }) 
   
 
   
@@ -427,10 +421,6 @@ server <- function(input, output, session){
   
   output$rejected_sites_table <- DT::renderDataTable({
     req(reactive_objects$sites_Rejected)
-    
-    print(reactive_objects$namesToSmash)
-    glimpse(reactive_objects$sites_Rejected)
-    
     datatable(filter(reactive_objects$sites_Rejected, originalStationID %in% reactive_objects$namesToSmash),
               # neat trick to avoid text wrapping of super long columns, keeps size of table consistent at single row
               class = 'nowrap display',
