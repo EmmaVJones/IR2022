@@ -88,70 +88,68 @@ str(z)
 
 
 options(shiny.maxRequestSize=15*1024^2)
-  
+
 ui <- fluidPage(
-    headerPanel(
-      title='Citmon organization'),
-    
-    mainPanel(width=11,
-              bsCollapse(id='collapse_panels', multiple=T, open=1,
-                         bsCollapsePanel(list(icon('file-import'),"Start"), value=1,
-                                         fluidRow(textInput('reviewer', 'Reviewer (Entry Required for All Further Analyses)')),
-                                         fluidRow(
-                                           column(2, fileInput("import_sites", "Import site file", accept=".csv"))
-                                         ),
-                                         dataTableOutput('originalTable')
-                         )
-              ),
-              bsCollapsePanel(list(icon('exchange'),"Establish Variables"), value=2,
-                              fluidRow(
-                                column(3, uiOutput('IDfield1')),
-                                column(3, uiOutput('IDfield2')),
-                                column(3, uiOutput('IDfield3')),
-                                column(3, h4(strong('Restructure Data for Analysis')),
-                                       actionButton('adjustInput', icon=icon("refresh"), label='', style = "margin-top: 25px;"))
-                              ),
-                              dataTableOutput('updatedTable')
-              ),
-              bsCollapsePanel(list(icon('map-marked-alt'), 'Review Sites'), value = 3,
-                              h4(strong("When the map has finished rendering you can click the 'Plot User Data' button to update the map with your sites")),
-                              fluidRow(actionButton('plotInputSites', icon=icon("map-pin"), label='Plot User Data On Map', style = "margin-top: 25px;")),
-                              # Map
-                              fluidRow(shinycssloaders::withSpinner(leaflet::leafletOutput("map", height="600px"),size=2, color="#0080b7"))
-              ),
-              
-              bsCollapsePanel(list(icon('cog'), 'Review Selection'), value = 4,
-                              fluidRow(
-                                actionButton('clear_all', 'Clear all', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('backspace')),
-                                actionButton('accept', 'Accept', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('check-circle')),
-                                actionButton('reject', 'Reject', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('minus-circle')),
-                                actionButton('add_reject_reason', 'Add rejection reason', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('plus-circle')),
-                                actionButton('merge', 'Merge', style='color: #fff; background-color: #337ab7; border-color: #2e6da4', icon=icon('object-group')),
-                                downloadButton('exp_rev', label = "Export reviews",style='color: #fff; background-color: #228b22; border-color: #134e13'),
-                                actionButton('checkOut', 'checkMeOut', style='color: #fff; background-color: #337ab7; border-color: #2e6da4', icon=icon('object-group'))),
-                              br(),
-                              tabsetPanel(
-                                tabPanel(strong('Original User Uploaded and Existing DEQ Stations Data'),
-                                         br(),
-                                         fluidRow(
-                                           h5(strong('Original User Entered Station Data')),
-                                           div(DT::dataTableOutput("selected_sites_table"), style = "font-size:80%")),
-                                         br(),
-                                         fluidRow(
-                                           h5(strong('Existing DEQ Station Data')),
-                                           div(DT::dataTableOutput("existing_selected_sites_table"), style = "font-size:80%"))),
-                                tabPanel(strong('Updated User Uploaded Stations Data'),
-                                         br(),
-                                         fluidRow(
-                                           h5(strong('Accepted Sites Station Data')),
-                                           div(DT::dataTableOutput("accepted_sites_table"), style = "font-size:80%")),
-                                         br())),
-                              
-                              br(), br(), br(), br(), br(), br(),
-                              verbatimTextOutput('test'))
-    )
+  headerPanel(
+    title='Citmon organization'),
+  
+  mainPanel(width=11,
+            bsCollapse(id='collapse_panels', multiple=T, open=1,
+                       bsCollapsePanel(list(icon('file-import'),"Start"), value=1,
+                                       fluidRow(textInput('reviewer', 'Reviewer (Entry Required for All Further Analyses)')),
+                                       fluidRow(
+                                         column(2, fileInput("import_sites", "Import site file", accept=".csv"))
+                                       ),
+                                       dataTableOutput('originalTable')
+                       )
+            ),
+            bsCollapsePanel(list(icon('exchange'),"Establish Variables"), value=2,
+                            fluidRow(
+                              column(3, uiOutput('IDfield1')),
+                              column(3, uiOutput('IDfield2')),
+                              column(3, uiOutput('IDfield3')),
+                              column(3, h4(strong('Restructure Data for Analysis')),
+                                     actionButton('adjustInput', icon=icon("refresh"), label='', style = "margin-top: 25px;"))
+                            ),
+                            dataTableOutput('updatedTable')
+            ),
+            bsCollapsePanel(list(icon('map-marked-alt'), 'Review Sites'), value = 3,
+                            h4(strong("When the map has finished rendering you can click the 'Plot User Data' button to update the map with your sites")),
+                            fluidRow(actionButton('plotInputSites', icon=icon("map-pin"), label='Plot User Data On Map', style = "margin-top: 25px;")),
+                            # Map
+                            fluidRow(shinycssloaders::withSpinner(leaflet::leafletOutput("map", height="600px"),size=2, color="#0080b7"))
+            ),
+            
+            bsCollapsePanel(list(icon('cog'), 'Review Selection'), value = 4,
+                            fluidRow(
+                              actionButton('clear_all', 'Clear all', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('backspace')),
+                              actionButton('accept', 'Accept', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('check-circle')),
+                              actionButton('reject', 'Reject', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('minus-circle')),
+                              actionButton('add_reject_reason', 'Add rejection reason', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('plus-circle')),
+                              actionButton('merge', 'Merge', style='color: #fff; background-color: #337ab7; border-color: #2e6da4', icon=icon('object-group'))),
+                            br(),
+                            tabsetPanel(
+                              tabPanel(strong('Original User Uploaded and Existing DEQ Stations Data'),
+                                       br(),
+                                       fluidRow(
+                                         h5(strong('Original User Entered Station Data')),
+                                         div(DT::dataTableOutput("selected_sites_table"), style = "font-size:80%")),
+                                       br(),
+                                       fluidRow(
+                                         h5(strong('Existing DEQ Station Data')),
+                                         div(DT::dataTableOutput("existing_selected_sites_table"), style = "font-size:80%"))),
+                              tabPanel(strong('Updated User Uploaded Stations Data'),
+                                       br(),
+                                       fluidRow(
+                                         h5(strong('Accepted Sites Station Data')),
+                                         div(DT::dataTableOutput("accepted_sites_table"), style = "font-size:80%")),
+                                       br())),
+                            
+                            br(), br(), br(), br(), br(), br(),
+                            verbatimTextOutput('test'))
+  )
 )
-                        
+
 
 server <- function(input, output, session){
   
@@ -180,7 +178,7 @@ server <- function(input, output, session){
   
   observe(reactive_objects$sites_input <- inputFile() )
   observe(reactive_objects$reviewer <- input$reviewer)
-  
+
   output$originalTable <- DT::renderDataTable({
     req(input$import_sites, input$reviewer)
     datatable(reactive_objects$sites_input, rownames = F, options=list(scrollX = TRUE, scrollY = "300px"))  })
@@ -210,12 +208,14 @@ server <- function(input, output, session){
   observeEvent(input$adjustInput, {
     reactive_objects$notEnoughInfo <- filter(reactive_objects$sites_Adjusted, is.na(originalStationID), is.na(Latitude)|is.na(Longitude)) })# separate sites without location information or identifier)
   
-  
-  # note selections on Map
+##### Is this necessary???  
+  # Note selections on Map
   observe({
     req(reactive_objects$sites_input)
     isolate({
       reactive_objects$selected_sites=vector()  })  })
+#####  
+  
   
   # Unique sites spatial dataset for map and table
   observeEvent(input$adjustInput, {
@@ -241,7 +241,6 @@ server <- function(input, output, session){
       group_by(originalStationID, Latitude, Longitude) %>%
       mutate(UID = row_number()) %>%
       dplyr::select(UID, everything()) })
-  
   # Empty accepted sites 
   observeEvent(input$adjustInput, { 
     reactive_objects$sites_Accepted <- reactive_objects$sites_Adjusted[0,]})
@@ -344,13 +343,14 @@ server <- function(input, output, session){
       } else {
         reactive_objects$namesToSmash <- append(siteid_current, reactive_objects$namesToSmash)
       }
-    }  
+    } 
   })
   
   # reactive to hold selected (user uploaded) data for tables
   userEnteredStationDataTable <- reactive({
     req(reactive_objects$namesToSmash, reactive_objects$sitesUnique)
     filter(reactive_objects$sitesUnique, originalStationID %in% reactive_objects$namesToSmash) })
+  
   
   # Update map marker highlights
   observeEvent(reactive_objects$namesToSmash, ignoreNULL=F, {
@@ -361,7 +361,6 @@ server <- function(input, output, session){
                        group='highlight', #options = pathOptions(pane = "highlight"), 
                        radius = 20, 
                        color='chartreuse', opacity = 0.75, fillOpacity = 0.4)  })
-  
   
   # Accept selected site(s) Modal
   observeEvent(input$accept, {
@@ -404,18 +403,26 @@ server <- function(input, output, session){
   observe({
     req(reactive_objects$sites_Accepted)
     ## Update proxy map
-    if(nrow(reactive_objects$sites_Accepted) > 0){
-      map_proxy %>%
-        addCircleMarkers(data=reactive_objects$sites_Accepted,
-                         layerId = ~finalStationID,
-                         label=~finalStationID, group="Accepted Sites", 
-                         color='black', fillColor='green', radius = 5,
-                         fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
-        addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
-                         overlayGroups = c('Sites','Accepted Sites','Existing Stations','Assessment Regions'),
-                         options=layersControlOptions(collapsed=T),
-                         position='topleft') }  })
+    map_proxy %>%
+      addCircleMarkers(data=reactive_objects$sites_Accepted,
+                       layerId = ~finalStationID,
+                       label=~finalStationID, group="Accepted Sites", 
+                       color='black', fillColor='green', radius = 5,
+                       fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
+      addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                       overlayGroups = c('Sites','Accepted Sites','Existing Stations','Assessment Regions'),
+                       options=layersControlOptions(collapsed=T),
+                       position='topleft') 
+  })
   
+  # Export reviews
+  export_file=reactive(paste0('site-reviews-', input$reviewer,'-', Sys.Date(),'.xlsx'))
+  output$exp_rev <- downloadHandler(
+    filename=function(){export_file()},
+    content = function(file) {writexl::write_xlsx(
+      list(sites=as.data.frame(reactive_objects$sites_Accepted)),
+      path = file, format_headers=F, col_names=T)}
+  ) 
   
   
   
@@ -427,14 +434,6 @@ server <- function(input, output, session){
   })
   
   
-  # Export reviews
-  export_file=reactive(paste0('site-reviews-', input$reviewer,'-', Sys.Date(),'.xlsx'))
-  output$exp_rev <- downloadHandler(
-    filename=function(){export_file()},
-    content = function(file) {writexl::write_xlsx(
-      list(sites=as.data.frame(reactive_objects$sites_Accepted)),
-      path = file, format_headers=F, col_names=T)}
-  ) 
   
   
   #### Review Selected Sites ####

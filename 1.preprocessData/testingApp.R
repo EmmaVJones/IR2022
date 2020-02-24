@@ -27,10 +27,8 @@ ui <- fluidPage(
                               actionButton('add_reject_reason', 'Add rejection reason', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('plus-circle')),
                               actionButton('merge', 'Merge', style='color: #fff; background-color: #337ab7; border-color: #2e6da4', icon=icon('object-group')),
                               downloadButton('exp_rev', label = "Export reviews",style='color: #fff; background-color: #228b22; border-color: #134e13'),
-                              actionButton('checkOut', 'checkMeOut', style='color: #fff; background-color: #337ab7; border-color: #2e6da4', icon=icon('object-group'))
-                              
-                              
-                            ), br(),
+                              actionButton('checkOut', 'checkMeOut', style='color: #fff; background-color: #337ab7; border-color: #2e6da4', icon=icon('object-group'))),
+                            br(),
                             tabsetPanel(
                               tabPanel(strong('Original User Uploaded and Existing DEQ Stations Data'),
                                        br(),
@@ -289,17 +287,17 @@ server <- function(input, output, session){
   observe({
     req(reactive_objects$sites_Accepted)
     ## Update proxy map
-    map_proxy %>%
-      addCircleMarkers(data=reactive_objects$sites_Accepted,
-                       layerId = ~finalStationID,
-                       label=~finalStationID, group="Accepted Sites", 
-                       color='black', fillColor='green', radius = 5,
-                       fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
-      addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
-                       overlayGroups = c('Sites','Accepted Sites','Existing Stations','Assessment Regions'),
-                       options=layersControlOptions(collapsed=T),
-                       position='topleft') 
-  })
+    if(nrow(reactive_objects$sites_Accepted) > 0){
+      map_proxy %>%
+        addCircleMarkers(data=reactive_objects$sites_Accepted,
+                         layerId = ~finalStationID,
+                         label=~finalStationID, group="Accepted Sites", 
+                         color='black', fillColor='green', radius = 5,
+                         fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
+        addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                         overlayGroups = c('Sites','Accepted Sites','Existing Stations','Assessment Regions'),
+                         options=layersControlOptions(collapsed=T),
+                         position='topleft') }  })
     
   # Export reviews
   export_file=reactive(paste0('site-reviews-', input$reviewer,'-', Sys.Date(),'.xlsx'))
