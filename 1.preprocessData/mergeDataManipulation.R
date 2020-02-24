@@ -77,6 +77,11 @@ acceptAndMerge <- bind_rows(sites_Accepted, sites_Merged) %>%
   dplyr::select(UID, originalStationID, finalStationID, Latitude, Longitude) %>%
   right_join( # but first drop finalStationID and original lat/long
     dplyr::select(sitesData, -c(finalStationID, Latitude, Longitude)),
-    by = c('UID','originalStationID')) 
+    by = c('UID','originalStationID')) %>%
+  filter(!is.na(finalStationID))
   
+bind_rows(sites_Accepted, sites_Merged) %>%
+  dplyr::select(UID, originalStationID, finalStationID)
 
+distinct(dplyr::select(sitesData, -c(finalStationID, Latitude, Longitude)),UID, .keep_all = T) %>%
+  dplyr::select(UID, originalStationID)

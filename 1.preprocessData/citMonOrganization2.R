@@ -239,7 +239,8 @@ server <- function(input, output, session){
     reactive_objects$sitesData <- reactive_objects$sites_Adjusted %>%
       group_by(originalStationID, Latitude, Longitude) %>%
       mutate(UID = row_number()) %>% #group_indices()) %>% # group indiced works for df but no in shiny structure
-      dplyr::select(UID, everything()) })
+      dplyr::select(UID, everything()) %>%
+      ungroup()   })
   
   # Empty accepted sites 
   observeEvent(input$adjustInput, { reactive_objects$sites_Accepted <- reactive_objects$sites_Adjusted[0,]})

@@ -119,8 +119,9 @@ server <- function(input, output, session){
   observeEvent(input$adjustInput, {
     reactive_objects$sitesData <- reactive_objects$sites_Adjusted %>%
       group_by(originalStationID, Latitude, Longitude) %>%
-      mutate(UID = row_number()) %>% #group_indices()) %>%
-      dplyr::select(UID, everything()) })
+      mutate(UID = group_indices()) %>%#row_number()) %>% #group_indices()) %>%
+      dplyr::select(UID, everything()) %>%
+      ungroup()    })
   
 # for testing, keeps things smaller  
 #  output$updatedTable <- DT::renderDataTable({
@@ -462,23 +463,6 @@ server <- function(input, output, session){
                          options=layersControlOptions(collapsed=T),
                          position='topleft') }  })
   
-  
-  
-  
-  
-  # Export reviews
-  export_file=reactive(paste0('site-reviews-', input$reviewer,'-', Sys.Date(),'.xlsx'))
-  output$exp_rev <- downloadHandler(
-    filename=function(){export_file()},
-    content = function(file) {writexl::write_xlsx(
-      list(Accepted_and_Merged_Sites = as.data.frame(reactive_objects$sites_Accepted),
-           Rejected_Sites = as.data.frame(reactive_objects$sites_Rejected),
-           Missing_Data = as.data.frame(reactive_objects$notEnoughInfo),
-           inputData = as.data.frame(reactive_objects$sites_input)),
-      path = file, format_headers=F, col_names=T) }) 
-  
-
-  
   observeEvent(input$checkOut, {
     showModal(modalDialog(title = 'reactive check out', size = 'l',
                           p('reactive_objects$sitesUnique'),
@@ -496,9 +480,7 @@ server <- function(input, output, session){
     ))
   })
   
-  
-  
-  
+
   ## Clear all selected sites
   observeEvent(input$clear_all, {
     reactive_objects$namesToSmash=NULL
@@ -546,6 +528,65 @@ server <- function(input, output, session){
               rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '75px')) })
   
 
+### Data manipulation and export process ####
+  
+  Accepted_and_Merged_Sites_Data <- reactive({
+    req(reactive_objects$sites_Merged,reactive_objects$sites_Accepted)
+    bind_rows(reactive_objects$sites_Merged,reactive_objects$sites_Accepted) %>%
+      # avoid doubling all the data, just get the things we messed with
+      dplyr::select(UID, originalStationID, finalStationID, Latitude, Longitude) #%>%
+      right_join( # but first drop finalStationID and original lat/long
+        dplyr::select(reactive_objects$sitesData, -c(finalStationID, Latitude, Longitude)),
+        by = c('UID','originalStationID'))
+  })
+  
+  observeEvent(input$checkOut, {
+    showModal(modalDialog(title = 'reactive check out', size = 'l', easyClose = TRUE,
+                          p('data manipulation'),
+                          DT::renderDataTable({
+                            datatable(as.data.frame(Accepted_and_Merged_Sites_Data()), 
+                                      rownames=FALSE, options = list(scrollY = '400px', paging = FALSE, scrollX=TRUE))}),#, dom="t"))}),
+                          
+                          
+                          #p('data'),
+                          #DT::renderDataTable({
+                          #  datatable(as.data.frame(reactive_objects$sitesData), 
+                          #            rownames=FALSE, options = list(scrollY = '400px', paging = FALSE, scrollX=TRUE))}),#, dom="t"))}),
+                          
+                          
+                      #    p('reactive_objects$sitesUnique'),
+                      #    DT::renderDataTable({
+                      #      datatable(as.data.frame(reactive_objects$sitesUnique), 
+                      #                rownames=FALSE, options = list(scrollY = '400px', paging = FALSE, scrollX=TRUE))}),#, dom="t"))}),
+                      #    p('reactive_objects$sites_Merged'),
+                      #    DT::renderDataTable({
+                      #      datatable(as.data.frame(reactive_objects$sites_Merged),#reactive_objects$sitesUnique), rownames=FALSE, 
+                      #                rownames=FALSE, options = list(scrollY = '400px', paging = FALSE, scrollX=TRUE))}),#, dom="t"))})
+                      #    p('reactive_objects$sites_Accepted'),
+                      #    DT::renderDataTable({
+                      #      datatable(as.data.frame(reactive_objects$sites_Accepted),#reactive_objects$sitesUnique), rownames=FALSE, 
+                      #                rownames=FALSE, options = list(scrollY = '400px', paging = FALSE, scrollX=TRUE))}),#, dom="t"))})
+    ))
+  })
+  
+  # Export reviews
+  export_file=reactive(paste0('site-reviews-', input$reviewer,'-', Sys.Date(),'.xlsx'))
+  output$exp_rev <- downloadHandler(
+    filename=function(){export_file()},
+    content = function(file) {writexl::write_xlsx(
+      list(Accepted_and_Merged_Sites = as.data.frame(bind_rows(reactive_objects$sites_Accepted,
+                                                               reactive_objects$sites_Merged)),
+           Accepted_and_Merged_Sites_Data = as.data.frame(
+             bind_rows(reactive_objects$sites_Accepted,reactive_objects$sites_Merged) %>%
+               # avoid doubling all the data, just get the things we messed with
+               dplyr::select(UID, originalStationID, finalStationID, Latitude, Longitude) %>%
+               right_join( # but first drop finalStationID and original lat/long
+                 dplyr::select(reactive_objects$sitesData, -c(finalStationID, Latitude, Longitude)),
+                 by = c('UID','originalStationID'))),
+           Rejected_Sites = as.data.frame(reactive_objects$sites_Rejected),
+           Missing_Station_Info = as.data.frame(reactive_objects$notEnoughInfo),
+           inputData = as.data.frame(reactive_objects$sites_input)),
+      path = file, format_headers=F, col_names=T) }) 
   
   
 }
