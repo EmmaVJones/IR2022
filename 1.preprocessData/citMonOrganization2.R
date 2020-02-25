@@ -87,7 +87,7 @@ str(z)
 
 
 
-options(shiny.maxRequestSize=15*1024^2)
+options(shiny.maxRequestSize=10*1024^2)
   
 ui <- fluidPage(
     headerPanel(
@@ -115,6 +115,7 @@ ui <- fluidPage(
               ),
               bsCollapsePanel(list(icon('map-marked-alt'), 'Review Sites'), value = 3,
                               h4(strong("When the map has finished rendering you can click the 'Plot User Data' button to update the map with your sites")),
+                              br(),
                               fluidRow(actionButton('plotInputSites', icon=icon("map-pin"), label='Plot User Data On Map', style = "margin-top: 25px;")),
                               # Map
                               fluidRow(shinycssloaders::withSpinner(leaflet::leafletOutput("map", height="600px"),size=2, color="#0080b7"))
@@ -126,8 +127,9 @@ ui <- fluidPage(
                                 actionButton('accept', 'Accept', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('check-circle')),
                                 actionButton('reject', 'Reject', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('minus-circle')),
                                 actionButton('merge', 'Merge', style='color: #fff; background-color: #337ab7; border-color: #2e6da4', icon=icon('object-group')),
-                                downloadButton('exp_rev', label = "Export reviews",style='color: #fff; background-color: #228b22; border-color: #134e13'),
-                                actionButton('checkOut', 'checkMeOut', style='color: #fff; background-color: #337ab7; border-color: #2e6da4', icon=icon('object-group'))),
+                                downloadButton('exp_rev', label = "Export reviews",style='color: #fff; background-color: #228b22; border-color: #134e13')#,
+                                #actionButton('checkOut', 'checkMeOut', style='color: #fff; background-color: #337ab7; border-color: #2e6da4', icon=icon('object-group'))
+                                ),
                               br(),
                               tabsetPanel(
                                 tabPanel(strong('Original User Uploaded and Existing DEQ Stations Data'),
@@ -225,8 +227,6 @@ server <- function(input, output, session){
   observeEvent(input$adjustInput, {
     reactive_objects$sitesUnique <- filter(reactive_objects$sites_Adjusted, !is.na(originalStationID), !is.na(Latitude)|!is.na(Longitude))  %>% # drop sites without location information
       distinct(originalStationID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
-      #mutate(UID = row_number()) %>% #group_indices()) %>% # group indiced works for df but no in shiny structure
-      #dplyr::select(UID, everything()) %>%
       st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
                remove = F, # don't remove these lat/lon cols from df
                crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng
@@ -239,14 +239,7 @@ server <- function(input, output, session){
         # sf objects use rbind for quieter results than dplyr::bind_rows()
         rbind(dplyr::select(existingStations, FDT_STA_ID, Latitude, Longitude) %>%
                 dplyr::rename('uniqueID' = 'FDT_STA_ID')) )  })
-  # Data associated with each unique site combo (orginalStationID, Lat, Long) for joining back on download
-#  observeEvent(input$adjustInput, {
-#    reactive_objects$sitesData <- reactive_objects$sites_Adjusted %>%
-#      group_by(originalStationID, Latitude, Longitude) %>%
-#      mutate(UID = row_number()) %>% #group_indices()) %>% # group indiced works for df but no in shiny structure
-#      dplyr::select(UID, everything()) %>%
-#      ungroup()   })
-  
+
   # Empty accepted sites 
   observeEvent(input$adjustInput, { reactive_objects$sites_Accepted <- reactive_objects$sites_Adjusted[0,]})
   # Empty rejected sites 
@@ -272,10 +265,10 @@ server <- function(input, output, session){
                        label = ~FDT_STA_ID, layerId = ~FDT_STA_ID#, 
                        #popup = leafpop::popupTable(existingStations, zcol=c( "FDT_STA_ID", "STA_DESC", "Deq_Region", "Huc6_Vahu6","ID305B_1", "ID305B_2",  "ID305B_3"  ))
       ) %>% 
-#      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
-#                  fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
-#                  group="Assessment Regions",
-#                  popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG','VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
+      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
+                  fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
+                  group="Assessment Regions",
+                  popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG','VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
       inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
       inlmisc::AddSearchButton(group = "Existing Stations", zoom = 15,propertyName = "label",
                                textPlaceholder = "Search Existing Stations") %>%
@@ -297,8 +290,7 @@ server <- function(input, output, session){
                        layerId = ~originalStationID,
                        label=~originalStationID, group="Sites", 
                        color='yellow', fillColor='red', radius = 5,
-                       fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T#,popup=leafpop::popupTable(reactive_objects$sitesUnique, zcol=c('UID','originalStationID','finalStationID'))
-      ) %>%
+                       fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%#,popup=leafpop::popupTable(reactive_objects$sitesUnique, zcol=c('UID','originalStationID','finalStationID'))
       addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                        overlayGroups = c('Sites','Existing Stations','Assessment Regions'),
                        options=layersControlOptions(collapsed=T),
@@ -635,15 +627,47 @@ server <- function(input, output, session){
   
   ### Data manipulation and export process ####
   
-  Accepted_and_Merged_Sites_Data <- reactive({
-    req(reactive_objects$sites_Merged,reactive_objects$sites_Accepted)
-    bind_rows(reactive_objects$sites_Merged,reactive_objects$sites_Accepted) %>%
+  # Have to do merged and accepted separately in case one doesnt exist even though same manipulation steps
+  Accepted_Data <- reactive({
+    if(!is.null(reactive_objects$sites_Accepted)){
       # avoid doubling all the data, just get the things we messed with
-      dplyr::select(UID, originalStationID, finalStationID, Latitude, Longitude) %>%
-      right_join( # but first drop finalStationID and original lat/long
-        dplyr::select(reactive_objects$sites_Adjusted, -c(finalStationID, Latitude, Longitude)),
-        by = c('UID','originalStationID'))
-  })
+      dplyr::select(reactive_objects$sites_Accepted, UID, originalStationID, finalStationID, Latitude, Longitude) %>%
+        right_join( # but first drop finalStationID and original lat/long
+          dplyr::select(reactive_objects$sites_Adjusted, -c(finalStationID, Latitude, Longitude)),
+          by = c('UID','originalStationID')) %>%
+        filter(!is.na(finalStationID))
+    } else {
+      z <- reactive_objects$sites_Adjusted[1,]
+      z[,1:length(z)] <- NA
+      return(z)  }  })
+  
+  Merged_Data <- reactive({
+    if(!is.null(reactive_objects$sites_Merged)){
+      # avoid doubling all the data, just get the things we messed with
+      dplyr::select(reactive_objects$sites_Merged, UID, originalStationID, finalStationID, Latitude, Longitude) %>%
+        right_join( # but first drop finalStationID and original lat/long
+          dplyr::select(reactive_objects$sites_Adjusted, -c(finalStationID, Latitude, Longitude)),
+          by = c('UID','originalStationID')) %>%
+        filter(!is.na(finalStationID))
+    } else {
+      z <- reactive_objects$sites_Adjusted[1,]
+      z[,1:length(z)] <- NA
+      return(z)  } })
+  
+  Rejected_Data <- reactive({
+    if(!is.null(reactive_objects$sites_Rejected)){
+      mutate(reactive_objects$sites_Rejected, type = 'Reject') %>% # add a rejection marker since the finalID isnt changed so you can find it later
+        dplyr::select(UID, originalStationID, finalStationID, Latitude, Longitude, type) %>%
+        right_join( # but first drop finalStationID and original lat/long
+          dplyr::select(reactive_objects$sites_Adjusted, -c(finalStationID, Latitude, Longitude)),
+          by = c('UID','originalStationID')) %>%
+        filter(!is.na(type)) %>% # filter by rejection
+        dplyr::select(-type) # drop marker from user
+    } else {
+      z <- reactive_objects$sites_Adjusted[1,]
+      z[,1:length(z)] <- NA
+      return(z)  }  })
+  
   
   
   # Export reviews
@@ -651,9 +675,13 @@ server <- function(input, output, session){
   output$exp_rev <- downloadHandler(
     filename=function(){export_file()},
     content = function(file) {writexl::write_xlsx(
-      list(Accepted_and_Merged_Sites = as.data.frame(reactive_objects$sites_Accepted),
+      list(Accepted_and_Merged_Sites = as.data.frame(bind_rows(reactive_objects$sites_Accepted,
+                                                               reactive_objects$sites_Merged)),
+           Accepted_and_Merged_Sites_Data = as.data.frame(
+             bind_rows(Accepted_Data(), Merged_Data())),
            Rejected_Sites = as.data.frame(reactive_objects$sites_Rejected),
-           Missing_Data = as.data.frame(reactive_objects$notEnoughInfo),
+           Rejected_Sites_Data = as.data.frame(bind_rows(Rejected_Data())),
+           Missing_Station_Info = as.data.frame(reactive_objects$notEnoughInfo),
            inputData = as.data.frame(reactive_objects$sites_input)),
       path = file, format_headers=F, col_names=T) }) 
   

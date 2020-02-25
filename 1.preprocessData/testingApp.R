@@ -14,6 +14,7 @@ ui <- fluidPage(
             ),
             bsCollapsePanel(list(icon('map-marked-alt'), 'Review Sites'), value = 3,
                             fluidRow(actionButton('plotInputSites', icon=icon("map-pin"), label='Plot User Data On Map', style = "margin-top: 25px;")),
+                            br(),
                             # Map
                             fluidRow(shinycssloaders::withSpinner(leaflet::leafletOutput("map", height="600px"),size=2, color="#0080b7"))
             ),
@@ -104,8 +105,6 @@ server <- function(input, output, session){
   observeEvent(input$adjustInput, {
     reactive_objects$sitesUnique <- filter(reactive_objects$sites_Adjusted, !is.na(originalStationID), !is.na(Latitude)|!is.na(Longitude))  %>% # drop sites without location information
       distinct(originalStationID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
-      #mutate(UID = row_number()) %>% #group_indices()) %>%
-      #dplyr::select(UID, everything()) %>%
       st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
                remove = F, # don't remove these lat/lon cols from df
                crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng
@@ -468,24 +467,6 @@ server <- function(input, output, session){
                          options=layersControlOptions(collapsed=T),
                          position='topleft') }  })
   
-  observeEvent(input$checkOut, {
-    showModal(modalDialog(title = 'reactive check out', size = 'l',
-                          p('reactive_objects$sitesUnique'),
-                          DT::renderDataTable({
-                            datatable(as.data.frame(reactive_objects$sitesUnique), 
-                                      rownames=FALSE, options = list(scrollY = '400px', paging = FALSE, scrollX=TRUE))}),#, dom="t"))}),
-                          p('reactive_objects$sites_Merged'),
-                          DT::renderDataTable({
-                            datatable(as.data.frame(reactive_objects$sites_Merged),#reactive_objects$sitesUnique), rownames=FALSE, 
-                                      rownames=FALSE, options = list(scrollY = '400px', paging = FALSE, scrollX=TRUE))}),#, dom="t"))})
-                          p('reactive_objects$sites_Accepted'),
-                          DT::renderDataTable({
-                            datatable(as.data.frame(reactive_objects$sites_Accepted),#reactive_objects$sitesUnique), rownames=FALSE, 
-                                      rownames=FALSE, options = list(scrollY = '400px', paging = FALSE, scrollX=TRUE))}),#, dom="t"))})
-    ))
-  })
-  
-
   ## Clear all selected sites
   observeEvent(input$clear_all, {
     reactive_objects$namesToSmash=NULL
@@ -569,10 +550,7 @@ server <- function(input, output, session){
     } else {
       z <- reactive_objects$sites_Adjusted[1,]
       z[,1:length(z)] <- NA
-      return(z)
-    }
-    
-  })
+      return(z)  }  })
   
   Merged_Data <- reactive({
     if(!is.null(reactive_objects$sites_Merged)){
@@ -585,9 +563,7 @@ server <- function(input, output, session){
     } else {
       z <- reactive_objects$sites_Adjusted[1,]
       z[,1:length(z)] <- NA
-      return(z)
-    }
-  })
+      return(z)  } })
   
   Rejected_Data <- reactive({
     if(!is.null(reactive_objects$sites_Rejected)){
@@ -601,9 +577,7 @@ server <- function(input, output, session){
     } else {
       z <- reactive_objects$sites_Adjusted[1,]
       z[,1:length(z)] <- NA
-      return(z)
-    }
-  })
+      return(z)  }  })
   
 
   
