@@ -2,19 +2,26 @@ shinyApp(ui, server)
 
 
 
-sites_Adjusted <- cit
+sites_Adjusted <- cit %>%
+  group_by(originalStationID, Latitude, Longitude) %>%
+  mutate(UID = group_indices()) %>%#row_number()) %>%
+  dplyr::select(UID, everything()) %>%
+  ungroup()
+
+notEnoughInfo <- filter(sites_Adjusted, is.na(originalStationID), is.na(Latitude)|is.na(Longitude)) 
+
 sitesUnique <- filter(sites_Adjusted, !is.na(originalStationID), !is.na(Latitude)|!is.na(Longitude))  %>% # drop sites without location information
   distinct(originalStationID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
-  mutate(UID = row_number()) %>%
-  dplyr::select(UID, everything()) %>%
+  #mutate(UID = row_number()) %>%
+  #dplyr::select(UID, everything()) %>%
   st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
            remove = F, # don't remove these lat/lon cols from df
            crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng
-sitesData <- sites_Adjusted %>%
-  group_by(originalStationID, Latitude, Longitude) %>%
-  mutate(UID = group_indices()) %>%
-  dplyr::select(UID, everything()) %>% 
-  ungroup()
+#sitesData <- sites_Adjusted %>%
+#  group_by(originalStationID, Latitude, Longitude) %>%
+#  mutate(UID = group_indices()) %>%
+#  dplyr::select(UID, everything()) %>% 
+#  ungroup()
 
 
 allSites <- suppressWarnings(
@@ -71,17 +78,40 @@ sites_Accepted <- filter(sitesUnique, originalStationID %in% '1.1') %>%
          ReviewComment = 'accept as is')#input$acceptComment)
 
 
+sites_Rejected <-  filter(sitesUnique, originalStationID %in% '1.2') %>% 
+  st_drop_geometry() %>%
+  mutate(#finalStationID = originalStationID,
+         Reviewer = 'evj',#reactive_objects$reviewer, 
+         ReviewComment = 'reject', #input$acceptComment)
+         type = 'Reject') # add a rejection marker since the finalID isnt changed so you can find it later
+
 # make one clean dataset for data reorganization
 acceptAndMerge <- bind_rows(sites_Accepted, sites_Merged) %>%
   # avoid doubling all the data, just get the things we messed with
   dplyr::select(UID, originalStationID, finalStationID, Latitude, Longitude) %>%
   right_join( # but first drop finalStationID and original lat/long
-    dplyr::select(sitesData, -c(finalStationID, Latitude, Longitude)),
+    dplyr::select(sites_Adjusted, -c(finalStationID, Latitude, Longitude)),
     by = c('UID','originalStationID')) %>%
   filter(!is.na(finalStationID))
   
+
+
+
+sites_Rejected_data <- sites_Rejected %>%
+  dplyr::select(UID, originalStationID, finalStationID, Latitude, Longitude, type) %>%
+  right_join( # but first drop finalStationID and original lat/long
+    dplyr::select(sites_Adjusted, -c(finalStationID, Latitude, Longitude)),
+    by = c('UID','originalStationID')) %>%
+  filter(!is.na(type)) %>% # filter by rejection
+  dplyr::select(-type) # drop marker from user
+
+
+
+
 bind_rows(sites_Accepted, sites_Merged) %>%
   dplyr::select(UID, originalStationID, finalStationID)
 
 distinct(dplyr::select(sitesData, -c(finalStationID, Latitude, Longitude)),UID, .keep_all = T) %>%
   dplyr::select(UID, originalStationID)
+
+dplyr::select(sitesUnique, UID, originalStationID)

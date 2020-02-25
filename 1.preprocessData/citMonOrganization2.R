@@ -205,23 +205,28 @@ server <- function(input, output, session){
     selectizeInput('IDfield3_UI', label = 'Choose Longitude Field', 
                    choices = names(reactive_objects$sites_input), multiple = FALSE)  })
   
-  # Renamed columns into reproducible format for app
+  # Renamed columns into reproducible format for app, this is also the original raw data holder
   observeEvent(input$adjustInput, {
     reactive_objects$sites_Adjusted = reassignColumns(reactive_objects$sites_input, 
                                                       get(input$IDfield1_UI),
                                                       get(input$IDfield2_UI),
-                                                      get(input$IDfield3_UI) ) })
+                                                      get(input$IDfield3_UI) ) %>%
+      # add UID now so it trickles through continuously to all other variables
+      group_by(originalStationID, Latitude, Longitude) %>%
+      mutate(UID = group_indices()) %>%#row_number()) %>%
+      dplyr::select(UID, everything()) %>%
+      ungroup()})
+  
   # Sites without spatial data to be given back to user as separate sheet upon download
   observeEvent(input$adjustInput, {
     reactive_objects$notEnoughInfo <- filter(reactive_objects$sites_Adjusted, is.na(originalStationID), is.na(Latitude)|is.na(Longitude)) })# separate sites without location information or identifier)
-  
   
   # Unique sites spatial dataset for map and table
   observeEvent(input$adjustInput, {
     reactive_objects$sitesUnique <- filter(reactive_objects$sites_Adjusted, !is.na(originalStationID), !is.na(Latitude)|!is.na(Longitude))  %>% # drop sites without location information
       distinct(originalStationID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
-      mutate(UID = row_number()) %>% #group_indices()) %>% # group indiced works for df but no in shiny structure
-      dplyr::select(UID, everything()) %>%
+      #mutate(UID = row_number()) %>% #group_indices()) %>% # group indiced works for df but no in shiny structure
+      #dplyr::select(UID, everything()) %>%
       st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
                remove = F, # don't remove these lat/lon cols from df
                crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng
@@ -235,12 +240,12 @@ server <- function(input, output, session){
         rbind(dplyr::select(existingStations, FDT_STA_ID, Latitude, Longitude) %>%
                 dplyr::rename('uniqueID' = 'FDT_STA_ID')) )  })
   # Data associated with each unique site combo (orginalStationID, Lat, Long) for joining back on download
-  observeEvent(input$adjustInput, {
-    reactive_objects$sitesData <- reactive_objects$sites_Adjusted %>%
-      group_by(originalStationID, Latitude, Longitude) %>%
-      mutate(UID = row_number()) %>% #group_indices()) %>% # group indiced works for df but no in shiny structure
-      dplyr::select(UID, everything()) %>%
-      ungroup()   })
+#  observeEvent(input$adjustInput, {
+#    reactive_objects$sitesData <- reactive_objects$sites_Adjusted %>%
+#      group_by(originalStationID, Latitude, Longitude) %>%
+#      mutate(UID = row_number()) %>% #group_indices()) %>% # group indiced works for df but no in shiny structure
+#      dplyr::select(UID, everything()) %>%
+#      ungroup()   })
   
   # Empty accepted sites 
   observeEvent(input$adjustInput, { reactive_objects$sites_Accepted <- reactive_objects$sites_Adjusted[0,]})
@@ -520,7 +525,7 @@ server <- function(input, output, session){
                                        style='color: #fff; background-color: #337ab7; border-color: #2e6da4;font-size:120%', 
                                        icon=icon('window-close'))    ))  })
   
-  # Do something with Accepted Site(s)
+  # Do something with Merged Site(s)
   observeEvent(input$merge_cancel, {removeModal()})
   observeEvent(input$merge_ok, {
     # Get name and location information from all site data
@@ -590,17 +595,6 @@ server <- function(input, output, session){
   })
   
   
-  # Export reviews
-  export_file=reactive(paste0('site-reviews-', input$reviewer,'-', Sys.Date(),'.xlsx'))
-  output$exp_rev <- downloadHandler(
-    filename=function(){export_file()},
-    content = function(file) {writexl::write_xlsx(
-      list(Accepted_and_Merged_Sites = as.data.frame(reactive_objects$sites_Accepted),
-           Rejected_Sites = as.data.frame(reactive_objects$sites_Rejected),
-           Missing_Data = as.data.frame(reactive_objects$notEnoughInfo),
-           inputData = as.data.frame(reactive_objects$sites_input)),
-      path = file, format_headers=F, col_names=T) }) 
-  
   
   #### Review Selected Sites ####
   
@@ -639,12 +633,29 @@ server <- function(input, output, session){
               rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '75px')) })
   
   
-  ### Review data structure  ###  
+  ### Data manipulation and export process ####
   
-  #output$test <- renderText({
-  #  print(glimpse(reactive_objects$allSites))
-  #str(reactive_objects$sitesUnique)
-  #})
+  Accepted_and_Merged_Sites_Data <- reactive({
+    req(reactive_objects$sites_Merged,reactive_objects$sites_Accepted)
+    bind_rows(reactive_objects$sites_Merged,reactive_objects$sites_Accepted) %>%
+      # avoid doubling all the data, just get the things we messed with
+      dplyr::select(UID, originalStationID, finalStationID, Latitude, Longitude) %>%
+      right_join( # but first drop finalStationID and original lat/long
+        dplyr::select(reactive_objects$sites_Adjusted, -c(finalStationID, Latitude, Longitude)),
+        by = c('UID','originalStationID'))
+  })
+  
+  
+  # Export reviews
+  export_file=reactive(paste0('site-reviews-', input$reviewer,'-', Sys.Date(),'.xlsx'))
+  output$exp_rev <- downloadHandler(
+    filename=function(){export_file()},
+    content = function(file) {writexl::write_xlsx(
+      list(Accepted_and_Merged_Sites = as.data.frame(reactive_objects$sites_Accepted),
+           Rejected_Sites = as.data.frame(reactive_objects$sites_Rejected),
+           Missing_Data = as.data.frame(reactive_objects$notEnoughInfo),
+           inputData = as.data.frame(reactive_objects$sites_input)),
+      path = file, format_headers=F, col_names=T) }) 
   
 }
 
