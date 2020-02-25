@@ -279,10 +279,10 @@ server <- function(input, output, session){
   # Accept selected site(s) Modal
   observeEvent(input$accept, {
     showModal(modalDialog(title = 'Confirm Site Acceptance', size = 'l',
-                          DT::renderDataTable({
-                            datatable(userEnteredStationDataTable(),
-                                          selection='none', rownames=FALSE, 
-                                          options = list(scrollY = '125px', paging = FALSE, scrollX=TRUE, dom="t"))}),
+                          #datatable(userEnteredStationDataTable(), 
+                          #          selection='none', rownames=FALSE, 
+                          #          options = list(scrollY = '125px', paging = FALSE, scrollX=TRUE, dom="t"))}),
+                          dataTableOutput('acceptTable_editable'),
                           br(), br(),
                           textInput('acceptComment', 'Additional Comments and Documentation'),
                           actionButton('accept_ok', 'Accept', 
@@ -291,6 +291,27 @@ server <- function(input, output, session){
                           actionButton('accept_cancel', 'Cancel', 
                                        style='color: #fff; background-color: #337ab7; border-color: #2e6da4;font-size:120%', 
                                        icon=icon('window-close'))    ))  })
+  forAcceptModalTable <- reactive({
+    req(userEnteredStationDataTable())
+    userEnteredStationDataTable() %>% st_drop_geometry() %>% as.data.frame()})
+  
+  # Accept Modal table
+  output$acceptTable_editable <- DT::renderDataTable({
+    datatable(forAcceptModalTable(), 
+              selection='none', rownames=FALSE, editable = T, 
+              options = list(scrollY = '125px', paging = FALSE, scrollX=TRUE, dom="t"))})
+  
+  # Observe User changes to modal table 
+  observeEvent(input$acceptTable_editable_cell_edit, {
+    #dat = userEnteredStationDataTable() %>% st_drop_geometry() %>% as.data.frame()
+    info = input$acceptTable_editable_cell_edit
+    str(info)
+    i = info$row
+    j = info$col + 1  # column index offset by 1
+    v = info$value
+    forAcceptModalTable()[i, j] <<- DT::coerceValue(v, forAcceptModalTable()[i, j])
+    replaceData(dataTableProxy('acceptTable_editable_cell_edit'), forAcceptModalTable(), resetPaging = FALSE, rownames = FALSE)
+  })
   
   # Do something with Accepted Site(s)
   observeEvent(input$accept_cancel, {removeModal()})
@@ -533,11 +554,7 @@ server <- function(input, output, session){
                             datatable(as.data.frame(rbind(Accepted_Data(), Merged_Data())), 
                                       rownames=FALSE, options = list(scrollY = '400px', paging = FALSE, scrollX=TRUE))})
     ))})
-  
-  
-  
-  
-  
+
   # Have to do merged and accepted separately in case one doesnt exist even though same manipulation steps
   Accepted_Data <- reactive({
     if(!is.null(reactive_objects$sites_Accepted)){
@@ -602,48 +619,3 @@ server <- function(input, output, session){
 
 shinyApp(ui, server)
 
-
-
-
-#print(rejected_Sites())
-
-# Rejected sites is being a pain on export, fails export without something
-#rejected_Sites <- reactive({
-#  req(input$adjustInput)
-#  if(!is.null(reactive_objects$sites_Rejected)){
-#    as.data.frame(reactive_objects$sites_Rejected)
-#  } else {
-#    z <- reactive_objects$sites_Adjusted[1,]
-#    z[,1:length(z)] <- NA
-#    return(z)
-#  }
-#})
-
-#observeEvent(input$checkOut, {
-#  showModal(modalDialog(title = 'reactive check out', size = 'l', easyClose = TRUE,
-#                        p('data manipulation'),
-#                        DT::renderDataTable({
-#                          datatable(as.data.frame(Accepted_and_Merged_Sites_Data()), 
-#                                    rownames=FALSE, options = list(scrollY = '400px', paging = FALSE, scrollX=TRUE))}),#, dom="t"))}),
-                        
-                        
-                        #p('data'),
-                        #DT::renderDataTable({
-                        #  datatable(as.data.frame(reactive_objects$sitesData), 
-                        #            rownames=FALSE, options = list(scrollY = '400px', paging = FALSE, scrollX=TRUE))}),#, dom="t"))}),
-                        
-                        
-                        #    p('reactive_objects$sitesUnique'),
-                        #    DT::renderDataTable({
-                        #      datatable(as.data.frame(reactive_objects$sitesUnique), 
-                        #                rownames=FALSE, options = list(scrollY = '400px', paging = FALSE, scrollX=TRUE))}),#, dom="t"))}),
-                        #    p('reactive_objects$sites_Merged'),
-                        #    DT::renderDataTable({
-                        #      datatable(as.data.frame(reactive_objects$sites_Merged),#reactive_objects$sitesUnique), rownames=FALSE, 
-                        #                rownames=FALSE, options = list(scrollY = '400px', paging = FALSE, scrollX=TRUE))}),#, dom="t"))})
-                        #    p('reactive_objects$sites_Accepted'),
-                        #    DT::renderDataTable({
-                        #      datatable(as.data.frame(reactive_objects$sites_Accepted),#reactive_objects$sitesUnique), rownames=FALSE, 
-                        #                rownames=FALSE, options = list(scrollY = '400px', paging = FALSE, scrollX=TRUE))}),#, dom="t"))})
-#  ))
-#})
