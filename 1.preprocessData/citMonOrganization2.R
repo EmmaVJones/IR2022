@@ -47,6 +47,9 @@ reassignColumns <- function(df, stationName, latName, longName){
 #write.csv(cit, 'cit_FC.csv', row.names = F)
 
 cit <- read_csv('cit_FC.csv')
+
+cit <- reassignColumns(read_csv('2020IR Citizen Ambient4.14.19_10k.csv'), Group_Station_ID, Latitude, Longitude)
+
 # for testing to make sure different column times get fixed
 #cit$Longitude <- as.character(cit$Longitude)
 #cit$Latitude <- as.character(cit$Latitude)
@@ -380,13 +383,16 @@ server <- function(input, output, session){
   
   # Update map marker highlights
   observeEvent(reactive_objects$namesToSmash, ignoreNULL=F, {
-    req(reactive_objects$namesToSmash)
-    map_proxy %>%
-      clearGroup(group='highlight') %>%
-      addCircleMarkers(data=filter(reactive_objects$allSites, uniqueID %in% reactive_objects$namesToSmash),
-                       group='highlight', #options = pathOptions(pane = "highlight"), 
-                       radius = 20, 
-                       color='chartreuse', opacity = 0.75, fillOpacity = 0.4)  })
+    if(!is.null(reactive_objects$namesToSmash)){
+      map_proxy %>%
+        clearGroup(group='highlight') %>%
+        addCircleMarkers(data=filter(reactive_objects$allSites, uniqueID %in% reactive_objects$namesToSmash),
+                         group='highlight', 
+                         radius = 20, 
+                         color='chartreuse', opacity = 0.75, fillOpacity = 0.4)  
+    } else {
+      map_proxy %>%
+        clearGroup(group='highlight') }  })
   
   
   # Accept selected site(s) Modal

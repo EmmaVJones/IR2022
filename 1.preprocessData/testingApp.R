@@ -140,7 +140,8 @@ server <- function(input, output, session){
   #session$onFlushed(once = T, function() {
   output$map <- renderLeaflet({
 
-    CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE) %>%
+    CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE, 
+                 options= leafletOptions(zoomControl = TRUE,minZoom = 3, maxZoom = 20)) %>%
       setView(-78, 37.5, zoom=6) %>%
       addCircleMarkers(data = existingStations, color='orange', fillColor='black', radius = 3,
                        fillOpacity = 0.5,opacity=0.5,weight = 1,stroke=T,group="Existing Stations",
@@ -268,21 +269,31 @@ server <- function(input, output, session){
   
   # Update map marker highlights
   observeEvent(reactive_objects$namesToSmash, ignoreNULL=F, {
-    req(reactive_objects$namesToSmash)
-    map_proxy %>%
-      clearGroup(group='highlight') %>%
-      addCircleMarkers(data=filter(reactive_objects$allSites, uniqueID %in% reactive_objects$namesToSmash),
-                       group='highlight', #options = pathOptions(pane = "highlight"), 
-                       radius = 20, 
-                       color='chartreuse', opacity = 0.75, fillOpacity = 0.4)  })
+    #observe({
+    # req(reactive_objects$namesToSmash)
+    
+    print(reactive_objects$namesToSmash)
+    if(!is.null(reactive_objects$namesToSmash)){
+      map_proxy %>%
+        clearGroup(group='highlight') %>%
+        addCircleMarkers(data=filter(reactive_objects$allSites, uniqueID %in% reactive_objects$namesToSmash),
+                         group='highlight', #options = pathOptions(pane = "highlight"), 
+                         radius = 20, 
+                         color='chartreuse', opacity = 0.75, fillOpacity = 0.4)  
+    } else {
+      map_proxy %>%
+        clearGroup(group='highlight') 
+    }
+  })
   
   # Accept selected site(s) Modal
   observeEvent(input$accept, {
     showModal(modalDialog(title = 'Confirm Site Acceptance', size = 'l',
-                          #datatable(userEnteredStationDataTable(), 
-                          #          selection='none', rownames=FALSE, 
-                          #          options = list(scrollY = '125px', paging = FALSE, scrollX=TRUE, dom="t"))}),
-                          dataTableOutput('acceptTable_editable'),
+                          DT::renderDataTable({
+                            datatable(userEnteredStationDataTable(), 
+                                    selection='none', rownames=FALSE, 
+                                    options = list(scrollY = '125px', paging = FALSE, scrollX=TRUE, dom="t"))}),
+#                          dataTableOutput('acceptTable_editable'),
                           br(), br(),
                           textInput('acceptComment', 'Additional Comments and Documentation'),
                           actionButton('accept_ok', 'Accept', 
@@ -291,27 +302,27 @@ server <- function(input, output, session){
                           actionButton('accept_cancel', 'Cancel', 
                                        style='color: #fff; background-color: #337ab7; border-color: #2e6da4;font-size:120%', 
                                        icon=icon('window-close'))    ))  })
-  forAcceptModalTable <- reactive({
-    req(userEnteredStationDataTable())
-    userEnteredStationDataTable() %>% st_drop_geometry() %>% as.data.frame()})
+#  forAcceptModalTable <- reactive({
+#    req(userEnteredStationDataTable())
+#    userEnteredStationDataTable() %>% st_drop_geometry() %>% as.data.frame()})
   
   # Accept Modal table
-  output$acceptTable_editable <- DT::renderDataTable({
-    datatable(forAcceptModalTable(), 
-              selection='none', rownames=FALSE, editable = T, 
-              options = list(scrollY = '125px', paging = FALSE, scrollX=TRUE, dom="t"))})
+#  output$acceptTable_editable <- DT::renderDataTable({
+#    datatable(forAcceptModalTable(), 
+#              selection='none', rownames=FALSE, editable = T, 
+#              options = list(scrollY = '125px', paging = FALSE, scrollX=TRUE, dom="t"))})
   
-  # Observe User changes to modal table 
-  observeEvent(input$acceptTable_editable_cell_edit, {
-    #dat = userEnteredStationDataTable() %>% st_drop_geometry() %>% as.data.frame()
-    info = input$acceptTable_editable_cell_edit
-    str(info)
-    i = info$row
-    j = info$col + 1  # column index offset by 1
-    v = info$value
-    forAcceptModalTable()[i, j] <<- DT::coerceValue(v, forAcceptModalTable()[i, j])
-    replaceData(dataTableProxy('acceptTable_editable_cell_edit'), forAcceptModalTable(), resetPaging = FALSE, rownames = FALSE)
-  })
+#  # Observe User changes to modal table 
+#  observeEvent(input$acceptTable_editable_cell_edit, {
+#    #dat = userEnteredStationDataTable() %>% st_drop_geometry() %>% as.data.frame()
+#    info = input$acceptTable_editable_cell_edit
+#    str(info)
+#    i = info$row
+#    j = info$col + 1  # column index offset by 1
+#    v = info$value
+#    forAcceptModalTable()[i, j] <<- DT::coerceValue(v, forAcceptModalTable()[i, j])
+#    replaceData(dataTableProxy('acceptTable_editable_cell_edit'), forAcceptModalTable(), resetPaging = FALSE, rownames = FALSE)
+#  })
   
   # Do something with Accepted Site(s)
   observeEvent(input$accept_cancel, {removeModal()})
@@ -329,6 +340,9 @@ server <- function(input, output, session){
 
     ## Remove Site from "to do' list
     reactive_objects$sitesUnique <- filter(reactive_objects$sitesUnique, !(originalStationID %in% reactive_objects$sites_Accepted))
+    
+    # Empty map selection
+    reactive_objects$namesToSmash <- NULL
     
     ### Clear modal
     removeModal()
@@ -385,6 +399,9 @@ server <- function(input, output, session){
     ## Remove Site from "to do' list
     reactive_objects$sitesUnique <- filter(reactive_objects$sitesUnique, !(originalStationID %in% reactive_objects$sites_Rejected))
     
+    # Empty map selection
+    reactive_objects$namesToSmash <- NULL
+    
     ### Clear modal
     removeModal()
   })
@@ -404,7 +421,7 @@ server <- function(input, output, session){
                          overlayGroups = c('Sites','Accepted Sites','Rejected Sites',
                                            'Merged Sites','Existing Stations','Assessment Regions'),
                          options=layersControlOptions(collapsed=T),
-                         position='topleft') }  })
+                         position='topleft')  }  })
     
   
   
@@ -458,6 +475,9 @@ server <- function(input, output, session){
     
     ## Remove Site from "to do' list
     reactive_objects$sitesUnique <- filter(reactive_objects$sitesUnique, !(originalStationID %in% dropMe))
+    
+    # Empty map selection
+    reactive_objects$namesToSmash <- NULL
     
 
     ### Clear modal

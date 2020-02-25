@@ -1,6 +1,12 @@
 library(shiny)
 library(DT)
 
+# original example 
+#https://github.com/rstudio/DT/pull/480
+
+# reactive values example
+# https://github.com/hinkelman/Shiny-Scorekeeper/blob/master/server.R
+
 
 sites_Accepted <- filter(sitesUnique, originalStationID %in% '1.1') 
 
