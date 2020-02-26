@@ -115,3 +115,48 @@ distinct(dplyr::select(sitesData, -c(finalStationID, Latitude, Longitude)),UID, 
   dplyr::select(UID, originalStationID)
 
 dplyr::select(sitesUnique, UID, originalStationID)
+
+
+
+
+
+
+
+### work on replacing certain columns from chosen site sites to merged sites and data
+
+
+# Give optionsas a renderUI selectInput
+finalName <- unique(namesToSmash)[3] # This could include DEQ names???
+finalLat <- filter(allSites, uniqueID %in% finalName) %>%
+  st_drop_geometry() %>%
+  dplyr::select(Latitude) %>% 
+  pull()
+finalLong <- filter(allSites, uniqueID %in% finalName) %>%
+  st_drop_geometry() %>%
+  dplyr::select(Longitude) %>% 
+  pull()
+
+sites_Merged <- filter(sitesUnique, originalStationID %in% siteid) %>% 
+  st_drop_geometry() %>%
+  mutate(finalStationID = finalName,
+         Reviewer = 'evj',#reactive_objects$reviewer, 
+         ReviewComment = 'merged', #input$acceptComment)
+         # merge correct lat/long
+         Latitude = finalLat,
+         Longitude = finalLong)
+
+# find common columns between existing stations and user input
+matchingColumns <- names(existingStations)[names(existingStations) %in% names(sites_Merged)]
+# Remove columns that I need from that list to avoid accidentally overwriting
+columnsToMerge <- matchingColumns[!(matchingColumns %in% c('Group_Station_ID','Latitude','Longitude'))] # input$IDfield1_UI, input$IDfield2_UI, input$IDfield3_UI
+
+z <- bind_rows(sitesUnique %>% st_drop_geometry(), existingStations %>% st_drop_geometry()) 
+
+z <- list(sitesUnique %>% st_drop_geometry(), existingStations %>% st_drop_geometry()) %>%
+  dplyr::bind_rows() %>% 
+  readr::type_convert()
+
+z <- vec_rbind(sitesUnique %>% st_drop_geometry(), existingStations %>% st_drop_geometry(), .ptype = sitesUnique %>% st_drop_geometry()) %>%
+  as.tibble()
+
+

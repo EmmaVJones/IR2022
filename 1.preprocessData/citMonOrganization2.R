@@ -8,7 +8,7 @@ library(leaflet)
 library(inlmisc)
 library(DT)
 
-assessmentRegions <- st_read('GIS/AssessmentRegions_VA84_basins.shp')
+assessmentRegions <- st_read('GIS/AssessmentRegions_simple.shp')
 
 # Make existing stations layer
 existingStations <- read_csv('C:/HardDriveBackup/R/GitHub/Rivers-StreamsAssessment/R&S_app_v4/processedStationData/RegionalResultsRiverine_BRROCitMonNonAgencyFINAL.csv') %>%
@@ -46,35 +46,10 @@ reassignColumns <- function(df, stationName, latName, longName){
 
 #write.csv(cit, 'cit_FC.csv', row.names = F)
 
-cit <- read_csv('cit_FC.csv')
+cit <- read_csv('cit_FC.csv') %>%
+  reassignColumns( Group_Station_ID, Latitude, Longitude)
 
 cit <- reassignColumns(read_csv('2020IR Citizen Ambient4.14.19_10k.csv'), Group_Station_ID, Latitude, Longitude)
-
-# for testing to make sure different column times get fixed
-#cit$Longitude <- as.character(cit$Longitude)
-#cit$Latitude <- as.character(cit$Latitude)
-
-
-cit <- reassignColumns(cit, Group_Station_ID, Latitude, Longitude)
-
-notEnoughInfo <- filter(cit, is.na(originalStationID), is.na(Latitude)|is.na(Longitude)) # separate sites without location information or identifier
-
-citUnique <- filter(cit, !is.na(originalStationID), !is.na(Latitude)|!is.na(Longitude))  %>% # drop sites without location information
-  distinct( originalStationID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
-  mutate(UID = group_indices()) %>% # group indiced works for df but not in shiny structure, use row_number() instead
-  dplyr::select(UID, everything()) %>%
-  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
-           remove = F, # don't remove these lat/lon cols from df
-           crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
-
-
-citData <- cit %>%
-  group_by(originalStationID, Latitude, Longitude) %>%
-  mutate(UID = group_indices()) %>% # use row_number() in shiny structure
-  dplyr::select(UID, everything())
-
-test <- full_join(citUnique, citData, by = 'UID')
-
 
 
 ### For testing within distance (150m = ~500ft)

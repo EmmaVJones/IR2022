@@ -8,7 +8,15 @@ library(leaflet)
 library(inlmisc)
 library(DT)
 
-assessmentRegions <- st_read('GIS/AssessmentRegions_VA84_basins.shp')
+#assessmentRegions <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
+  #group_by(ASSESS_REG) %>%
+  #mutate(fake = row_number()) %>%
+  #summarize(nVAHUC6 = sum(fake)) %>%
+  #dplyr::select(-nVAHUC6)
+
+#st_write(assessmentRegions1, dsn = 'GIS/AssessmentRegions_simple.shp', layer  = 'GIS/AssessmentRegions_simple.shp', driver =  "ESRI Shapefile")
+
+assessmentRegions <- st_read( 'GIS/AssessmentRegions_simple.shp')
 
 # Make existing stations layer
 existingStations <- read_csv('C:/HardDriveBackup/R/GitHub/Rivers-StreamsAssessment/R&S_app_v4/processedStationData/RegionalResultsRiverine_BRROCitMonNonAgencyFINAL.csv') %>%
@@ -67,8 +75,8 @@ ui <- fluidPage(
             ),
             bsCollapsePanel(list(icon('map-marked-alt'), 'Review Sites'), value = 3,
                             h4(strong("When the map has finished rendering you can click the 'Plot User Data' button to update the map with your sites")),
-                            br(),
                             fluidRow(actionButton('plotInputSites', icon=icon("map-pin"), label='Plot User Data On Map', style = "margin-top: 25px;")),
+                            br(),
                             # Map
                             fluidRow(shinycssloaders::withSpinner(leaflet::leafletOutput("map", height="600px"),size=2, color="#0080b7"))
             ),
@@ -221,7 +229,7 @@ server <- function(input, output, session){
       addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
                   fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
                   group="Assessment Regions",
-                  popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG','VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
+                  popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG'))) %>% hideGroup('Assessment Regions') %>% #,'VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
       inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
       inlmisc::AddSearchButton(group = "Existing Stations", zoom = 15,propertyName = "label",
                                textPlaceholder = "Search Existing Stations") %>%
