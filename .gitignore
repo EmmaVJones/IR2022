@@ -38,7 +38,12 @@ vignettes/*.pdf
 
 
 ## Preprocessing
+0.CitmonDataOrganization/GIS/
+0.CitmonDataOrganization/pictures/
+0.CitmonDataOrganization/testCitmonData/
 1.preprocessData/GIS/
+
+
 # R Environment Variables
 .Renviron
 

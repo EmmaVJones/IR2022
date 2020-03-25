@@ -261,9 +261,9 @@ The next chunk will bring in the riverine AU layer from the previous cycle, comp
 riverineAUs <-  st_read('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_riverine.shp') %>%
   st_transform(crs = 102003)  # transform to Albers for spatial intersection
 
-Regional_Sites_AU <- snapAndOrganizeAU_noUI(filter(irData_missing_NoAU, FDT_STA_ID %in% c('9-BFK003.33','9-LHC001.92'), riverineAUs,  bufferDistances = seq(10,50,by=10))
+#Regional_Sites_AU <- snapAndOrganizeAU_noUI(filter(irData_missing_NoAU, FDT_STA_ID %in% #c('9-BFK003.33','9-LHC001.92'), riverineAUs,  bufferDistances = seq(10,50,by=10))
 
-#Regional_Sites_AU <- snapAndOrganizeAU(irData_missing_NoAU, riverineAUs,  bufferDistances = seq(10,50,by=10))
+Regional_Sites_AU <- snapAndOrganizeAU(irData_missing_NoAU, riverineAUs,  bufferDistances = seq(10,50,by=10))
 
 rm(riverineAUs) #clean up workspace
 ```
