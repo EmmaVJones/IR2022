@@ -7,7 +7,6 @@ library(mapview)
 library(leaflet)
 library(inlmisc)
 library(DT)
-library(geojsonsf)
 
 #assessmentRegions <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
   #group_by(ASSESS_REG) %>%
@@ -29,7 +28,7 @@ assessmentRegions <- st_read( 'GIS/AssessmentRegions_simple.shp')
 
 # Make existing Stations layer, from VEGIS internal 2018IR assessment layer (most recent copy available)
 #Link = "https://gis.deq.virginia.gov/arcgis/rest/services/staff/DEQInternalDataViewer/MapServer/27/query?where=OBJECTID%3E0&outFields=*&f=geojson"
-#existingStations <- geojson_sf(Link) %>% 
+#existingStations <- read_sf(Link) %>% 
 #  filter(DEQ_STA == "N") %>%
 #  mutate(Latitude = DD_LAT,  Longitude = DD_LONG) %>%
 #  dplyr::select(STATION_ID, ID305B_1, ID305B_2, ID305B_3, COMMENTS, 
@@ -40,6 +39,17 @@ assessmentRegions <- st_read( 'GIS/AssessmentRegions_simple.shp')
 #         driver =  "ESRI Shapefile")
 
 existingStations <- st_read('GIS/VEGIS2018IRstations.shp')
+
+
+# Build VPDES outfall layer
+#link <- "https://gis.deq.virginia.gov/arcgis/rest/services/staff/DEQInternalDataViewer/MapServer/24/query?where=OBJECTID+%3E%3D+0&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=*&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&f=geojson"
+#outfalls <- read_sf(link)
+#st_write(outfalls, dsn = 'GIS/VEGIS_VPDES.shp', layer = 'GIS/VEGIS_VPDES.shp', driver = 'ESRI Shapefile')
+outfalls <- st_read('GIS/VEGIS_VPDES.shp') %>%
+  rename('OUTFALL_ID' = 'OUTFALL_', 'FACILITY_NAME' = 'FAC_NAM', 'VAP_MAJOR_MINOR' = 'VAP_MAJ',
+         'VAP_PMT_NO' = "VAP_PMT") %>%
+  dplyr::select(OUTFALL_ID, FACILITY_NAME, VAP_MAJOR_MINOR, VAP_PMT_NO, VAP_TYPE, everything() )
+
 
 reassignColumns <- function(df, stationName, latName, longName){
   stationName_en <- enquo(stationName)
@@ -242,6 +252,11 @@ server <- function(input, output, session){
                        #label = ~FDT_STA_ID, layerId = ~FDT_STA_ID#, # with mary and paula dataset only
                        #popup = leafpop::popupTable(existingStations, zcol=c( "FDT_STA_ID", "STA_DESC", "Deq_Region", "Huc6_Vahu6","ID305B_1", "ID305B_2",  "ID305B_3"  ))
       ) %>% 
+      addCircleMarkers(data = outfalls, color='blue', fillColor='lightblue', radius = 3,
+                       fillOpacity = 0.5,opacity=0.5,weight = 1,stroke=T, group="VPDES Outfalls",
+                       label = ~OUTFALL_ID, layerId = ~OUTFALL_ID, 
+                       popup = leafpop::popupTable(outfalls, zcol = c('OUTFALL_ID', 'FACILITY_NAME', 
+                                                                      'VAP_MAJOR_MINOR', 'VAP_PMT_NO', 'VAP_TYPE'))) %>%
       addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
                   fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
                   group="Assessment Regions",
@@ -250,10 +265,11 @@ server <- function(input, output, session){
       inlmisc::AddSearchButton(group = "Existing Stations", zoom = 15,propertyName = "label",
                                textPlaceholder = "Search Existing Stations") %>%
       addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
-                       overlayGroups = c('Existing Stations','Assessment Regions'),
+                       overlayGroups = c('Existing Stations','VPDES Outfalls','Assessment Regions'),
                        options=layersControlOptions(collapsed=T),
                        position='topleft') %>%
-      hideGroup("Existing Stations")  }) # })
+      hideGroup("Existing Stations") %>%
+      hideGroup('VPDES Outfalls')   }) # })
   
   map_proxy=leafletProxy("map")
   
@@ -269,7 +285,7 @@ server <- function(input, output, session){
                        color='yellow', fillColor='red', radius = 5,
                        fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%#,popup=leafpop::popupTable(reactive_objects$sitesUnique, zcol=c('UID','originalStationID','finalStationID'))
       addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
-                       overlayGroups = c('Sites','Existing Stations','Assessment Regions'),
+                       overlayGroups = c('Sites','Existing Stations','VPDES Outfalls','Assessment Regions'),
                        options=layersControlOptions(collapsed=T),
                        position='topleft') })
   
@@ -277,7 +293,7 @@ server <- function(input, output, session){
   observeEvent(input$map_marker_click, {
     site_click <- input$map_marker_click # this is all the info based on your click
     siteid <- site_click$id # this is just the layerID associated with your click
-    print(siteid)
+    
     if(!is.null(siteid)){ # if you clicked a point with info, find all Stations that match (with a round)
       # first find site matches from user input dataset, by lat and long
       siteMatches <- filter(reactive_objects$sitesUnique, 
@@ -423,7 +439,7 @@ server <- function(input, output, session){
                          fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
         addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                          overlayGroups = c('Sites','Accepted Sites','Rejected Sites',
-                                           'Merged Sites','Existing Stations','Assessment Regions'),
+                                           'Merged Sites','Existing Stations','VPDES Outfalls','Assessment Regions'),
                          options=layersControlOptions(collapsed=T),
                          position='topleft') }  })
   
@@ -480,7 +496,7 @@ server <- function(input, output, session){
                          fillOpacity = 0.7,opacity=0.5,weight = 2,stroke=T) %>%
         addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                          overlayGroups = c('Sites','Accepted Sites','Rejected Sites',
-                                           'Merged Sites','Existing Stations','Assessment Regions'),
+                                           'Merged Sites','Existing Stations','VPDES Outfalls','Assessment Regions'),
                          options=layersControlOptions(collapsed=T),
                          position='topleft')  }  })
   
@@ -563,7 +579,7 @@ server <- function(input, output, session){
                          fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
         addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                          overlayGroups = c('Sites','Accepted Sites','Rejected Sites',
-                                           'Merged Sites','Existing Stations','Assessment Regions'),
+                                           'Merged Sites','Existing Stations','VPDES Outfalls','Assessment Regions'),
                          options=layersControlOptions(collapsed=T),
                          position='topleft') }  })
   
