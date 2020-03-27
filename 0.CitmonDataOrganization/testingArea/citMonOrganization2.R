@@ -11,12 +11,12 @@ library(DT)
 assessmentRegions <- st_read('GIS/AssessmentRegions_simple.shp')
 
 # Make existing stations layer
-existingStations <- read_csv('C:/HardDriveBackup/R/GitHub/Rivers-StreamsAssessment/R&S_app_v4/processedStationData/RegionalResultsRiverine_BRROCitMonNonAgencyFINAL.csv') %>%
-  bind_rows(read_csv('C:/HardDriveBackup/R/GitHub/LakesAssessment2020/app2020/LakeAssessmentApp_v2/processedStationData/final2020data/lakeStations2020_BRRO_citmonNonAgency.csv')) %>%
-  mutate_if(is.character, function(x) {Encoding(x) <- 'latin1'; return(x)}) %>% 
-  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
-           remove = F, # don't remove these lat/lon cols from df
-           crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
+#existingStations <- read_csv('C:/HardDriveBackup/R/GitHub/Rivers-StreamsAssessment/R&S_app_v4/processedStationData/RegionalResultsRiverine_BRROCitMonNonAgencyFINAL.csv') %>%
+#  bind_rows(read_csv('C:/HardDriveBackup/R/GitHub/LakesAssessment2020/app2020/LakeAssessmentApp_v2/processedStationData/final2020data/lakeStations2020_BRRO_citmonNonAgency.csv')) %>%
+#  mutate_if(is.character, function(x) {Encoding(x) <- 'latin1'; return(x)}) %>% 
+#  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+#           remove = F, # don't remove these lat/lon cols from df
+#           crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
 
 
 

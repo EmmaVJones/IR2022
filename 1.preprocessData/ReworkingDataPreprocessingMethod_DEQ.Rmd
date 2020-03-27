@@ -74,6 +74,13 @@ conventionals_D <- distinct(conventionals, FDT_STA_ID, .keep_all = T) %>%
 
 rm(conventionals) # remove full conventionals dataset to save memory
 
+# Save for app
+#st_write(conventionals_D %>% st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these #columns
+#           remove = F, # don't remove these lat/lon cols from df
+#           crs = 4326), # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
+#         'GIS/conventionals_D.shp')
+
+
 #View(conventionals_D) # to look at dataset use this command
 ```
 
@@ -122,6 +129,8 @@ irData_join <- dplyr::left_join(irData_BRRO, RegionalResultsCombined,
   st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
            remove = F, # don't remove these lat/lon cols from df
            crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
+
+# 9-PCK004.XX is duplicated bc lake and riverine assessment info attached, so nrow goes up by 1 at join step
 ```
 
 
