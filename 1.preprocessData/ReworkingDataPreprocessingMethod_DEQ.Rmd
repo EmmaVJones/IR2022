@@ -18,7 +18,7 @@ library(mapview)
 
 source('snappingFunctions/snapFunctions.R') # snapping functions
 source('snappingFunctions/snapOrganizationFunctions_v2.R') # functions to do stuff with snapping functions
-
+source('snappingFunctions/snapOrganizationFunctions_messAround.R')
 ```
 
 
@@ -134,8 +134,7 @@ irData_BRRO <- st_as_sf(irData,
                         coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
                         remove = F, # don't remove these lat/lon cols from df
                         crs = 4326) %>% # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
-  st_intersection(filter(assessmentLayer, ASSESS_REG == "BRRO") %>%
-                    filter(Basin == 'James River Basin'))
+  st_intersection(filter(assessmentLayer, ASSESS_REG == "BRRO") )
 
 irData_join <- dplyr::left_join(irData_BRRO, RegionalResultsCombined,
                   by = c('FDT_STA_ID', 'Latitude', 'Longitude','Basin')) 
@@ -282,10 +281,11 @@ riverineAUs <-  st_read('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_riverine.
 
 #Regional_Sites_AU <- snapAndOrganizeAU_noUI(filter(irData_missing_NoAU, FDT_STA_ID %in% #c('9-BFK003.33','9-LHC001.92'), riverineAUs,  bufferDistances = seq(10,50,by=10))
 
-Regional_Sites_AU <- snapAndOrganizeAU_newOutput(irData_join,#irData_missing_NoAU,
-                                                 riverineAUs,  
-                                                 bufferDistances = seq(10,50,by=10))
-saveRDS(Regional_Sites_AU, 'data/preAnalyzedRegionalAUdata/BRRO/Riverine/James River Basin_snapList.RDS')
+snapAndOrganizeAU_newOutput(irData_join, riverineAUs, 
+                            bufferDistances = seq(10,50,by=10),
+                            outDir = 'data/preAnalyzedRegionalAUdata/BRRO/Riverine/')
+#Regional_Sites_AU <- 
+#saveRDS(Regional_Sites_AU, 'data/preAnalyzedRegionalAUdata/BRRO/Riverine/James River Basin_snapList.RDS')
 
 rm(riverineAUs) #clean up workspace
 ```

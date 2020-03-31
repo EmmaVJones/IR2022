@@ -179,7 +179,8 @@ snapAndOrganizeAU_noUI <- function(Regional_Sites, previousCycleAU, bufferDistan
 }
     
 
-snapAndOrganizeAU_newOutput <- function(Regional_Sites, previousCycleAU, bufferDistances){
+snapAndOrganizeAU_newOutput <- function(Regional_Sites, previousCycleAU, 
+                                        bufferDistances, outDir){
   # Join unique sites from current cycle to last cycle's station table to see what already has AU info
   #Regional_Sites_sf <- mutate(Regional_Sites, STATION_ID = FDT_STA_ID) %>% # make joining column
   #  left_join(previousCycleStationTable, by='STATION_ID') %>% # join to get ID305B info
@@ -190,22 +191,40 @@ snapAndOrganizeAU_newOutput <- function(Regional_Sites, previousCycleAU, bufferD
   
   Regional_Sites_sf <- st_transform(Regional_Sites, st_crs(previousCycleAU)) # now change crs to Albers to make snapping work
   
-  # Only work with sites that don't already have AU info
-  Regional_Sites_sf_noAU <- filter(Regional_Sites_sf, is.na(ID305B_1))
+  # Analyze by Major Basin
+  uniqueBasins <- unique(Regional_Sites_sf$Basin)
   
-  if(nrow(Regional_Sites_sf_noAU) > 0){
-    # snapping logic
-    print(paste('Snapping sites to AUs by:',min(bufferDistances),'to', max(bufferDistances), 'meters', sep=' '))
-    snapList_AU <- snap_Points_to_Feature_List(Regional_Sites_sf_noAU,'FDT_STA_ID',
-                                               previousCycleAU, bufferDistances)
+  for(i in 1:length(uniqueBasins)){
+    #print(i)}
+    Regional_Sites_sf_AU_basin <- filter(Regional_Sites_sf, Basin == uniqueBasins[i])
     
-    snapList_AU[['sf_output']] <- st_transform(snapList_AU[['sf_output']], 4326)
-    #snapList_AU <- readRDS('data/allBRRO_snapList_AU.RDS') #prerun results
+    # Only work with sites that don't already have AU info
+    Regional_Sites_sf_noAU <- filter(Regional_Sites_sf_AU_basin, is.na(ID305B_1))
     
-    snapList_AU[['inputSites']] <- Regional_Sites_All
+    if(nrow(Regional_Sites_sf_noAU) > 0){
+      # snapping logic
+      print(paste('Snapping sites to AUs by:',min(bufferDistances),'to', max(bufferDistances), 
+                  'meters in basin', i, 'of', length(uniqueBasins), sep=' '))
+      snapList_AU <- snap_Points_to_Feature_List(Regional_Sites_sf_noAU,'FDT_STA_ID',
+                                                 previousCycleAU, bufferDistances)
+      # to EPSG4326 (WGS84 for web mapping)
+      snapList_AU[['sf_output']] <- st_transform(snapList_AU[['sf_output']], 4326)
+    } else {
+      snapList_AU[['sf_output']] <- mutate(previousCycleAU[0,], 
+                                           `Point Unique Identifier` = NA, 
+                                           `Buffer Distance` = NA) %>%
+        dplyr::select(`Point Unique Identifier`, `Buffer Distance`, everything()) %>%
+        st_transform( 4326)
+    }
+    
+    snapList_AU[['inputSites']] <- st_transform(Regional_Sites_sf_AU_basin, 4326)
+    
+    # Save Things to outDir
+    saveRDS(snapList_AU, paste0(outDir,uniqueBasins[i],'.RDS') )
+    # final thing to give assessors for WQS snapping
   }
-  # final thing to give assessors for WQS snapping
-  return(snapList_AU) # this is still a sf object for WQS snapping
+  return('All Done!')
+  #return(snapList_AU) # this is still a sf object for WQS snapping
 }
 
 snapAndOrganizeAU <- function(Regional_Sites, previousCycleAU, bufferDistances){

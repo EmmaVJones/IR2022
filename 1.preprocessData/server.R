@@ -1,4 +1,12 @@
-#source('global.R')
+source('global.R')
+
+# All conventionals sites
+conventionals_D <- st_read('GIS/conventionals_D.shp')
+
+assessmentRegions <- st_read( 'GIS/AssessmentRegions_simple.shp')
+assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
+  st_transform( st_crs(4326)) 
+
 
 shinyServer(function(input, output, session) {
   
@@ -23,8 +31,8 @@ shinyServer(function(input, output, session) {
   ################## FOR TESTING ###########################################################
   assessmentType_sf <- eventReactive(input$begin, {
     req(basin_filter(), input$assessmentType)
-    riverineAUs})
-  AUs <- eventReactive(input$begin, { AUs2 })
+    AUs1}) # for speed #riverineAUs})
+  AUs <- eventReactive(input$begin, { AUs1 })
   
   
   ####### FOR REAL ##########################################################################
@@ -39,19 +47,16 @@ shinyServer(function(input, output, session) {
   #  req(basin_filter(), input$assessmentType, assessmentType_sf())
   #  suppressWarnings(st_intersection(st_zm(assessmentType_sf()), basin_filter()))})
   
-  # Map output of basin and assessmentType_sf
-#  output$VAmap <- renderLeaflet({
-#    input$begin
+  ## Map output of basin and assessmentType_sf
+  #output$VAmap <- renderLeaflet({
+  #  input$begin
     
-#    m <- mapview(basin_filter(),label= basin_filter()$VAHU6, layer.name = 'VAHU6 in Selected Basin',
-#                 popup= leafpop::popupTable(basin_filter(), zcol=c('VAHU6',"VaName","VAHU5","ASSESS_REG")),
-
-#  popupOptions = popupOptions( maxHeight = 100 )) %>%
-#    
-#    m@map %>% setView(st_bbox(basin_filter())$xmax[[1]],st_bbox(basin_filter())$ymax[[1]],zoom = 7)  })
+  #  m <- mapview(basin_filter(),label= basin_filter()$VAHU6, layer.name = 'VAHU6 in Selected Basin',
+  #               popup= leafpop::popupTable(basin_filter(), zcol=c('VAHU6',"VaName","VAHU5","ASSESS_REG")))
+  #  m@map %>% setView(st_bbox(basin_filter())$xmax[[1]],st_bbox(basin_filter())$ymax[[1]],zoom = 7)  })
   
   
-  # Table of AUs within Selected Region/Basin
+  ## Table of AUs within Selected Region/Basin
   #output$AUSummary <-  DT::renderDataTable({ req(AUs())
   #  DT::datatable(AUs() %>% st_set_geometry(NULL), rownames = FALSE, 
   #                options= list(scrollX = TRUE, pageLength = nrow(AUs()), 
@@ -106,25 +111,25 @@ shinyServer(function(input, output, session) {
     CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE, 
                  options= leafletOptions(zoomControl = TRUE,minZoom = 3, maxZoom = 20)) %>%
       setView(-78, 37.5, zoom=7)  %>% 
-#      addCircleMarkers(data = conventionals_D, color='blue', fillColor='yellow', radius = 4,
-#                       fillOpacity = 0.5,opacity=0.5,weight = 1,stroke=T, group="Conventionals Stations",
-#                       label = ~FDT_STA, layerId = ~FDT_STA, 
-#                       popup = leafpop::popupTable(conventionals_D),
-#                       popupOptions = popupOptions( maxHeight = 100 )) %>% 
-#      addPolylines(data=AUs(),
-#                   layerId = ~ID305B,
-#                   label=~ID305B, group="All AUs in selected Region/Basin", 
-#                   color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
-#                   weight = 3,stroke=T,
-#                   popup=leafpop::popupTable(riverineAUs),
-#                   popupOptions = popupOptions( maxHeight = 100 )) %>% hideGroup("All AUs in selected Region/Basin") %>%
-#      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
-#                  fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
-#                  group="Assessment Regions",
-#                  popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG'))) %>% hideGroup('Assessment Regions') %>% #,'VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
-#      inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
-#      inlmisc::AddSearchButton(group = "Conventionals Stations", zoom = 15,propertyName = "label",
-#                               textPlaceholder = "Search Conventionals Stations") %>%
+      addCircleMarkers(data = conventionals_D, color='blue', fillColor='yellow', radius = 4,
+                       fillOpacity = 0.5,opacity=0.5,weight = 1,stroke=T, group="Conventionals Stations",
+                       label = ~FDT_STA, layerId = ~FDT_STA, 
+                       popup = leafpop::popupTable(conventionals_D),
+                       popupOptions = popupOptions( maxHeight = 100 )) %>% 
+      addPolylines(data=AUs(),
+                   layerId = ~ID305B,
+                   label=~ID305B, group="All AUs in selected Region/Basin", 
+                   color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+                   weight = 3,stroke=T,
+                   popup=leafpop::popupTable(AUs()),
+                   popupOptions = popupOptions( maxHeight = 100 )) %>% hideGroup("All AUs in selected Region/Basin") %>%
+      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
+                  fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
+                  group="Assessment Regions",
+                  popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG'))) %>% hideGroup('Assessment Regions') %>% #,'VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
+      inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
+      inlmisc::AddSearchButton(group = "Conventionals Stations", zoom = 15,propertyName = "label",
+                               textPlaceholder = "Search Conventionals Stations") %>%
       addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                        overlayGroups = c('Conventionals Stations',"All AUs in selected Region/Basin",'Assessment Regions'),
                        options=layersControlOptions(collapsed=T),
@@ -141,9 +146,9 @@ shinyServer(function(input, output, session) {
                        layerId = ~FDT_STA_ID,
                        label=~FDT_STA_ID, group="Stations in the selected Region/Basin", 
                        color='black', fillColor='cyan', radius = 5,
-                       fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T,
-                       popup = leafpop::popupTable(reactive_objects$snapSingle),
-                       popupOptions = popupOptions( maxHeight = 100 )) %>%
+                       fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%#, memory issues
+                       #popup = leafpop::popupTable(reactive_objects$snapSingle),
+                       #popupOptions = popupOptions( maxHeight = 100 )) %>%
       addPolylines(data=filter(reactive_objects$snap_input[['sf_output']],
                                !(`Point Unique Identifier` %in% reactive_objects$tooMany_sites$FDT_STA_ID)),
                    layerId = ~ID305B,
@@ -262,7 +267,7 @@ shinyServer(function(input, output, session) {
                           br(), br(),
                           selectInput('mergeAUID','Choose AU to connect to station', 
                                       choices = c(as.character(unique(filter(reactive_objects$tooMany, `Point Unique Identifier` %in% reactive_objects$namesToSmash)$ID305B)), # likely AUs
-                                                  unique(as.character(AUs1$ID305B)))), # less likely AUs but an option
+                                                  unique(as.character(AUs()$ID305B)))), # less likely AUs but an option
                           textInput('adjustComment', 'Additional Comments and Documentation'),
                           actionButton('adjust_ok', 'Accept', 
                                        style='color: #fff; background-color: #337ab7; border-color: #2e6da4;font-size:120%', 
@@ -313,9 +318,9 @@ shinyServer(function(input, output, session) {
                            layerId = ~FDT_STA_ID,
                            label=~FDT_STA_ID, group="Adjusted Sites", 
                            color='black', fillColor='purple', radius = 5,
-                           fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T,
-                           popup=leafpop::popupTable(reactive_objects$sitesAdjusted),
-                           popupOptions = popupOptions( maxHeight = 100 )) %>%
+                           fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>% #, memory issues
+                           #popup=leafpop::popupTable(reactive_objects$sitesAdjusted),
+                           #popupOptions = popupOptions( maxHeight = 100 )) %>%
           addCircleMarkers(data=reactive_objects$tooMany_sites,
                            layerId = ~FDT_STA_ID,
                            label=~FDT_STA_ID, group="Stations Snapped to > 1 Segment", 
@@ -346,9 +351,9 @@ shinyServer(function(input, output, session) {
                            layerId = ~FDT_STA_ID,
                            label=~FDT_STA_ID, group="Adjusted Sites", 
                            color='black', fillColor='purple', radius = 5,
-                           fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T,
-                           popup=leafpop::popupTable(reactive_objects$sitesAdjusted),
-                           popupOptions = popupOptions( maxHeight = 100 )) %>%
+                           fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>% #, memory issues
+                           #popup=leafpop::popupTable(reactive_objects$sitesAdjusted),
+                           #popupOptions = popupOptions( maxHeight = 100 )) %>%
           addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                            overlayGroups = c("Adjusted Sites",
                                              "Stations in the selected Region/Basin",
