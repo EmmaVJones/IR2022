@@ -179,6 +179,35 @@ snapAndOrganizeAU_noUI <- function(Regional_Sites, previousCycleAU, bufferDistan
 }
     
 
+snapAndOrganizeAU_newOutput <- function(Regional_Sites, previousCycleAU, bufferDistances){
+  # Join unique sites from current cycle to last cycle's station table to see what already has AU info
+  #Regional_Sites_sf <- mutate(Regional_Sites, STATION_ID = FDT_STA_ID) %>% # make joining column
+  #  left_join(previousCycleStationTable, by='STATION_ID') %>% # join to get ID305B info
+  #  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer while at it
+  #           remove = F, # don't remove these lat/lon cols from df
+  #           crs = 4326) %>% # add projection, needs to be geographic for now bc entering lat/lng, 
+  #  st_transform( st_crs(previousCycleAU)) # now change crs to Albers to make snapping work
+  
+  Regional_Sites_sf <- st_transform(Regional_Sites, st_crs(previousCycleAU)) # now change crs to Albers to make snapping work
+  
+  # Only work with sites that don't already have AU info
+  Regional_Sites_sf_noAU <- filter(Regional_Sites_sf, is.na(ID305B_1))
+  
+  if(nrow(Regional_Sites_sf_noAU) > 0){
+    # snapping logic
+    print(paste('Snapping sites to AUs by:',min(bufferDistances),'to', max(bufferDistances), 'meters', sep=' '))
+    snapList_AU <- snap_Points_to_Feature_List(Regional_Sites_sf_noAU,'FDT_STA_ID',
+                                               previousCycleAU, bufferDistances)
+    
+    snapList_AU[['sf_output']] <- st_transform(snapList_AU[['sf_output']], 4326)
+    #snapList_AU <- readRDS('data/allBRRO_snapList_AU.RDS') #prerun results
+    
+    snapList_AU[['inputSites']] <- Regional_Sites_All
+  }
+  # final thing to give assessors for WQS snapping
+  return(snapList_AU) # this is still a sf object for WQS snapping
+}
+
 snapAndOrganizeAU <- function(Regional_Sites, previousCycleAU, bufferDistances){
   
   # Join unique sites from current cycle to last cycle's station table to see what already has AU info

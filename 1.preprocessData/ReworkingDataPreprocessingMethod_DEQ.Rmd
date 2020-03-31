@@ -121,15 +121,25 @@ RegionalResultsCombined <- read_csv('C:/HardDriveBackup/R/GitHub/Rivers-StreamsA
 
 So by using a simple join to existing information that has been QAed by a human, we can limit the amount of computational work and additional human QA.
 
+for testing only
+```{r Statewide Assessment Layer, echo=FALSE, message=FALSE, warning=FALSE, results = 'hide'}
+assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
+  st_transform( st_crs(4326)) # transform to WQS84 for spatial intersection
+``` 
+
+
 ```{r joinTime}
-irData_BRRO <- filter(irData, str_detect(FDT_STA_ID,'9-'))
+#james in BRRO bc first thing that comes up in app
+irData_BRRO <- st_as_sf(irData,
+                        coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+                        remove = F, # don't remove these lat/lon cols from df
+                        crs = 4326) %>% # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
+  st_intersection(filter(assessmentLayer, ASSESS_REG == "BRRO") %>%
+                    filter(Basin == 'James River Basin'))
 
 irData_join <- dplyr::left_join(irData_BRRO, RegionalResultsCombined,
-                  by = c('FDT_STA_ID', 'Latitude', 'Longitude')) %>%
-  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
-           remove = F, # don't remove these lat/lon cols from df
-           crs = 4326) # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
-
+                  by = c('FDT_STA_ID', 'Latitude', 'Longitude','Basin')) 
+  
 # 9-PCK004.XX is duplicated bc lake and riverine assessment info attached, so nrow goes up by 1 at join step
 ```
 
@@ -179,8 +189,8 @@ assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
 
 Then join to irData_join if the stations did not connect to the previous stations table.
 
-```{r basin connection}
-irData_missing <- st_join(irData_missing, assessmentLayer, join = st_intersects) %>%
+```{r basin connection, eval=F}
+irData_missing1 <- st_join(irData_missing, assessmentLayer, join = st_intersects) %>%
     #filter(!is.na(VAHU6)) %>% # only keep rows that joined
   mutate(sameVAHU6 = ifelse(VAHU6 == Huc6_Vahu6, T, F)) %>% # double check the VAHU6 watershed matches from CEDS to actual spatial layer
   dplyr::select(UID:STA_CBP_NAME, Basin, VAHU6, sameVAHU6) %>% # just get columns we are interested in, compare here if desired
@@ -272,7 +282,10 @@ riverineAUs <-  st_read('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_riverine.
 
 #Regional_Sites_AU <- snapAndOrganizeAU_noUI(filter(irData_missing_NoAU, FDT_STA_ID %in% #c('9-BFK003.33','9-LHC001.92'), riverineAUs,  bufferDistances = seq(10,50,by=10))
 
-Regional_Sites_AU <- snapAndOrganizeAU(irData_missing_NoAU, riverineAUs,  bufferDistances = seq(10,50,by=10))
+Regional_Sites_AU <- snapAndOrganizeAU_newOutput(irData_join,#irData_missing_NoAU,
+                                                 riverineAUs,  
+                                                 bufferDistances = seq(10,50,by=10))
+saveRDS(Regional_Sites_AU, 'data/preAnalyzedRegionalAUdata/BRRO/Riverine/James River Basin_snapList.RDS')
 
 rm(riverineAUs) #clean up workspace
 ```
