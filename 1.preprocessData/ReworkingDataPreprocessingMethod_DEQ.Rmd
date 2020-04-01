@@ -136,8 +136,17 @@ irData_BRRO <- st_as_sf(irData,
                         crs = 4326) %>% # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
   st_intersection(filter(assessmentLayer, ASSESS_REG == "BRRO") )
 
-irData_join <- dplyr::left_join(irData_BRRO, RegionalResultsCombined,
-                  by = c('FDT_STA_ID', 'Latitude', 'Longitude','Basin')) 
+irData_join <- dplyr::left_join(irData_BRRO, 
+                                # but first drop columns that we want from spatial layer
+                                dplyr::select(RegionalResultsCombined,
+                                              -c(Basin, OFFICE_NM, Location, Shape_Leng)),
+                  by = c('FDT_STA_ID', 'Latitude', 'Longitude')) %>% 
+  # Fix duplicate columns
+  mutate(VAHU6 = ifelse(is.na(VAHU6.y), VAHU6.x, VAHU6.x)) %>% # keep basin from assessor call if exists
+  # spatial join could accidentally replace when assessor uses site to assess VAHU6 that it doesn't fall in
+  dplyr::select(-c(VAHU6.x, VAHU6.y)) %>%
+  dplyr::select(UID, FDT_STA_ID, Latitude, Longitude, HUC12, VAHU6, everything())
+    
   
 # 9-PCK004.XX is duplicated bc lake and riverine assessment info attached, so nrow goes up by 1 at join step
 ```
