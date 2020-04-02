@@ -142,7 +142,7 @@ irData_join <- dplyr::left_join(irData_BRRO,
                                               -c(Basin, OFFICE_NM, Location, Shape_Leng)),
                   by = c('FDT_STA_ID', 'Latitude', 'Longitude')) %>% 
   # Fix duplicate columns
-  mutate(VAHU6 = ifelse(is.na(VAHU6.y), VAHU6.x, VAHU6.x)) %>% # keep basin from assessor call if exists
+  mutate(VAHU6 = ifelse(is.na(VAHU6.y), as.character(VAHU6.x), as.character(VAHU6.x))) %>% # keep basin from assessor call if exists
   # spatial join could accidentally replace when assessor uses site to assess VAHU6 that it doesn't fall in
   dplyr::select(-c(VAHU6.x, VAHU6.y)) %>%
   dplyr::select(UID, FDT_STA_ID, Latitude, Longitude, HUC12, VAHU6, everything())

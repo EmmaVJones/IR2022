@@ -29,22 +29,22 @@ shinyServer(function(input, output, session) {
   
   
   ################## FOR TESTING ###########################################################
-#  assessmentType_sf <- eventReactive(input$begin, {
-#    req(basin_filter(), input$assessmentType)
-#    AUs1}) # for speed #riverineAUs})
-#  AUs <- eventReactive(input$begin, { AUs1 })
+  assessmentType_sf <- eventReactive(input$begin, {
+    req(basin_filter(), input$assessmentType)
+    AUs1}) # for speed #riverineAUs})
+  AUs <- eventReactive(input$begin, { AUs1 })
   
   
   ####### FOR REAL ##########################################################################
-  assessmentType_sf <- eventReactive(input$begin, {
-    req(basin_filter(), input$assessmentType)
-    typeName <- ifelse(input$assessmentType != 'Lacustrine', input$assessmentType, 'Reservoir')
-    st_read(paste0('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_',
-                                      tolower(typeName),'.shp')) %>%
-      st_transform(4326)})
-  AUs <- eventReactive(input$begin, {
-    req(basin_filter(), input$assessmentType, assessmentType_sf())
-    suppressWarnings(st_intersection(st_zm(assessmentType_sf()), basin_filter()))})
+#  assessmentType_sf <- eventReactive(input$begin, {
+#    req(basin_filter(), input$assessmentType)
+#    typeName <- ifelse(input$assessmentType != 'Lacustrine', input$assessmentType, 'Reservoir')
+#    st_read(paste0('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_',
+#                                      tolower(typeName),'.shp')) %>%
+#      st_transform(4326)})
+#  AUs <- eventReactive(input$begin, {
+#    req(basin_filter(), input$assessmentType, assessmentType_sf())
+#    suppressWarnings(st_intersection(st_zm(assessmentType_sf()), basin_filter()))})
   
   ## Map output of basin and assessmentType_sf
   output$VAmap <- renderLeaflet({
@@ -67,6 +67,10 @@ shinyServer(function(input, output, session) {
   ## Assessment Unit Review Tab
   
   observeEvent(input$begin, {
+    print(paste0('data/preAnalyzedRegionalAUdata/',
+                 unique(region_filter()$ASSESS_REG), '/',
+                 input$assessmentType, '/',
+                 unique(basin_filter()$Basin), '.RDS'))
     reactive_objects$snap_input <- readRDS(paste0('data/preAnalyzedRegionalAUdata/',
                                                   unique(region_filter()$ASSESS_REG), '/',
                                                   input$assessmentType, '/',
@@ -74,11 +78,13 @@ shinyServer(function(input, output, session) {
 #    reactive_objects$snap_input <- snapList_AU
     # Make dataset of all sites for highlighting purposes
     reactive_objects$sitesUnique <- reactive_objects$snap_input[['inputSites']] %>%
-      mutate(`Point Unique Identifier` = FDT_STA_ID, Comments = NA) %>%
+      mutate(`Point Unique Identifier` = FDT_STA_ID, Comments = NA, fromPreviousAssessment = NA) %>%
       dplyr::select(-c(ID305B)) %>% # column only populated for lakes so dropping
-      left_join(st_drop_geometry(snap_input[['sf_output']]), by = c('Point Unique Identifier')) %>%
-      mutate(ID305B = ifelse(is.na(ID305B), ID305B_1, as.character(ID305B))) %>% # use snapped ID305B, then fill in with previously attributed data
-      dplyr::select(FDT_STA_ID, ID305B, VAHU6, ASSESS_REG, VaName, Basin, Latitude, Longitude, Comments)
+      left_join(st_drop_geometry(reactive_objects$snap_input[['sf_output']]), by = c('Point Unique Identifier')) %>%
+      mutate(fromPreviousAssessment = ifelse(is.na(ID305B), 'Yes', 'No'),
+        ID305B = ifelse(is.na(ID305B), ID305B_1, as.character(ID305B))) %>% # use snapped ID305B, then fill in with previously attributed data
+      dplyr::select(FDT_STA_ID, ID305B, VAHU6, ASSESS_REG, VaName, Basin, Latitude, 
+                    Longitude, fromPreviousAssessment, Comments)
     
     # Make dataset of all AUs for table purposes, this will hold corrected AU information after user review
     reactive_objects$AUsegments <- reactive_objects$snap_input[['sf_output']] %>%
@@ -94,6 +100,8 @@ shinyServer(function(input, output, session) {
     # Make dataset of sites that snapped to a single AU and join AU info  
     reactive_objects$snapSingle <- filter(reactive_objects$sitesUnique, FDT_STA_ID %in% reactive_objects$snap_input[['sf_output']]$`Point Unique Identifier`) %>%
       filter(!(FDT_STA_ID %in% reactive_objects$tooMany_sites$FDT_STA_ID))# filter out sites that attached to more than one segment
+    # Make dataset of sites associated with too many segments
+    reactive_objects$snapNone <- filter(reactive_objects$sitesUnique, FDT_STA_ID %in% reactive_objects$snap_input[['tbl_output']]$`Point Unique Identifier`) 
     # Make empty dataset of sites that assessors touched
     reactive_objects$sitesAdjusted <-  reactive_objects$sitesUnique[0,]
     })
@@ -108,9 +116,9 @@ shinyServer(function(input, output, session) {
   output$snapTooManySummary2 <- renderPrint({ req(reactive_objects$snap_input)
     cat(paste0('There are ', nrow(reactive_objects$tooMany_sites), ' stations that snapped to > 1 AU segment in preprocessing.'))})
   output$noSnapSummary1 <- renderPrint({ req(reactive_objects$snap_input)
-    cat(paste0('There are ', nrow(reactive_objects$tbl_output), ' stations that snapped to 0 AU segments in preprocessing.'))})
+    cat(paste0('There are ', nrow(reactive_objects$snapNone), ' stations that snapped to 0 AU segments in preprocessing.'))})
   output$noSnapSummary2 <- renderPrint({ req(reactive_objects$snap_input)
-    cat(paste0('There are ', nrow(reactive_objects$tbl_output), ' stations that snapped to 0 AU segments in preprocessing.'))})
+    cat(paste0('There are ', nrow(reactive_objects$snapNone), ' stations that snapped to 0 AU segments in preprocessing.'))})
   output$regionalSitesSummary1 <- renderPrint({ req(reactive_objects$snap_input)
     cat(paste0('There are ', nrow(reactive_objects$snap_input[['inputSites']]), ' stations in the selected Region/Basin.'))})
   output$regionalSitesSummary2 <- renderPrint({ req(reactive_objects$snap_input)
@@ -151,64 +159,99 @@ shinyServer(function(input, output, session) {
 
   # Add layers to map as requested
   observeEvent(input$plotSingleSnapSummary, {
-    map_proxy %>%
-      addCircleMarkers(data=reactive_objects$snapSingle,
-                       layerId = ~paste0(FDT_STA_ID,'_snapSingle'), # need unique layerID 
-                       label=~FDT_STA_ID, group="Stations Snapped to 1 AU segment", 
-                       color='black', fillColor='cyan', radius = 5,
-                       fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%#, memory issues
-                       #popup = leafpop::popupTable(reactive_objects$snapSingle),
-                       #popupOptions = popupOptions( maxHeight = 100 )) %>%
-      addPolylines(data=filter(reactive_objects$snap_input[['sf_output']],
-                               !(`Point Unique Identifier` %in% reactive_objects$tooMany_sites$FDT_STA_ID)),
-                   layerId = ~paste0(ID305B,'_snapSingle'),  # need unique layerID 
-                   label=~ID305B, group="Segments of Stations that snapped to 1 AU segment", 
-                   color = 'cyan', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
-                   weight = 3,stroke=T,
-                   popup=leafpop::popupTable(reactive_objects$snap_input[['sf_output']]),
-                   popupOptions = popupOptions( maxHeight = 100 )) %>%
-      hideGroup("Segments of Stations that snapped to 1 AU segment") %>%
-      addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
-                       overlayGroups = c("Adjusted Sites",
-                                         "Stations Snapped to 1 AU segment",
-                                         "Segments of Stations that snapped to 1 AU segment",
-                                         "Stations Snapped to > 1 Segment",
-                                         "Segments of Stations Snapped to > 1 Segment",
-                                         "Stations Snapped to 0 Segments",
-                                         "All stations in the selected Region/Basin",
-                                         'Conventionals Stations',"All AUs in selected Region/Basin",'Assessment Regions'),
-                       options=layersControlOptions(collapsed=T),
-                       position='topleft') })
+    if (nrow(reactive_objects$snapSingle) > 0 ){
+      map_proxy %>%
+        addCircleMarkers(data=reactive_objects$snapSingle,
+                         layerId = ~paste0(FDT_STA_ID,'_snapSingle'), # need unique layerID 
+                         label=~FDT_STA_ID, group="Stations Snapped to 1 AU segment", 
+                         color='black', fillColor='cyan', radius = 5,
+                         fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%#, memory issues
+        #popup = leafpop::popupTable(reactive_objects$snapSingle),
+        #popupOptions = popupOptions( maxHeight = 100 )) %>%
+        addPolylines(data=filter(reactive_objects$snap_input[['sf_output']],
+                                 !(`Point Unique Identifier` %in% reactive_objects$tooMany_sites$FDT_STA_ID)),
+                     layerId = ~paste0(ID305B,'_snapSingle'),  # need unique layerID 
+                     label=~ID305B, group="Segments of Stations that snapped to 1 AU segment", 
+                     color = 'cyan', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+                     weight = 3,stroke=T,
+                     popup=leafpop::popupTable(reactive_objects$snap_input[['sf_output']]),
+                     popupOptions = popupOptions( maxHeight = 100 )) %>%
+        hideGroup("Segments of Stations that snapped to 1 AU segment") %>%
+        addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                         overlayGroups = c("Adjusted Sites",
+                                           "Stations Snapped to 1 AU segment",
+                                           "Segments of Stations that snapped to 1 AU segment",
+                                           "Stations Snapped to > 1 Segment",
+                                           "Segments of Stations Snapped to > 1 Segment",
+                                           "Stations Snapped to 0 Segments",
+                                           "All stations in the selected Region/Basin",
+                                           'Conventionals Stations',"All AUs in selected Region/Basin",'Assessment Regions'),
+                         options=layersControlOptions(collapsed=T),
+                         position='topleft')
+    } else {
+      showNotification("There are no sites that snapped to only 1 AU segment in preprocessing steps. Nothing to plot.")
+    }
+     })
   
   observeEvent(input$plotSnapTooManySummary, {
-    palTooMany <- colorNumeric(c('green','yellow', 'blue','red'), domain = reactive_objects$tooMany$colorFac)
     
-    map_proxy %>%
-      addCircleMarkers(data=reactive_objects$tooMany_sites,
-                       layerId = ~paste0(FDT_STA_ID,'_tooMany'),  # need unique layerID 
-                       label=~FDT_STA_ID, group="Stations Snapped to > 1 Segment", 
-                       color='black', fillColor='orange', radius = 5,
-                       fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
-      addPolylines(data=reactive_objects$tooMany,
-                   layerId = ~paste0(ID305B,'_tooMany'),  # need unique layerID 
-                   label=~ID305B, group="Segments of Stations Snapped to > 1 Segment", 
-                   color = ~palTooMany(reactive_objects$tooMany$colorFac),weight = 3,stroke=T,
-                   popup=leafpop::popupTable(reactive_objects$tooMany),
-                   popupOptions = popupOptions( maxHeight = 100 )) %>%
-      hideGroup("Segments of Stations Snapped to > 1 Segment") %>%
-      addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
-                       overlayGroups = c("Adjusted Sites",
-                                         "Stations Snapped to 1 AU segment",
-                                         "Segments of Stations that snapped to 1 AU segment",
-                                         "Stations Snapped to > 1 Segment",
-                                         "Segments of Stations Snapped to > 1 Segment",
-                                         "Stations Snapped to 0 Segments",
-                                         "All stations in the selected Region/Basin",
-                                         'Conventionals Stations',"All AUs in selected Region/Basin",'Assessment Regions'),
-                       options=layersControlOptions(collapsed=T),
-                       position='topleft') })
+    if(nrow(reactive_objects$tooMany) > 0){
+      palTooMany <- colorNumeric(c('green','yellow', 'blue','red'), domain = reactive_objects$tooMany$colorFac)
+      
+      map_proxy %>%
+        addCircleMarkers(data=reactive_objects$tooMany_sites,
+                         layerId = ~paste0(FDT_STA_ID,'_tooMany'),  # need unique layerID 
+                         label=~FDT_STA_ID, group="Stations Snapped to > 1 Segment", 
+                         color='black', fillColor='orange', radius = 5,
+                         fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
+        addPolylines(data=reactive_objects$tooMany,
+                     layerId = ~paste0(ID305B,'_tooMany'),  # need unique layerID 
+                     label=~ID305B, group="Segments of Stations Snapped to > 1 Segment", 
+                     color = ~palTooMany(reactive_objects$tooMany$colorFac),weight = 3,stroke=T,
+                     popup=leafpop::popupTable(reactive_objects$tooMany),
+                     popupOptions = popupOptions( maxHeight = 100 )) %>%
+        hideGroup("Segments of Stations Snapped to > 1 Segment") %>%
+        addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                         overlayGroups = c("Adjusted Sites",
+                                           "Stations Snapped to 1 AU segment",
+                                           "Segments of Stations that snapped to 1 AU segment",
+                                           "Stations Snapped to > 1 Segment",
+                                           "Segments of Stations Snapped to > 1 Segment",
+                                           "Stations Snapped to 0 Segments",
+                                           "All stations in the selected Region/Basin",
+                                           'Conventionals Stations',"All AUs in selected Region/Basin",'Assessment Regions'),
+                         options=layersControlOptions(collapsed=T),
+                         position='topleft') 
+    } else {
+      showNotification("There are no sites that snapped to > 1 AU segment in preprocessing steps. Nothing to plot.")
+    }   })
   
-  # plot snap to 0 observer
+  # Add layers to map as requested
+  observeEvent(input$plotNoSnapSummary, {
+    if (nrow(reactive_objects$snapNone) > 0 ){
+      map_proxy %>%
+        addCircleMarkers(data=reactive_objects$snapNone,
+                         layerId = ~paste0(FDT_STA_ID,'_snapNone'), # need unique layerID 
+                         label=~FDT_STA_ID, 
+                         group="Stations Snapped to 0 Segments", 
+                         color='black', fillColor='yellow', radius = 5,
+                         fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
+        addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                         overlayGroups = c("Adjusted Sites",
+                                           "Stations Snapped to 1 AU segment",
+                                           "Segments of Stations that snapped to 1 AU segment",
+                                           "Stations Snapped to > 1 Segment",
+                                           "Segments of Stations Snapped to > 1 Segment",
+                                           "Stations Snapped to 0 Segments",
+                                           "All stations in the selected Region/Basin",
+                                           'Conventionals Stations',"All AUs in selected Region/Basin",'Assessment Regions'),
+                         options=layersControlOptions(collapsed=T),
+                         position='topleft')
+    } else {
+      showNotification("There are no sites that snapped to 0 AU segments in preprocessing steps. Nothing to plot.")
+    }
+  })
+  
   
   observeEvent(input$plotRegionalSitesSummary, {
     map_proxy %>%
@@ -297,6 +340,62 @@ shinyServer(function(input, output, session) {
       datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'))  })
   
   
+  ## Accept Snapped AU Modal
+  observeEvent(input$accept, {
+    showModal(modalDialog(title = 'Accept Snapped AU', size = 'l',
+                          DT::renderDataTable({
+                            filter(reactive_objects$sitesUnique, FDT_STA_ID %in% reactive_objects$namesToSmash) %>%
+                              st_drop_geometry() %>%
+                              datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '125px'))  }),
+                          br(), br(),
+                          textInput('acceptComment', 'Additional Comments and Documentation'),
+                          actionButton('accept_ok', 'Accept', 
+                                       style='color: #fff; background-color: #337ab7; border-color: #2e6da4;font-size:120%', 
+                                       icon=icon('check-circle')),
+                          actionButton('accept_cancel', 'Cancel', 
+                                       style='color: #fff; background-color: #337ab7; border-color: #2e6da4;font-size:120%', 
+                                       icon=icon('window-close'))    ))  })
+  
+  # Do something with AU Accept Modal
+  observeEvent(input$accept_cancel, {removeModal()})
+  observeEvent(input$accept_ok, {
+    # Get name and location information from tooMany
+    sitesUpdated <- filter(reactive_objects$sitesUnique, FDT_STA_ID %in% reactive_objects$namesToSmash) %>%
+      #st_drop_geometry() %>%
+      distinct(FDT_STA_ID, .keep_all = T) %>%
+      mutate(#`Buffer Distance` = 'Manual Review', # may not need column anymore
+             Comments = paste0('Manual Accept | ',input$adjustComment))
+    
+    # add the current site(s) to the adjusted list 
+    #if(nrow(reactive_objects$sitesAdjusted) == 0){
+    #  reactive_objects$sitesAdjusted
+    #} else {
+    reactive_objects$sitesAdjusted <- rbind(reactive_objects$sitesAdjusted, sitesUpdated) # rbind works better for sf objects
+    #}
+    
+    dropMe <- unique(sitesUpdated$FDT_STA_ID)
+    
+    ## Remove Site from "to do' list
+    reactive_objects$tooMany_sites <- filter(reactive_objects$tooMany_sites, !(FDT_STA_ID %in% dropMe)) # drop sites
+    reactive_objects$tooMany <- filter(reactive_objects$tooMany, !(`Point Unique Identifier` %in% dropMe)) # drop segments
+    
+    # and if part of snap to 1 AU, fix that data
+    reactive_objects$snapSingle <- filter(reactive_objects$snapSingle, !(FDT_STA_ID %in% dropMe)) # drop sites
+    #reactive_objects$snap_input[['sf_output']] <- filter(reactive_objects$snap_input[['sf_output']], !(`Point Unique Identifier` %in% dropMe)) # drop segments
+    # whole map regenerates if I fix above
+    
+    # and if part of snap to 1 AU, fix that data
+    reactive_objects$snapNone <- filter(reactive_objects$snapNone, !(FDT_STA_ID %in% dropMe)) # drop sites
+    
+    
+    # Empty map selection
+    reactive_objects$namesToSmash <- NULL
+    
+    ### Clear modal
+    removeModal()
+  })
+  
+  
   
   
   
@@ -348,6 +447,10 @@ shinyServer(function(input, output, session) {
     #reactive_objects$snap_input[['sf_output']] <- filter(reactive_objects$snap_input[['sf_output']], !(`Point Unique Identifier` %in% dropMe)) # drop segments
     # whole map regenerates if I fix above
     
+    # and if part of snap to 1 AU, fix that data
+    reactive_objects$snapNone <- filter(reactive_objects$snapNone, !(FDT_STA_ID %in% dropMe)) # drop sites
+    
+    
     # Empty map selection
     reactive_objects$namesToSmash <- NULL
     
@@ -355,7 +458,7 @@ shinyServer(function(input, output, session) {
     removeModal()
   })
   
-  # update AUmap
+  # update AUmap after AU adjustment
   observe({
     req(reactive_objects$sitesAdjusted)
     ## Update proxy map
@@ -365,6 +468,7 @@ shinyServer(function(input, output, session) {
         
         map_proxy %>% 
           # have to manually clear old sites to 'wipe' leaflet memory of joined sites
+          clearGroup("Stations Snapped to 0 Segments") %>%
           clearGroup("Stations Snapped to > 1 Segment") %>%
           clearGroup("Segments of Stations Snapped to > 1 Segment") %>%
           addCircleMarkers(data=reactive_objects$tooMany_sites,
@@ -392,6 +496,12 @@ shinyServer(function(input, output, session) {
                        weight = 3,stroke=T,
                        popup=leafpop::popupTable(reactive_objects$snap_input[['sf_output']]),
                        popupOptions = popupOptions( maxHeight = 100 )) %>%
+          addCircleMarkers(data=reactive_objects$snapNone,
+                           layerId = ~paste0(FDT_STA_ID,'_snapNone'), # need unique layerID 
+                           label=~FDT_STA_ID, 
+                           group="Stations Snapped to 0 Segments", 
+                           color='black', fillColor='yellow', radius = 5,
+                           fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
           addCircleMarkers(data=reactive_objects$sitesAdjusted,
                            layerId = ~paste0(FDT_STA_ID,'_sitesAdjusted'),  # need unique layerID 
                            label=~FDT_STA_ID, group="Adjusted Sites", 
@@ -433,7 +543,9 @@ shinyServer(function(input, output, session) {
                            position='topleft')}  }    })
  
   output$test <- renderPrint({
-    glimpse(reactive_objects$sitesAdjusted)
+    str(reactive_objects$snap_input[['tbl_output']])
+    
+    #glimpse(reactive_objects$sitesAdjusted)
   })
   
   

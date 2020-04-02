@@ -1,5 +1,6 @@
 
 # testing stuff
+snap_input <- snapList_AU
 
 sitesUnique <- snap_input[['inputSites']] %>%
   mutate(`Point Unique Identifier` = FDT_STA_ID,
@@ -24,6 +25,7 @@ tooMany_sites <- filter(snap_input[['inputSites']], FDT_STA_ID %in% tooMany$`Poi
 snapSingle <- filter(sitesUnique, FDT_STA_ID %in% snap_input[['sf_output']]$`Point Unique Identifier`) %>%
   filter(!(FDT_STA_ID %in% tooMany_sites$FDT_STA_ID))# filter out sites that attached to more than one segment
 
+snapNone <- filter(sitesUnique, FDT_STA_ID %in% snap_input[['tbl_output']]$`Point Unique Identifier`) 
 
 sitesAdjusted <-  sitesUnique[0,]
 
@@ -111,6 +113,25 @@ proxy %>%
                    options=layersControlOptions(collapsed=T),
                    position='topleft')
 
+
+proxy %>%
+  addCircleMarkers(data=snapNone,
+                   layerId = ~FDT_STA_ID,
+                   label=~FDT_STA_ID, group="Stations Snapped to 0 Segments", 
+                   color='black', fillColor='yellow', radius = 5,
+                   fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%#, memory issues
+  hideGroup("Segments of Stations in the selected Region/Basin") %>%
+  addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                   overlayGroups = c("Stations in the selected Region/Basin",
+                                     "Segments of Stations in the selected Region/Basin",
+                                     "Stations Snapped to > 1 Segment",
+                                     "Stations Snapped to 0 Segments",
+                                     "Segments of Stations Snapped to > 1 Segment",
+                                     'Conventionals Stations',"All AUs in selected Region/Basin",'Assessment Regions'),
+                   options=layersControlOptions(collapsed=T),
+                   position='topleft')
+
+
 namesToSmash <- '2-LMC001.37'
 
 filter(sitesUnique, FDT_STA_ID %in% namesToSmash) %>%
@@ -138,4 +159,5 @@ tooMany <- filter(tooMany, !(`Point Unique Identifier` %in% dropMe)) # drop segm
 
 
 rm(sitesUnique); rm(AUsegments); rm(tooMany); rm(tooMany_sites); rm(snapSingle); rm(sitesAdjusted)
-rm(AUs); rm(proxy); rm(namesToSmash); rm(sitesAdjusted); rm(dropMe); rm(sitesUpdated)
+rm(AUs); rm(proxy); rm(namesToSmash); rm(sitesAdjusted); rm(dropMe); rm(sitesUpdated);
+rm(snap_input); rm(snapNone)

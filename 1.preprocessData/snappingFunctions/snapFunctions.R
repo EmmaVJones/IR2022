@@ -62,17 +62,17 @@ snap_Points_to_Feature_List <- function(MULTIPOINT, # sf MULTIPOINT file
       } else { 
         out_list$sf_output <- suppressWarnings( out_list$sf_output <- rbind(out_list$sf_output,z) ) }
     } else {
-      # new 2/19/2020, one last shot at finding line
-      print(paste('Snapping Point ',i,' of ',nrow(MULTIPOINT),' BONUS BUFFER', sep = ''))
-      z <- snap_Point_to_Feature(MULTIPOINT[i,], POINT_UID_colname, MULTILINESTRING, 500)
-      
-      if("sf" %in% class(z)){
-        if( length(out_list$sf_output) == 0 ){
-          out_list$sf_output <- z
-        } else {
+    #  # new 2/19/2020, one last shot at finding line
+    #  print(paste('Snapping Point ',i,' of ',nrow(MULTIPOINT),' BONUS BUFFER', sep = ''))
+    #  z <- snap_Point_to_Feature(MULTIPOINT[i,], POINT_UID_colname, MULTILINESTRING, 500)
+    #  
+    #  if("sf" %in% class(z)){
+    #    if( length(out_list$sf_output) == 0 ){
+    #      out_list$sf_output <- rbind(out_list$sf_output,z)
+    #    } else {
           out_list$tbl_output <-  suppressWarnings( out_list$tbl_output %>% bind_rows(z) ) }
-      }
-    }
+    #  }
+    #}
   }
   
   # Report Results
