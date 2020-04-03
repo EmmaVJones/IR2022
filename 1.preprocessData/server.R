@@ -27,6 +27,12 @@ shinyServer(function(input, output, session) {
   region_filter <- shiny::callModule(dynamicSelect, "DEQregionSelection", the_data, "ASSESS_REG" )
   basin_filter <- shiny::callModule(dynamicSelect, "basinSelection", region_filter, "Basin" )
   
+  # Copy data as observer for download filename
+  region <- reactive({req(input$begin) 
+    unique(region_filter()$ASSESS_REG)})
+  basin <- reactive({req(input$begin)
+    unique(basin_filter()$Basin)})
+  
   
   ################## FOR TESTING ###########################################################
   assessmentType_sf <- eventReactive(input$begin, {
@@ -104,6 +110,8 @@ shinyServer(function(input, output, session) {
     reactive_objects$snapNone <- filter(reactive_objects$sitesUnique, FDT_STA_ID %in% reactive_objects$snap_input[['tbl_output']]$`Point Unique Identifier`) 
     # Make empty dataset of sites that assessors touched
     reactive_objects$sitesAdjusted <-  reactive_objects$sitesUnique[0,]
+    # Make dataset for user to download
+    reactive_objects$finalAU <- reactive_objects$sitesUnique %>% st_drop_geometry()
     })
   
   # UI summaries of data pulled in to app, first and second tab
@@ -364,7 +372,7 @@ shinyServer(function(input, output, session) {
       #st_drop_geometry() %>%
       distinct(FDT_STA_ID, .keep_all = T) %>%
       mutate(#`Buffer Distance` = 'Manual Review', # may not need column anymore
-             Comments = paste0('Manual Accept | ',input$adjustComment))
+             Comments = paste0('Manual Accept | ',input$acceptComment))
     
     # add the current site(s) to the adjusted list 
     #if(nrow(reactive_objects$sitesAdjusted) == 0){
@@ -386,6 +394,10 @@ shinyServer(function(input, output, session) {
     
     # and if part of snap to 1 AU, fix that data
     reactive_objects$snapNone <- filter(reactive_objects$snapNone, !(FDT_STA_ID %in% dropMe)) # drop sites
+    
+    # update output dataset
+    reactive_objects$finalAU <- filter(reactive_objects$finalAU, !(FDT_STA_ID %in% dropMe)) %>%
+      bind_rows(sitesUpdated)
     
     
     # Empty map selection
@@ -450,6 +462,10 @@ shinyServer(function(input, output, session) {
     # and if part of snap to 1 AU, fix that data
     reactive_objects$snapNone <- filter(reactive_objects$snapNone, !(FDT_STA_ID %in% dropMe)) # drop sites
     
+    # update output dataset
+    reactive_objects$finalAU <- filter(reactive_objects$finalAU, !(FDT_STA_ID %in% dropMe)) %>%
+      bind_rows(sitesUpdated)
+      
     
     # Empty map selection
     reactive_objects$namesToSmash <- NULL
@@ -542,16 +558,37 @@ shinyServer(function(input, output, session) {
                            options=layersControlOptions(collapsed=T),
                            position='topleft')}  }    })
  
-  output$test <- renderPrint({
-    str(reactive_objects$snap_input[['tbl_output']])
-    
-    #glimpse(reactive_objects$sitesAdjusted)
-  })
-  
-  
-  
+  ## User adjusted table 
   output$adjustedStationsTable <- DT::renderDataTable({
     req(reactive_objects$namesToSmash, reactive_objects$sitesAdjusted)
     filter(reactive_objects$sitesAdjusted, FDT_STA_ID %in% reactive_objects$namesToSmash) %>%
       datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'))  })
+  
+  
+  
+  ## Checkout changes
+  observeEvent(input$checkMeOut, {
+    showModal(modalDialog(title = 'Download', size = 'l',
+                          h4('All stations that were accepted or adjusted'),
+                          DT::renderDataTable({
+                            reactive_objects$sitesAdjusted %>%
+                              st_drop_geometry() %>%
+                              datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '300px'))  }),
+                          br(), br(),
+                          h4('Final AU results that will be downloaded'),
+                          DT::renderDataTable({
+                            reactive_objects$finalAU %>%
+                              datatable(rownames = F, options = list(dom = 'ft', scrollX= TRUE, scrollY = '300px'))  })
+                           ))  })
+  
+  ## Download Changes
+  export_file=reactive(paste0('IR2022_AUreview_', region(), '_', basin(),'_', Sys.Date(),'.csv'))
+  output$downloadAU <- downloadHandler(
+    filename=function(){export_file()},
+    content = function(file) {
+      write.csv(reactive_objects$finalAU, row.names = F) }) 
+  
+  output$test <- renderPrint({
+    reactive_objects$sitesUnique
+  })
 })
