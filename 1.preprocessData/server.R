@@ -586,9 +586,12 @@ shinyServer(function(input, output, session) {
   output$downloadAU <- downloadHandler(
     filename=function(){export_file()},
     content = function(file) {
-      write.csv(reactive_objects$finalAU, row.names = F) }) 
+      write.csv(reactive_objects$finalAU %>%
+                  dplyr::select(-geometry) %>%
+                  as.data.frame(), file, row.names = F) }) 
   
-  output$test <- renderPrint({
-    reactive_objects$sitesUnique
-  })
+  #output$test <- renderPrint({
+  #  req(reactive_objects$finalAU)
+  #  reactive_objects$finalAU
+  #})
 })
