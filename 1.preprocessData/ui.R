@@ -20,7 +20,7 @@ shinyUI(fluidPage(theme= "yeti.css",
                                                  column(3, textOutput('regionalSitesSummary1'))),
                                         br(),
                                         h5(strong('Assessment Units in Selected Major Basin')),
-                                        DT::dataTableOutput('AUSummary')
+                                        DT::dataTableOutput('AUSummary'), br(), br(), br() # a little breathing room
                                       )),
                              tabPanel("Assessment Unit Review",
                                       wellPanel(

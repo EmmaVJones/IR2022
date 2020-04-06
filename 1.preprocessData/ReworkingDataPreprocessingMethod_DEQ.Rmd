@@ -127,6 +127,12 @@ assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
   st_transform( st_crs(4326)) # transform to WQS84 for spatial intersection
 ``` 
 
+Choose an assessment region
+```{r}
+assessmentRegion <- unique(assessmentLayer$ASSESS_REG)[1]
+```
+
+
 
 ```{r joinTime}
 #james in BRRO bc first thing that comes up in app
@@ -134,7 +140,7 @@ irData_BRRO <- st_as_sf(irData,
                         coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
                         remove = F, # don't remove these lat/lon cols from df
                         crs = 4326) %>% # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
-  st_intersection(filter(assessmentLayer, ASSESS_REG == "BRRO") )
+  st_intersection(filter(assessmentLayer, ASSESS_REG == assessmentRegion) )
 
 irData_join <- dplyr::left_join(irData_BRRO, 
                                 # but first drop columns that we want from spatial layer
@@ -212,15 +218,35 @@ First thing we want to do now is filter out any sites that fall into the estuary
 
 The below chunk:
 1) Reads in the 2018 estuary AU layer
+1.1) intersects assessmentLayer to get appropriate basin info
+1.2) saves each layer in a spot to be accessed by app
+
+This needs to be rerun each cycle with the most recent final AU information
+
+```{r Filter Out Estuary Statewide, echo=F, results = 'hide'}
+#estuaryAUs <- st_read('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_estuarine.shp') %>%
+#   st_transform( st_crs(4326)) %>% # transform to WQS84 for spatial intersection 
+#  # intersect last cycle's lake AUs with assessmentLayer to get appropriate Basin argument for data organization
+#   st_join(dplyr::select(assessmentLayer, ASSESS_REG, Basin), join = st_intersects) 
+
+#for(i in 1:length(unique(estuaryAUs$ASSESS_REG))){
+#  z <- filter(estuaryAUs, ASSESS_REG == as.character(unique(estuaryAUs$ASSESS_REG)[i]))
+#  for(k in 1:length(unique(z$Basin))){
+#    z1 <- filter(z, Basin == as.character(unique(z$Basin)[k]))
+#    st_write(z1, paste0('data/processedGIS/va_2018_aus_estuarine_', 
+#                          unique(z1$ASSESS_REG), "_", 
+#                          unique(z1$Basin), '.shp'))
+#  }
+#}
+
+
+```
+
 2) Finds any sites that fall into an estuary AU polygon
   - see optional code to write those sites to a separate csv for future reference
 3) Removes any estuarine sites from the data frame of unique conventionals sites that need AU and WQS information.
 
-```{r Filter Out Estuary Statewide, echo=F, results = 'hide'}
-estuaryAUs <- st_read('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_estuarine.shp') %>%
-   st_transform( st_crs(4326)) # transform to WQS84 for spatial intersection
-
-
+```{r Filter Out Estuary Statewide, echo=F, results = 'hide'}}
 irData_missing_Estuary <- st_join(irData_missing, estuaryAUs, join = st_intersects) %>%
       filter(!is.na(OBJECTID))
 
@@ -250,22 +276,83 @@ cat(paste('Removing the above sites, the unique sites have gone from ', nrow(irD
 cat(paste('Working with the ', nrow(irData_missing_NoEstuary),' sites that did not connect to a STATION_ID/FDT_STA_ID from last cycle, we will first do a spatial join to the reservoir/lakes AUs to see if any sites are lake sites before using the more computationally intensive stream snapping process.', sep=''))
 ```
 
+The below chunk:
+1) Reads in the 2018 reservoir AU layer
+1.1) intersects assessmentLayer to get appropriate basin info
+1.2) saves each layer in a spot to be accessed by app
+
+This needs to be rerun each cycle with the most recent final AU information
+
+
+```{r}
+#reservoirAUs <- st_read('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_reservoir.shp') %>%
+#   st_transform( st_crs(4326)) %>% # transform to WQS84 for spatial intersection 
+#  # intersect last cycle's lake AUs with assessmentLayer to get appropriate Basin argument for data organization
+#   st_join(dplyr::select(assessmentLayer, ASSESS_REG, Basin), join = st_intersects) 
+
+#for(i in 1:length(unique(reservoirAUs$ASSESS_REG))){
+#  z <- filter(reservoirAUs, ASSESS_REG == as.character(unique(reservoirAUs$ASSESS_REG)[i]))
+#  for(k in 1:length(unique(z$Basin))){
+#    z1 <- filter(z, Basin == as.character(unique(z$Basin)[k]))
+#    st_write(z1, paste0('data/processedGIS/va_2018_aus_reservoir_', 
+#                          unique(z1$ASSESS_REG), "_", 
+#                          unique(z1$Basin), '.shp'))
+#  }
+#}
+
+```
+
+
 ```{r reservoirStatewide, echo=F, results = 'hide'}
-reservoirAUs <- st_read('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_reservoir.shp') %>%
-   st_transform( st_crs(4326)) # transform to WQS84 for spatial intersection
+# organize this one time for assessment and reuse layer
+#reservoirAUs <- st_read('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_reservoir.shp') %>%
+#  st_transform( st_crs(4326)) %>% # transform to WQS84 for spatial intersection
+#  # intersect last cycle's lake AUs with assessmentLayer to get appropriate Basin argument for data organization
+#  st_join(dplyr::select(assessmentLayer, ASSESS_REG, Basin), join = st_intersects) 
+#st_write(reservoirAUs, 'C:/HardDriveBackup/GIS/Assessment/va_2018_aus_reservoir_basins.shp')
+reservoirAUs <- st_read('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_reservoir_basins.shp') %>%
+   filter(ASSESS_REG == as.character(assessmentRegion)) # and filter to region of interest
 
-# find lake AUs, if Any
-irData_missing_Lakes <- st_join(irData_missing_NoEstuary, reservoirAUs, join = st_intersects) %>%
-  filter(!is.na(OBJECTID)) %>% # only keep rows where join successful
-  mutate(ID305B_1 = ID305B) %>% # rename ID305B_1 field by the joined reservoir ID305B
-  dplyr::select(names(irData_missing_NoEstuary), ID305B_1)
+# holder for stations to drop from further analyses
+stationsToRemove <- c()
 
-# add lake AU sites to conventionals_D_Region_AU
-#conventionals_D_Region_AU <- rbind(conventionals_D_Region_AU, conventionals_D_Region_Lakes)
+# Go through sites in each basin
+for(i in 1:length(unique(reservoirAUs$Basin))){
+  # find lake AUs, if Any
+  irData_missing_Lakes <- st_join(filter(reservoirAUs, Basin == unique(reservoirAUs$Basin)[i]),
+                                  irData_missing_NoEstuary, 
+                                         join = st_intersects) %>%
+    filter(!is.na(FDT_STA_ID)) %>% # only keep rows where join successful
+    mutate(`Point Unique Identifier` = FDT_STA_ID, 
+           `Buffer Distance` = 'Within Polygon') %>%
+    dplyr::select(`Point Unique Identifier`, `Buffer Distance`, OBJECTID:Shape_Leng)
+  
+  # Organize all lake sites from previous assessment info
+  lakeStations <- filter(irData_final, grepl('L_', ID305B_1) | grepl('L_', ID305B_2) | grepl('L_', ID305B_3) |
+                           STATION_TYPE_1 == "L" | STATION_TYPE_2 == "L" | STATION_TYPE_3 == "L") %>%
+    filter(Basin == unique(reservoirAUs$Basin)[i]) %>%
+    rbind(filter(irData_join, FDT_STA_ID %in% irData_missing_Lakes$`Point Unique Identifier`))
+
+  # save lake sites to special result for assessor to review, match riverine output
+  # this is going to differ slightly from the riverine output in that tbl_output isn't necessary since all sites that don't fall into a lake (or estuary) AU will be
+  # processed as riverine AND input_sites will contain stations that fell into lake AU and previously attributed lake sites
+  lake_snapList_AU <- list('sf_output' = irData_missing_Lakes,
+                           'inputSites' = lakeStations)
+  
+  stationsToRemove <- c(stationsToRemove, as.character(irData_missing_Lakes$`Point Unique Identifier`))
+  
+  saveRDS(lake_snapList_AU,paste0("data/preAnalyzedRegionalAUdata/", assessmentRegion,
+                                  "/Lacustrine/", unique(reservoirAUs$Basin)[i], ".RDS"))
+
+}
+
 
 # and remove lake AU sites from the sites without AUs
-irData_missing_NoAU <- filter(irData_missing, !(FDT_STA_ID %in% irData_missing_Lakes$FDT_STA_ID)) %>%
-  mutate(ID305B_1 = NA) # need column for snapping tools
+
+irData_missing_NoAU <- mutate(irData_missing, ID305B_1 = NA) %>% # need column for snapping tools
+  filter(!(FDT_STA_ID %in% stationsToRemove))
+
+
 rm(reservoirAUs) # remove from memory
 ```
 
@@ -282,6 +369,37 @@ The function first buffers the site the lowest input buffer distance, then it in
 **Note: All stations you want to use in the assessment applications require AU information. If no AU information is provided to the app with a StationID, then the station will not appear in the app and could potentially be lost until further QA.**
 
 The next chunk will bring in the riverine AU layer from the previous cycle, complete the snapping tool, ask for user input in the form of a gadget in the viewer panel if sites snap to multiple segments in a single buffer, and then organize results. You can see the progress and results of the tool below the chunk.
+
+
+The below chunk:
+1) Reads in the 2018 reservoir AU layer
+1.1) intersects assessmentLayer to get appropriate basin info
+1.2) saves each layer in a spot to be accessed by app
+
+This needs to be rerun each cycle with the most recent final AU information
+
+
+```{r}
+# use a custom snapping tool to snap and organize 
+riverineAUs <-  st_read('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_riverine.shp') %>%
+  st_transform( st_crs(4326))  # transform to WQS84 for spatial intersection 
+
+# intersect last cycle's lake AUs with assessmentLayer to get appropriate Basin argument for data organization
+riverineAUs <-  st_join(st_zm(riverineAUs), dplyr::select(assessmentLayer, ASSESS_REG, Basin), join = st_intersects) 
+
+
+for(i in 1:length(unique(riverineAUs$ASSESS_REG))){
+  z <- filter(riverineAUs, ASSESS_REG == as.character(unique(riverineAUs$ASSESS_REG)[i]))
+  for(k in 1:length(unique(z$Basin))){
+    z1 <- filter(z, Basin == as.character(unique(z$Basin)[k]))
+    st_write(z1, paste0('data/processedGIS/va_2018_aus_riverine_', 
+                          unique(z1$ASSESS_REG), "_", 
+                          unique(z1$Basin), '.shp'))
+
+  }
+}
+
+```
 
 ```{r riverineAUsnap, echo=FALSE}
 # use a custom snapping tool to snap and organize 

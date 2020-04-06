@@ -1,11 +1,11 @@
 source('global.R')
 
 # All conventionals sites
-#conventionals_D <- st_read('GIS/conventionals_D.shp')
+conventionals_D <- st_read('GIS/conventionals_D.shp')
 
-#assessmentRegions <- st_read( 'GIS/AssessmentRegions_simple.shp')
-#assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
-#  st_transform( st_crs(4326)) 
+assessmentRegions <- st_read( 'GIS/AssessmentRegions_simple.shp')
+assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
+  st_transform( st_crs(4326)) 
 
 
 shinyServer(function(input, output, session) {
@@ -35,22 +35,33 @@ shinyServer(function(input, output, session) {
   
   
   ################## FOR TESTING ###########################################################
-  assessmentType_sf <- eventReactive(input$begin, {
-    req(basin_filter(), input$assessmentType)
-    AUs1}) # for speed #riverineAUs})
-  AUs <- eventReactive(input$begin, { AUs1 })
+#  assessmentType_sf <- eventReactive(input$begin, {
+#    req(basin_filter(), input$assessmentType)
+#    AUs1}) # for speed #riverineAUs})
+#  AUs <- eventReactive(input$begin, { AUs1 })
   
   
   ####### FOR REAL ##########################################################################
 #  assessmentType_sf <- eventReactive(input$begin, {
 #    req(basin_filter(), input$assessmentType)
-#    typeName <- ifelse(input$assessmentType != 'Lacustrine', input$assessmentType, 'Reservoir')
-#    st_read(paste0('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_',
-#                                      tolower(typeName),'.shp')) %>%
+#    typeName <- ifelse(input$assessmentType != 'Lacustrine', input$assessmentType, 'Reservoir_Basins')
+#    st_read(paste0('data/processedGIS/va_2018_aus_', tolower(typeName),'_', 
+#                   region(), "_", basin(), '.shp')) %>%
+#    
+#   # st_read(paste0('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_',
+#  #                                    tolower(typeName),'.shp')) %>%
 #      st_transform(4326)})
 #  AUs <- eventReactive(input$begin, {
 #    req(basin_filter(), input$assessmentType, assessmentType_sf())
 #    suppressWarnings(st_intersection(st_zm(assessmentType_sf()), basin_filter()))})
+  AUs <- eventReactive(input$begin, {
+    req(basin_filter(), input$assessmentType)
+    typeName <- ifelse(input$assessmentType != 'Lacustrine', input$assessmentType, 'Reservoir')
+    st_read(paste0('data/processedGIS/va_2018_aus_', tolower(typeName),'_', 
+                   region(), "_", basin(), '.shp')) %>%
+      st_transform(4326)})
+  
+ 
   
   ## Map output of basin and assessmentType_sf
   output$VAmap <- renderLeaflet({
@@ -138,11 +149,31 @@ shinyServer(function(input, output, session) {
     CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE, 
                  options= leafletOptions(zoomControl = TRUE,minZoom = 3, maxZoom = 20)) %>%
       setView(-78, 37.5, zoom=7)  %>% 
-#      addCircleMarkers(data = conventionals_D, color='blue', fillColor='yellow', radius = 4,
-#                       fillOpacity = 0.5,opacity=0.5,weight = 1,stroke=T, group="Conventionals Stations",
-#                       label = ~FDT_STA, layerId = ~FDT_STA, 
-#                       popup = leafpop::popupTable(conventionals_D),
-#                       popupOptions = popupOptions( maxHeight = 100 )) %>% 
+      addCircleMarkers(data = conventionals_D, color='blue', fillColor='yellow', radius = 4,
+                       fillOpacity = 0.5,opacity=0.5,weight = 1,stroke=T, group="Conventionals Stations",
+                       label = ~FDT_STA, layerId = ~FDT_STA, 
+                       popup = leafpop::popupTable(conventionals_D),
+                       popupOptions = popupOptions( maxHeight = 100 )) %>% 
+      
+      {if("sfc_MULTIPOLYGON" %in% class(st_geometry(AUs()))) 
+        addPolygons(., data = AUs(),
+                    layerId = ~ID305B,
+                    label=~ID305B, group="All AUs in selected Region/Basin", 
+                    color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+                    weight = 3,stroke=T,
+                    popup=leafpop::popupTable(AUs()),
+                    popupOptions = popupOptions( maxHeight = 100 )) %>% 
+          hideGroup("All AUs in selected Region/Basin") 
+        else addPolylines(., data = AUs(),
+                          layerId = ~ID305B,
+                          label=~ID305B, group="All AUs in selected Region/Basin", 
+                          color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+                          weight = 3,stroke=T,
+                          popup=leafpop::popupTable(AUs()),
+                          popupOptions = popupOptions( maxHeight = 100 )) %>% 
+          hideGroup("All AUs in selected Region/Basin")  } %>%
+      
+      # first working method
 #      addPolylines(data=AUs(),
 #                   layerId = ~ID305B,
 #                   label=~ID305B, group="All AUs in selected Region/Basin", 
@@ -150,13 +181,13 @@ shinyServer(function(input, output, session) {
 #                   weight = 3,stroke=T,
 #                   popup=leafpop::popupTable(AUs()),
 #                   popupOptions = popupOptions( maxHeight = 100 )) %>% hideGroup("All AUs in selected Region/Basin") %>%
-#      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
-#                  fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
-#                  group="Assessment Regions",
-#                  popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG'))) %>% hideGroup('Assessment Regions') %>% #,'VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
-#      inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
-#      inlmisc::AddSearchButton(group = "Conventionals Stations", zoom = 15,propertyName = "label",
-#                               textPlaceholder = "Search Conventionals Stations") %>%
+      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
+                  fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
+                  group="Assessment Regions",
+                  popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG'))) %>% hideGroup('Assessment Regions') %>% #,'VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
+      inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
+      inlmisc::AddSearchButton(group = "Conventionals Stations", zoom = 15,propertyName = "label",
+                               textPlaceholder = "Search Conventionals Stations") %>%
       addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                        overlayGroups = c('Conventionals Stations',"All AUs in selected Region/Basin",'Assessment Regions'),
                        options=layersControlOptions(collapsed=T),
@@ -173,18 +204,37 @@ shinyServer(function(input, output, session) {
                          layerId = ~paste0(FDT_STA_ID,'_snapSingle'), # need unique layerID 
                          label=~FDT_STA_ID, group="Stations Snapped to 1 AU segment", 
                          color='black', fillColor='cyan', radius = 5,
-                         fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%#, memory issues
-        #popup = leafpop::popupTable(reactive_objects$snapSingle),
-        #popupOptions = popupOptions( maxHeight = 100 )) %>%
-        addPolylines(data=filter(reactive_objects$snap_input[['sf_output']],
-                                 !(`Point Unique Identifier` %in% reactive_objects$tooMany_sites$FDT_STA_ID)),
-                     layerId = ~paste0(ID305B,'_snapSingle'),  # need unique layerID 
-                     label=~ID305B, group="Segments of Stations that snapped to 1 AU segment", 
-                     color = 'cyan', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
-                     weight = 3,stroke=T,
-                     popup=leafpop::popupTable(reactive_objects$snap_input[['sf_output']]),
-                     popupOptions = popupOptions( maxHeight = 100 )) %>%
-        hideGroup("Segments of Stations that snapped to 1 AU segment") %>%
+                         fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
+        {if("sfc_MULTIPOLYGON" %in% class(st_geometry(reactive_objects$snap_input[['sf_output']]))) 
+          addPolygons(., data=filter(reactive_objects$snap_input[['sf_output']],
+                                     !(`Point Unique Identifier` %in% reactive_objects$tooMany_sites$FDT_STA_ID)),
+                      layerId = ~paste0(ID305B,'_snapSingle'), # need unique layerID 
+                      label=~ID305B, group="Segments of Stations that snapped to 1 AU segment", 
+                      color = 'cyan',
+                      fill = 'cyan', #color = ~palTooMany(tooMany$colorFac),
+                      weight = 3,stroke=T,
+                      popup=leafpop::popupTable(reactive_objects$snap_input[['sf_output']]),
+                      popupOptions = popupOptions( maxHeight = 100 )) %>%
+            hideGroup("Segments of Stations that snapped to 1 AU segment") 
+          else addPolylines(., data=filter(reactive_objects$snap_input[['sf_output']],
+                                           !(`Point Unique Identifier` %in% reactive_objects$tooMany_sites$FDT_STA_ID)),
+                            layerId = ~paste0(ID305B,'_snapSingle'), # need unique layerID 
+                            label=~ID305B, group="Segments of Stations that snapped to 1 AU segment", 
+                            color = 'cyan', #color = ~palTooMany(tooMany$colorFac),
+                            weight = 3,stroke=T,
+                            popup=leafpop::popupTable(reactive_objects$snap_input[['sf_output']]),
+                            popupOptions = popupOptions( maxHeight = 100 )) %>%
+            hideGroup("Segments of Stations that snapped to 1 AU segment") } %>%
+       # first working method 
+        #addPolylines(data=filter(reactive_objects$snap_input[['sf_output']],
+        #                         !(`Point Unique Identifier` %in% reactive_objects$tooMany_sites$FDT_STA_ID)),
+        #             layerId = ~paste0(ID305B,'_snapSingle'),  # need unique layerID 
+        #             label=~ID305B, group="Segments of Stations that snapped to 1 AU segment", 
+        #             color = 'cyan', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+        #             weight = 3,stroke=T,
+        #             popup=leafpop::popupTable(reactive_objects$snap_input[['sf_output']]),
+        #             popupOptions = popupOptions( maxHeight = 100 )) %>%
+        #hideGroup("Segments of Stations that snapped to 1 AU segment") %>%
         addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                          overlayGroups = c("Adjusted Sites",
                                            "Stations Snapped to 1 AU segment",
@@ -234,7 +284,6 @@ shinyServer(function(input, output, session) {
       showNotification("There are no sites that snapped to > 1 AU segment in preprocessing steps. Nothing to plot.")
     }   })
   
-  # Add layers to map as requested
   observeEvent(input$plotNoSnapSummary, {
     if (nrow(reactive_objects$snapNone) > 0 ){
       map_proxy %>%
@@ -259,7 +308,6 @@ shinyServer(function(input, output, session) {
       showNotification("There are no sites that snapped to 0 AU segments in preprocessing steps. Nothing to plot.")
     }
   })
-  
   
   observeEvent(input$plotRegionalSitesSummary, {
     map_proxy %>%
@@ -504,14 +552,36 @@ shinyServer(function(input, output, session) {
                            label=~FDT_STA_ID, group="Stations Snapped to 1 AU segment", 
                            color='black', fillColor='cyan', radius = 5,
                            fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
-          addPolylines(data=filter(reactive_objects$snap_input[['sf_output']],
-                                   !(`Point Unique Identifier` %in% reactive_objects$tooMany_sites$FDT_STA_ID)),
-                       layerId = ~paste0(ID305B,'_snapSingle'),  # need unique layerID 
-                       label=~ID305B, group="Segments of Stations that snapped to 1 AU segment", 
-                       color = 'cyan', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
-                       weight = 3,stroke=T,
-                       popup=leafpop::popupTable(reactive_objects$snap_input[['sf_output']]),
-                       popupOptions = popupOptions( maxHeight = 100 )) %>%
+          
+          {if("sfc_MULTIPOLYGON" %in% class(st_geometry(reactive_objects$snap_input[['sf_output']]))) 
+            addPolygons(., data=filter(reactive_objects$snap_input[['sf_output']],
+                                       !(`Point Unique Identifier` %in% reactive_objects$tooMany_sites$FDT_STA_ID)),
+                        layerId = ~paste0(ID305B,'_snapSingle'), # need unique layerID 
+                        label=~ID305B, group="Segments of Stations that snapped to 1 AU segment", 
+                        color = 'cyan',
+                        fill = 'cyan', #color = ~palTooMany(tooMany$colorFac),
+                        weight = 3,stroke=T,
+                        popup=leafpop::popupTable(reactive_objects$snap_input[['sf_output']]),
+                        popupOptions = popupOptions( maxHeight = 100 )) %>%
+              hideGroup("Segments of Stations that snapped to 1 AU segment") 
+            else addPolylines(., data=filter(reactive_objects$snap_input[['sf_output']],
+                                             !(`Point Unique Identifier` %in% reactive_objects$tooMany_sites$FDT_STA_ID)),
+                              layerId = ~paste0(ID305B,'_snapSingle'), # need unique layerID 
+                              label=~ID305B, group="Segments of Stations that snapped to 1 AU segment", 
+                              color = 'cyan', #color = ~palTooMany(tooMany$colorFac),
+                              weight = 3,stroke=T,
+                              popup=leafpop::popupTable(reactive_objects$snap_input[['sf_output']]),
+                              popupOptions = popupOptions( maxHeight = 100 )) %>%
+              hideGroup("Segments of Stations that snapped to 1 AU segment") } %>%
+          
+          #addPolylines(data=filter(reactive_objects$snap_input[['sf_output']],
+          #                         !(`Point Unique Identifier` %in% reactive_objects$tooMany_sites$FDT_STA_ID)),
+          #             layerId = ~paste0(ID305B,'_snapSingle'),  # need unique layerID 
+          #             label=~ID305B, group="Segments of Stations that snapped to 1 AU segment", 
+          #             color = 'cyan', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+          #             weight = 3,stroke=T,
+          #             popup=leafpop::popupTable(reactive_objects$snap_input[['sf_output']]),
+          #             popupOptions = popupOptions( maxHeight = 100 )) %>%
           addCircleMarkers(data=reactive_objects$snapNone,
                            layerId = ~paste0(FDT_STA_ID,'_snapNone'), # need unique layerID 
                            label=~FDT_STA_ID, 
@@ -582,12 +652,15 @@ shinyServer(function(input, output, session) {
                            ))  })
   
   ## Download Changes
-  export_file=reactive(paste0('IR2022_AUreview_', region(), '_', basin(),'_', Sys.Date(),'.csv'))
+  export_file=reactive(paste0('IR2022_AUreview_', region(), '_', basin(),'_',input$assessmentType, '_', Sys.Date(),'.csv'))
   output$downloadAU <- downloadHandler(
     filename=function(){export_file()},
     content = function(file) {
       write.csv(reactive_objects$finalAU %>%
-                  dplyr::select(-geometry) %>%
+                  # get rid of geometry if needed
+                  {if('geometry' %in% names(reactive_objects$finalAU))
+                    dplyr::select(., -geometry) 
+                    else . } %>%
                   as.data.frame(), file, row.names = F) }) 
   
   #output$test <- renderPrint({

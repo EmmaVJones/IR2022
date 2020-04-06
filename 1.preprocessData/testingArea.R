@@ -62,24 +62,48 @@ proxy <- CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE
                    position='topleft') %>%
   hideGroup("Conventionals Stations") 
 
+
+proxy %>%
+  { if("sfc_MULTIPOLYGON" %in% class(st_geometry(snap_input[['sf_output']]))) 
+    addPolygons(., data=filter(snap_input[['sf_output']],
+                               !(`Point Unique Identifier` %in% tooMany_sites$FDT_STA_ID))) 
+    else addPolylines(., data=filter(snap_input[['sf_output']],
+                                     !(`Point Unique Identifier` %in% tooMany_sites$FDT_STA_ID)))} %>%
+  addCircleMarkers(data=snapSingle,
+                   layerId = ~FDT_STA_ID,
+                   label=~FDT_STA_ID, group="Stations in the selected Region/Basin", 
+                   color='black', fillColor='cyan', radius = 5,
+                   fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) 
+  
+  
+  
+
 proxy %>%
   addCircleMarkers(data=snapSingle,
                    layerId = ~FDT_STA_ID,
                    label=~FDT_STA_ID, group="Stations in the selected Region/Basin", 
                    color='black', fillColor='cyan', radius = 5,
                    fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%#, memory issues
-  #popup = leafpop::popupTable(snapSingle),
-  #popupOptions = popupOptions( maxHeight = 100 )) %>%
-  addPolylines(data=filter(snap_input[['sf_output']],
-                           !(`Point Unique Identifier` %in% tooMany_sites$FDT_STA_ID)),
-               layerId = ~ID305B,
-               label=~ID305B, group="Segments of Stations in the selected Region/Basin", 
-               color = 'cyan', #color = ~palTooMany(tooMany$colorFac),
-               weight = 3,stroke=T,
-               popup=leafpop::popupTable(snap_input[['sf_output']]),
-               popupOptions = popupOptions( maxHeight = 100 )) %>%
-  hideGroup("Segments of Stations in the selected Region/Basin") %>%
-  addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+  {if("sfc_MULTIPOLYGON" %in% class(st_geometry(snap_input[['sf_output']]))) 
+    addPolygons(., data=filter(snap_input[['sf_output']],
+                          !(`Point Unique Identifier` %in% tooMany_sites$FDT_STA_ID)),
+              layerId = ~paste0(ID305B,'_snapSingle'), # need unique layerID 
+              label=~ID305B, group="Segments of Stations in the selected Region/Basin", 
+              color = 'cyan',
+              fill = 'cyan', #color = ~palTooMany(tooMany$colorFac),
+              weight = 3,stroke=T,
+              popup=leafpop::popupTable(snap_input[['sf_output']]),
+              popupOptions = popupOptions( maxHeight = 100 )) %>%
+      hideGroup("Segments of Stations in the selected Region/Basin")
+    else addPolylines(., data=filter(snap_input[['sf_output']],
+                                    !(`Point Unique Identifier` %in% tooMany_sites$FDT_STA_ID)),
+                        layerId = ~paste0(ID305B,'_snapSingle'), # need unique layerID 
+                        label=~ID305B, group="Segments of Stations in the selected Region/Basin", 
+                        color = 'cyan', #color = ~palTooMany(tooMany$colorFac),
+                        weight = 3,stroke=T,
+                        popup=leafpop::popupTable(snap_input[['sf_output']]),
+                        popupOptions = popupOptions( maxHeight = 100 )) } %>%
+    addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                    overlayGroups = c("Stations in the selected Region/Basin",
                                      "Segments of Stations in the selected Region/Basin",
                                      "Stations Snapped to > 1 Segment",
