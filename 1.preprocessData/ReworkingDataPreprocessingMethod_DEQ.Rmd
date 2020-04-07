@@ -74,14 +74,57 @@ conventionals_D <- distinct(conventionals, FDT_STA_ID, .keep_all = T) %>%
 
 rm(conventionals) # remove full conventionals dataset to save memory
 
-# Save for app
+
+#View(conventionals_D) # to look at dataset use this command
+```
+
+
+Make conventionals dataset by basin for app. Run once each cycle
+
+```{r Statewide Assessment Layer, echo=FALSE, message=FALSE, warning=FALSE, results = 'hide'}
+assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
+  st_transform( st_crs(4326)) # transform to WQS84 for spatial intersection
+``` 
+
+```{r}
+
+conventionals_D_basin <- st_as_sf(conventionals_D,
+                        coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+                        remove = F, # don't remove these lat/lon cols from df
+                        crs = 4326) %>% 
+  st_join(dplyr::select(assessmentLayer, ASSESS_REG, Basin), join = st_intersects)  # intersect last cycle's lake AUs with assessmentLayer to get appropriate Basin argument for data organization
+  
+conventionals_D_basinNA <- filter(conventionals_D_basin, is.na(Basin)) %>% 
+  mutate(Basin, Basin = case_when(grepl("^1", as.character(FDT_STA_ID)) ~ "Potomac River Basin",
+                                  grepl("^2", as.character(FDT_STA_ID)) ~ "James River Basin",
+                                  grepl("^3", as.character(FDT_STA_ID)) ~ "Rappahannock River Basin",
+                                  grepl("^4", as.character(FDT_STA_ID)) ~ "Roanoke River Basin",
+                                  grepl("^5", as.character(FDT_STA_ID)) ~ "Chowan and Dismal Swamp River Basin",
+                                  grepl("^6", as.character(FDT_STA_ID)) ~ "Tennessee and Big Sandy River Basin",
+                                  grepl("^7", as.character(FDT_STA_ID)) ~ "Ches. Bay and Small Coastal Basin",
+                                  grepl("^8", as.character(FDT_STA_ID)) ~ "York River Basin",
+                                  grepl("^9", as.character(FDT_STA_ID)) ~ "New River Basin"))# some fixes
+
+### FLAG IN CASE STILL DOESNT WORK
+View(filter(conventionals_D_basinNA, is.na(Basin))) # deal with these later
+
+conventionals_D_basin <- filter(conventionals_D_basin, !(FDT_STA_ID %in% conventionals_D_basinNA$FDT_STA_ID)) %>%
+  rbind(conventionals_D_basinNA) %>%
+  filter(!is.na(Basin))
+
+for(i in 1:length(unique(conventionals_D_basin$Basin))){
+  print(i)
+  z <- filter(conventionals_D_basin, Basin == as.character(unique(conventionals_D_basin$Basin)[i]))
+  st_write(z, paste0('data/conventionals_D_', unique(z$Basin), '.shp'))
+}
+
+  
+# Save for app, old method
 #st_write(conventionals_D %>% st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these #columns
 #           remove = F, # don't remove these lat/lon cols from df
 #           crs = 4326), # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
 #         'GIS/conventionals_D.shp')
 
-
-#View(conventionals_D) # to look at dataset use this command
 ```
 
 
@@ -121,11 +164,7 @@ RegionalResultsCombined <- read_csv('C:/HardDriveBackup/R/GitHub/Rivers-StreamsA
 
 So by using a simple join to existing information that has been QAed by a human, we can limit the amount of computational work and additional human QA.
 
-for testing only
-```{r Statewide Assessment Layer, echo=FALSE, message=FALSE, warning=FALSE, results = 'hide'}
-assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
-  st_transform( st_crs(4326)) # transform to WQS84 for spatial intersection
-``` 
+
 
 Choose an assessment region
 ```{r}
@@ -247,6 +286,10 @@ This needs to be rerun each cycle with the most recent final AU information
 3) Removes any estuarine sites from the data frame of unique conventionals sites that need AU and WQS information.
 
 ```{r Filter Out Estuary Statewide, echo=F, results = 'hide'}}
+
+estuaryAUs <- st_read('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_estuarine.shp') %>%
+   st_transform( st_crs(4326)) # transform to WQS84 for spatial intersection 
+
 irData_missing_Estuary <- st_join(irData_missing, estuaryAUs, join = st_intersects) %>%
       filter(!is.na(OBJECTID))
 
@@ -381,23 +424,22 @@ This needs to be rerun each cycle with the most recent final AU information
 
 ```{r}
 # use a custom snapping tool to snap and organize 
-riverineAUs <-  st_read('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_riverine.shp') %>%
-  st_transform( st_crs(4326))  # transform to WQS84 for spatial intersection 
+#riverineAUs <-  st_read('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_riverine.shp') %>%
+#  st_transform( st_crs(4326))  # transform to WQS84 for spatial intersection 
 
 # intersect last cycle's lake AUs with assessmentLayer to get appropriate Basin argument for data organization
-riverineAUs <-  st_join(st_zm(riverineAUs), dplyr::select(assessmentLayer, ASSESS_REG, Basin), join = st_intersects) 
+#riverineAUs <-  st_join(st_zm(riverineAUs), dplyr::select(assessmentLayer, ASSESS_REG, Basin), join = st_intersects) 
 
 
-for(i in 1:length(unique(riverineAUs$ASSESS_REG))){
-  z <- filter(riverineAUs, ASSESS_REG == as.character(unique(riverineAUs$ASSESS_REG)[i]))
-  for(k in 1:length(unique(z$Basin))){
-    z1 <- filter(z, Basin == as.character(unique(z$Basin)[k]))
-    st_write(z1, paste0('data/processedGIS/va_2018_aus_riverine_', 
-                          unique(z1$ASSESS_REG), "_", 
-                          unique(z1$Basin), '.shp'))
-
-  }
-}
+#for(i in 1:length(unique(riverineAUs$ASSESS_REG))){
+#  z <- filter(riverineAUs, ASSESS_REG == as.character(unique(riverineAUs$ASSESS_REG)[i]))
+#  for(k in 1:length(unique(z$Basin))){
+#    z1 <- filter(z, Basin == as.character(unique(z$Basin)[k]))
+#    st_write(z1, paste0('data/processedGIS/va_2018_aus_riverine_', 
+#                          unique(z1$ASSESS_REG), "_", 
+#                          unique(z1$Basin), '.shp'))
+#  }
+#}
 
 ```
 

@@ -1,7 +1,7 @@
 source('global.R')
 
-# All conventionals sites
-conventionals_D <- st_read('GIS/conventionals_D.shp')
+## All conventionals sites
+#conventionals_D <- st_read('GIS/conventionals_D.shp')
 
 assessmentRegions <- st_read( 'GIS/AssessmentRegions_simple.shp')
 assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
@@ -32,6 +32,10 @@ shinyServer(function(input, output, session) {
     unique(region_filter()$ASSESS_REG)})
   basin <- reactive({req(input$begin)
     unique(basin_filter()$Basin)})
+  
+  # Bring in conventionals sites, filtered by basin (not including region in case horse trading going on)
+  conventionals_D <- reactive({req(basin())
+    st_read(paste0('data/conventionals_D_', unique(basin()), '.shp')) })
   
   
   ################## FOR TESTING ###########################################################
@@ -149,45 +153,45 @@ shinyServer(function(input, output, session) {
     CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE, 
                  options= leafletOptions(zoomControl = TRUE,minZoom = 3, maxZoom = 20)) %>%
       setView(-78, 37.5, zoom=7)  %>% 
-      addCircleMarkers(data = conventionals_D, color='blue', fillColor='yellow', radius = 4,
-                       fillOpacity = 0.5,opacity=0.5,weight = 1,stroke=T, group="Conventionals Stations",
-                       label = ~FDT_STA, layerId = ~FDT_STA, 
-                       popup = leafpop::popupTable(conventionals_D),
-                       popupOptions = popupOptions( maxHeight = 100 )) %>% 
-      
-      {if("sfc_MULTIPOLYGON" %in% class(st_geometry(AUs()))) 
-        addPolygons(., data = AUs(),
-                    layerId = ~ID305B,
-                    label=~ID305B, group="All AUs in selected Region/Basin", 
-                    color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
-                    weight = 3,stroke=T,
-                    popup=leafpop::popupTable(AUs()),
-                    popupOptions = popupOptions( maxHeight = 100 )) %>% 
-          hideGroup("All AUs in selected Region/Basin") 
-        else addPolylines(., data = AUs(),
-                          layerId = ~ID305B,
-                          label=~ID305B, group="All AUs in selected Region/Basin", 
-                          color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
-                          weight = 3,stroke=T,
-                          popup=leafpop::popupTable(AUs()),
-                          popupOptions = popupOptions( maxHeight = 100 )) %>% 
-          hideGroup("All AUs in selected Region/Basin")  } %>%
+#      addCircleMarkers(data = conventionals_D(), color='blue', fillColor='yellow', radius = 4,
+#                       fillOpacity = 0.5,opacity=0.5,weight = 1,stroke=T, group="Conventionals Stations",
+#                       label = ~FDT_STA, layerId = ~FDT_STA, 
+#                       popup = leafpop::popupTable(conventionals_D()),
+#                       popupOptions = popupOptions( maxHeight = 100 )) %>% 
+#      
+#      {if("sfc_MULTIPOLYGON" %in% class(st_geometry(AUs()))) 
+#        addPolygons(., data = AUs(),
+#                    layerId = ~ID305B,
+#                    label=~ID305B, group="All AUs in selected Region/Basin", 
+#                    color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+#                    weight = 3,stroke=T,
+#                    popup=leafpop::popupTable(AUs()),
+#                    popupOptions = popupOptions( maxHeight = 100 )) %>% 
+#          hideGroup("All AUs in selected Region/Basin") 
+#        else addPolylines(., data = AUs(),
+#                          layerId = ~ID305B,
+#                          label=~ID305B, group="All AUs in selected Region/Basin", 
+#                          color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+#                          weight = 3,stroke=T,
+#                          popup=leafpop::popupTable(AUs()),
+#                          popupOptions = popupOptions( maxHeight = 100 )) %>% 
+#          hideGroup("All AUs in selected Region/Basin")  } %>%
       
       # first working method
-#      addPolylines(data=AUs(),
-#                   layerId = ~ID305B,
-#                   label=~ID305B, group="All AUs in selected Region/Basin", 
-#                   color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
-#                   weight = 3,stroke=T,
-#                   popup=leafpop::popupTable(AUs()),
-#                   popupOptions = popupOptions( maxHeight = 100 )) %>% hideGroup("All AUs in selected Region/Basin") %>%
-      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
-                  fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
-                  group="Assessment Regions",
-                  popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG'))) %>% hideGroup('Assessment Regions') %>% #,'VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
-      inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
-      inlmisc::AddSearchButton(group = "Conventionals Stations", zoom = 15,propertyName = "label",
-                               textPlaceholder = "Search Conventionals Stations") %>%
+     # addPolylines(data=AUs(),
+     #              layerId = ~ID305B,
+     #              label=~ID305B, group="All AUs in selected Region/Basin", 
+     #              color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+     #              weight = 3,stroke=T,
+     #              popup=leafpop::popupTable(AUs()),
+     #              popupOptions = popupOptions( maxHeight = 100 )) %>% hideGroup("All AUs in selected Region/Basin") %>%
+#      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
+#                  fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
+#                  group="Assessment Regions",
+#                  popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG'))) %>% hideGroup('Assessment Regions') %>% #,'VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
+#      inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
+#      inlmisc::AddSearchButton(group = "Conventionals Stations", zoom = 15,propertyName = "label",
+#                               textPlaceholder = "Search Conventionals Stations") %>%
       addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                        overlayGroups = c('Conventionals Stations',"All AUs in selected Region/Basin",'Assessment Regions'),
                        options=layersControlOptions(collapsed=T),
@@ -495,7 +499,6 @@ shinyServer(function(input, output, session) {
     #} else {
       reactive_objects$sitesAdjusted <- rbind(reactive_objects$sitesAdjusted, sitesUpdated) # rbind works better for sf objects
     #}
-    
     dropMe <- unique(sitesUpdated$FDT_STA_ID)
     
     ## Remove Site from "to do' list
@@ -509,7 +512,7 @@ shinyServer(function(input, output, session) {
     
     # and if part of snap to 1 AU, fix that data
     reactive_objects$snapNone <- filter(reactive_objects$snapNone, !(FDT_STA_ID %in% dropMe)) # drop sites
-    
+
     # update output dataset
     reactive_objects$finalAU <- filter(reactive_objects$finalAU, !(FDT_STA_ID %in% dropMe)) %>%
       bind_rows(sitesUpdated)
@@ -582,12 +585,14 @@ shinyServer(function(input, output, session) {
           #             weight = 3,stroke=T,
           #             popup=leafpop::popupTable(reactive_objects$snap_input[['sf_output']]),
           #             popupOptions = popupOptions( maxHeight = 100 )) %>%
-          addCircleMarkers(data=reactive_objects$snapNone,
-                           layerId = ~paste0(FDT_STA_ID,'_snapNone'), # need unique layerID 
-                           label=~FDT_STA_ID, 
-                           group="Stations Snapped to 0 Segments", 
-                           color='black', fillColor='yellow', radius = 5,
-                           fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
+          {if(nrow(reactive_objects$snapNone) > 0)
+            addCircleMarkers(data=reactive_objects$snapNone,
+                             layerId = ~paste0(FDT_STA_ID,'_snapNone'), # need unique layerID 
+                             label=~FDT_STA_ID, 
+                             group="Stations Snapped to 0 Segments", 
+                             color='black', fillColor='yellow', radius = 5,
+                             fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T)
+            else .} %>%
           addCircleMarkers(data=reactive_objects$sitesAdjusted,
                            layerId = ~paste0(FDT_STA_ID,'_sitesAdjusted'),  # need unique layerID 
                            label=~FDT_STA_ID, group="Adjusted Sites", 
@@ -613,9 +618,7 @@ shinyServer(function(input, output, session) {
                            layerId = ~paste0(FDT_STA_ID,'_sitesAdjusted'),  # need unique layerID 
                            label=~FDT_STA_ID, group="Adjusted Sites", 
                            color='black', fillColor='purple', radius = 5,
-                           fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>% #, memory issues
-          #popup=leafpop::popupTable(reactive_objects$sitesAdjusted),
-          #popupOptions = popupOptions( maxHeight = 100 )) %>%
+                           fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
           addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                            overlayGroups = c("Adjusted Sites",
                                              "Stations Snapped to 1 AU segment",
@@ -627,7 +630,7 @@ shinyServer(function(input, output, session) {
                                              'Conventionals Stations',"All AUs in selected Region/Basin",'Assessment Regions'),
                            options=layersControlOptions(collapsed=T),
                            position='topleft')}  }    })
- 
+  
   ## User adjusted table 
   output$adjustedStationsTable <- DT::renderDataTable({
     req(reactive_objects$namesToSmash, reactive_objects$sitesAdjusted)

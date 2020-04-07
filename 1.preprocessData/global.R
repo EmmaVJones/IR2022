@@ -13,7 +13,7 @@ source('appModules/multipleDependentSelectizeArguments.R')
 source('snappingFunctions/snapOrganizationFunctions_messAround.R')
 
 #snapList_AU <- readRDS("data/preAnalyzedRegionalAUdata/BRRO/Riverine/James River Basin.RDS")
-snapList_AU <- readRDS("data/preAnalyzedRegionalAUdata/BRRO/Lacustrine/Roanoke River Basin.RDS")
+#snapList_AU <- readRDS("data/preAnalyzedRegionalAUdata/BRRO/Lacustrine/Roanoke River Basin.RDS")
 #tooMany <- snapCheck(snapList_AU[['sf_output']])
 
 ##riverineAUs <-  st_read('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_riverine.shp') %>%
@@ -26,7 +26,9 @@ snapList_AU <- readRDS("data/preAnalyzedRegionalAUdata/BRRO/Lacustrine/Roanoke R
 #                                         filter(assessmentLayer, ASSESS_REG == "BRRO") %>%
 #                                           filter(Basin == 'James River Basin')))
 
-
+#AUs1 <- st_read(paste0('data/processedGIS/va_2018_aus_', 'riverine','_', 
+#                       'BRRO', "_", 'James River Basin', '.shp')) %>%
+#  st_transform(4326)
 
 
 

@@ -156,7 +156,7 @@ proxy %>%
                    position='topleft')
 
 
-namesToSmash <- '2-LMC001.37'
+namesToSmash <- '2-JOB000.39'#'2-LMC001.37'
 
 filter(sitesUnique, FDT_STA_ID %in% namesToSmash) %>%
   st_drop_geometry() %>%
@@ -180,6 +180,9 @@ dropMe <- unique(sitesUpdated$FDT_STA_ID)
 ## Remove Site from "to do' list
 tooMany_sites <- filter(tooMany_sites, !(FDT_STA_ID %in% dropMe)) # drop sites
 tooMany <- filter(tooMany, !(`Point Unique Identifier` %in% dropMe)) # drop segments
+
+snapNone <- filter(snapNone, !(FDT_STA_ID %in% dropMe)) # drop sites
+
 
 
 rm(sitesUnique); rm(AUsegments); rm(tooMany); rm(tooMany_sites); rm(snapSingle); rm(sitesAdjusted)
