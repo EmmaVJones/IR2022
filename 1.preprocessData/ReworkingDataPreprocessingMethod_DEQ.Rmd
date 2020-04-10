@@ -86,44 +86,44 @@ assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
   st_transform( st_crs(4326)) # transform to WQS84 for spatial intersection
 ``` 
 
-```{r}
+```{r, eval=FALSE}
 
-conventionals_D_basin <- st_as_sf(conventionals_D,
-                        coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
-                        remove = F, # don't remove these lat/lon cols from df
-                        crs = 4326) %>% 
-  st_join(dplyr::select(assessmentLayer, ASSESS_REG, Basin), join = st_intersects)  # intersect last cycle's lake AUs with assessmentLayer to get appropriate Basin argument for data organization
+#conventionals_D_basin <- st_as_sf(conventionals_D,
+#                        coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+#                        remove = F, # don't remove these lat/lon cols from df
+#                        crs = 4326) %>% 
+#  st_join(dplyr::select(assessmentLayer, ASSESS_REG, Basin), join = st_intersects)  # intersect last cycle's lake AUs with assessmentLayer to get appropriate Basin #argument for data organization
   
-conventionals_D_basinNA <- filter(conventionals_D_basin, is.na(Basin)) %>% 
-  mutate(Basin, Basin = case_when(grepl("^1", as.character(FDT_STA_ID)) ~ "Potomac River Basin",
-                                  grepl("^2", as.character(FDT_STA_ID)) ~ "James River Basin",
-                                  grepl("^3", as.character(FDT_STA_ID)) ~ "Rappahannock River Basin",
-                                  grepl("^4", as.character(FDT_STA_ID)) ~ "Roanoke River Basin",
-                                  grepl("^5", as.character(FDT_STA_ID)) ~ "Chowan and Dismal Swamp River Basin",
-                                  grepl("^6", as.character(FDT_STA_ID)) ~ "Tennessee and Big Sandy River Basin",
-                                  grepl("^7", as.character(FDT_STA_ID)) ~ "Ches. Bay and Small Coastal Basin",
-                                  grepl("^8", as.character(FDT_STA_ID)) ~ "York River Basin",
-                                  grepl("^9", as.character(FDT_STA_ID)) ~ "New River Basin"))# some fixes
+#conventionals_D_basinNA <- filter(conventionals_D_basin, is.na(Basin)) %>% 
+#  mutate(Basin, Basin = case_when(grepl("^1", as.character(FDT_STA_ID)) ~ "Potomac River Basin",
+#                                  grepl("^2", as.character(FDT_STA_ID)) ~ "James River Basin",
+#                                  grepl("^3", as.character(FDT_STA_ID)) ~ "Rappahannock River Basin",
+#                                  grepl("^4", as.character(FDT_STA_ID)) ~ "Roanoke River Basin",
+#                                  grepl("^5", as.character(FDT_STA_ID)) ~ "Chowan and Dismal Swamp River Basin",
+#                                  grepl("^6", as.character(FDT_STA_ID)) ~ "Tennessee and Big Sandy River Basin",
+#                                  grepl("^7", as.character(FDT_STA_ID)) ~ "Ches. Bay and Small Coastal Basin",
+#                                  grepl("^8", as.character(FDT_STA_ID)) ~ "York River Basin",
+#                                  grepl("^9", as.character(FDT_STA_ID)) ~ "New River Basin"))# some fixes
 
 ### FLAG IN CASE STILL DOESNT WORK
-View(filter(conventionals_D_basinNA, is.na(Basin))) # deal with these later
+#View(filter(conventionals_D_basinNA, is.na(Basin))) # deal with these later
 
-conventionals_D_basin <- filter(conventionals_D_basin, !(FDT_STA_ID %in% conventionals_D_basinNA$FDT_STA_ID)) %>%
-  rbind(conventionals_D_basinNA) %>%
-  filter(!is.na(Basin))
+#conventionals_D_basin <- filter(conventionals_D_basin, !(FDT_STA_ID %in% conventionals_D_basinNA$FDT_STA_ID)) %>%
+#  rbind(conventionals_D_basinNA) %>%
+#  filter(!is.na(Basin))
 
-for(i in 1:length(unique(conventionals_D_basin$Basin))){
-  print(i)
-  z <- filter(conventionals_D_basin, Basin == as.character(unique(conventionals_D_basin$Basin)[i]))
-  st_write(z, paste0('data/conventionals_D_', unique(z$Basin), '.shp'))
-}
+#for(i in 1:length(unique(conventionals_D_basin$Basin))){
+#  print(i)
+#  z <- filter(conventionals_D_basin, Basin == as.character(unique(conventionals_D_basin$Basin)[i]))
+#  st_write(z, paste0('data/conventionals_D_', unique(z$Basin), '.shp'))
+#}
 
   
-# Save for app, old method
-#st_write(conventionals_D %>% st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these #columns
-#           remove = F, # don't remove these lat/lon cols from df
-#           crs = 4326), # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
-#         'GIS/conventionals_D.shp')
+## Save for app, old method
+##st_write(conventionals_D %>% st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these #columns
+##           remove = F, # don't remove these lat/lon cols from df
+##           crs = 4326), # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
+##         'GIS/conventionals_D.shp')
 
 ```
 
@@ -357,7 +357,7 @@ reservoirAUs <- st_read('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_reservoir
    filter(ASSESS_REG == as.character(assessmentRegion)) # and filter to region of interest
 
 # holder for stations to drop from further analyses
-stationsToRemove <- c()
+stationsToRemove <- data.frame(FDT_STA_ID = NA, ID305B_Assigned = NA)
 
 # Go through sites in each basin
 for(i in 1:length(unique(reservoirAUs$Basin))){
@@ -382,7 +382,9 @@ for(i in 1:length(unique(reservoirAUs$Basin))){
   lake_snapList_AU <- list('sf_output' = irData_missing_Lakes,
                            'inputSites' = lakeStations)
   
-  stationsToRemove <- c(stationsToRemove, as.character(irData_missing_Lakes$`Point Unique Identifier`))
+  stationFixes <- data.frame(FDT_STA_ID = as.character(irData_missing_Lakes$`Point Unique Identifier`), 
+                             ID305B_Assigned = as.character(irData_missing_Lakes$ID305B))
+  stationsToRemove <- bind_rows(stationsToRemove, stationFixes)
   
   saveRDS(lake_snapList_AU,paste0("data/preAnalyzedRegionalAUdata/", assessmentRegion,
                                   "/Lacustrine/", unique(reservoirAUs$Basin)[i], ".RDS"))
@@ -393,8 +395,17 @@ for(i in 1:length(unique(reservoirAUs$Basin))){
 # and remove lake AU sites from the sites without AUs
 
 irData_missing_NoAU <- mutate(irData_missing, ID305B_1 = NA) %>% # need column for snapping tools
-  filter(!(FDT_STA_ID %in% stationsToRemove))
+  filter(!(FDT_STA_ID %in% stationsToRemove$FDT_STA_ID))
 
+# update irData_join so fixed lake sites won't try to snap to riverine AUs
+irData_join_fixed <- right_join(irData_join, stationsToRemove %>% drop_na(), by = 'FDT_STA_ID') %>%
+  mutate(ID305B_1 = ID305B_Assigned,
+         STATION_TYPE_1 = 'L') %>% 
+  dplyr::select(-ID305B_Assigned) 
+  
+
+irData_join <- filter(irData_join, !FDT_STA_ID %in% irData_join_fixed$FDT_STA_ID) %>%
+  rbind(irData_join_fixed)
 
 rm(reservoirAUs) # remove from memory
 ```
