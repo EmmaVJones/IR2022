@@ -1,15 +1,38 @@
 
 # testing stuff
+
+conventionals_D <- st_read(paste0('data/conventionals_D_James River Basin.shp'))
+
+
 snap_input <- snapList_AU
 
-sitesUnique <- snap_input[['inputSites']] %>%
+sitesUnique1 <- snap_input[['inputSites']] %>%
   mutate(`Point Unique Identifier` = FDT_STA_ID,
-         Comments = NA) %>%
+         Comments = NA, fromPreviousAssessment = NA) %>%
   dplyr::select(-c(ID305B)) %>% # column only populated for lakes so dropping
   left_join(st_drop_geometry(snap_input[['sf_output']]), by = c('Point Unique Identifier')) %>%
-  mutate(ID305B = ifelse(is.na(ID305B), ID305B_1, as.character(ID305B))) %>% #use snapped ID305B, then fill in with previously attributed data
-  dplyr::select(FDT_STA_ID, ID305B, VAHU6, ASSESS_REG, VaName, Basin, Latitude, Longitude, Comments)
+  mutate(fromPreviousAssessment = ifelse(is.na(ID305B), 'Yes', 'No'),
+         ID305B = ifelse(is.na(ID305B), ID305B_1, as.character(ID305B))) %>% #use snapped ID305B, then fill in with previously attributed data
+  dplyr::select(FDT_STA_ID, ID305B, VAHU6, ASSESS_REG, VaName, Basin, Latitude, 
+                Longitude, fromPreviousAssessment, Comments)
 
+# make option to select sites in basin that did not make it past assessment region spatial filter (horse trade sites)
+conventionals_Dconversion <- mutate(conventionals_D, FDT_STA_ID = FDT_STA,
+                                    ID305B = NA,
+                                    VAHU6 = Hc6_Vh6,
+                                    ASSESS_REG = STA_REC,
+                                    VaName = H6_H_12_,
+                                    Latitude = Latitud,
+                                    Longitude = Longitd,
+                                    fromPreviousAssessment = NA,
+                                    Comments = 'Conventionals Station from Basin Filter') %>%
+  dplyr::select(FDT_STA_ID, ID305B, VAHU6, ASSESS_REG, VaName, Basin, Latitude, 
+                Longitude, fromPreviousAssessment, Comments) %>%
+  filter(!FDT_STA_ID %in% sitesUnique1$FDT_STA_ID)
+
+sitesUnique <- rbind(sitesUnique1, conventionals_Dconversion)  
+                                    
+                                    
 
 AUsegments <- snap_input[['sf_output']] %>%
   mutate(FDT_STA_ID = `Point Unique Identifier`) %>%

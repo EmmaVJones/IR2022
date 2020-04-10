@@ -33,10 +33,6 @@ shinyServer(function(input, output, session) {
   basin <- reactive({req(input$begin)
     unique(basin_filter()$Basin)})
   
-  # Bring in conventionals sites, filtered by basin (not including region in case horse trading going on)
-  conventionals_D <- reactive({req(basin())
-    st_read(paste0('data/conventionals_D_', unique(basin()), '.shp')) })
-  
   
   ################## FOR TESTING ###########################################################
 #  assessmentType_sf <- eventReactive(input$begin, {
@@ -96,8 +92,7 @@ shinyServer(function(input, output, session) {
                                                   unique(region_filter()$ASSESS_REG), '/',
                                                   input$assessmentType, '/',
                                                   unique(basin_filter()$Basin), '.RDS'))
-#    reactive_objects$snap_input <- snapList_AU
-    # Make dataset of all sites for highlighting purposes
+    # Make dataset of all sites for highlighting purposes, preliminary list
     reactive_objects$sitesUnique <- reactive_objects$snap_input[['inputSites']] %>%
       mutate(`Point Unique Identifier` = FDT_STA_ID, Comments = NA, fromPreviousAssessment = NA) %>%
       dplyr::select(-c(ID305B)) %>% # column only populated for lakes so dropping
@@ -129,6 +124,30 @@ shinyServer(function(input, output, session) {
     reactive_objects$finalAU <- reactive_objects$sitesUnique %>% st_drop_geometry()
     })
   
+  # Bring in conventionals sites, filtered by basin (not including region in case horse trading going on)
+  conventionals_D <- reactive({
+    req(basin(), input$begin, reactive_objects$sitesUnique)
+    st_read(paste0('data/conventionals_D_', unique(basin()), '.shp')) %>%
+      # prep for smashing into sitesUnique so these sites can be selected if needed
+      mutate(FDT_STA_ID = FDT_STA,
+             ID305B = NA,
+             VAHU6 = Hc6_Vh6,
+             ASSESS_REG = STA_REC,
+             VaName = H6_H_12_,
+             Latitude = Latitud,
+             Longitude = Longitd,
+             fromPreviousAssessment = NA,
+             Comments = 'Conventionals Station from Basin Filter') %>%
+      dplyr::select(FDT_STA_ID, ID305B, VAHU6, ASSESS_REG, VaName, Basin, Latitude, 
+                    Longitude, fromPreviousAssessment, Comments) %>%
+    filter(!FDT_STA_ID %in% reactive_objects$sitesUnique$FDT_STA_ID) 
+  })
+  
+  observe({
+    req(reactive_objects$sitesUnique, conventionals_D())
+    reactive_objects$sitesUniqueFin <- rbind(reactive_objects$sitesUnique, conventionals_D())  
+  })
+  
   # UI summaries of data pulled in to app, first and second tab
   output$singleSnapSummary1 <- renderPrint({ req(reactive_objects$snap_input)
     cat(paste0('There are ', nrow(reactive_objects$snapSingle), ' stations that snapped to 1 AU segment in preprocessing.'))})
@@ -154,10 +173,10 @@ shinyServer(function(input, output, session) {
                  options= leafletOptions(zoomControl = TRUE,minZoom = 3, maxZoom = 20)) %>%
       setView(-78, 37.5, zoom=7)  %>% 
       addCircleMarkers(data = conventionals_D(), color='blue', fillColor='yellow', radius = 4,
-                       fillOpacity = 0.5,opacity=0.5,weight = 1,stroke=T, group="Conventionals Stations in Basin",
-                       label = ~FDT_STA, layerId = ~FDT_STA, 
-                       popup = leafpop::popupTable(conventionals_D()),
-                       popupOptions = popupOptions( maxHeight = 100 )) %>% 
+                       fillOpacity = 0.5,opacity=0.8,weight = 1,stroke=T, group="Conventionals Stations in Basin",
+                       label = ~FDT_STA_ID, layerId = ~FDT_STA_ID) %>%  
+                       #popup = leafpop::popupTable(conventionals_D()), # nixed this when allowed for horse trading
+                       #popupOptions = popupOptions( maxHeight = 100 )) %>% 
       
       {if("sfc_MULTIPOLYGON" %in% class(st_geometry(AUs()))) 
         addPolygons(., data = AUs(),
@@ -345,7 +364,7 @@ shinyServer(function(input, output, session) {
    
     if(!is.null(siteid)){ # if you clicked a point with info, find all Stations that match (with a round)
       # first find site matches from user input dataset, by lat and long
-      siteMatches <- filter(reactive_objects$sitesUnique, 
+      siteMatches <- filter(reactive_objects$sitesUniqueFin, 
                             FDT_STA_ID %in% siteid |
                               Latitude %in% round(site_click$lat, 4) & 
                               Longitude %in% round(site_click$lng, 4)) %>%
@@ -371,7 +390,9 @@ shinyServer(function(input, output, session) {
     if(!is.null(reactive_objects$namesToSmash)){
       map_proxy %>%
         clearGroup(group='highlight') %>%
-        addCircleMarkers(data=filter(reactive_objects$snap_input[['inputSites']], FDT_STA_ID %in% reactive_objects$namesToSmash),
+        addCircleMarkers(data=filter(reactive_objects$sitesUniqueFin, FDT_STA_ID %in% reactive_objects$namesToSmash),
+                         
+#        addCircleMarkers(data=filter(reactive_objects$snap_input[['inputSites']], FDT_STA_ID %in% reactive_objects$namesToSmash),
                          layerId = ~paste0(FDT_STA_ID,'_sitesHighlighted'),  # need unique layerID 
                          group='highlight', 
                          radius = 20, 
@@ -389,7 +410,7 @@ shinyServer(function(input, output, session) {
   
   output$selectedSiteTable <- DT::renderDataTable({
     req(reactive_objects$namesToSmash)
-    filter(reactive_objects$sitesUnique, FDT_STA_ID %in% reactive_objects$namesToSmash) %>%
+    filter(reactive_objects$sitesUniqueFin, FDT_STA_ID %in% reactive_objects$namesToSmash) %>%
       st_drop_geometry() %>%
       datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'))  })
   
@@ -404,7 +425,7 @@ shinyServer(function(input, output, session) {
   observeEvent(input$accept, {
     showModal(modalDialog(title = 'Accept Snapped AU', size = 'l',
                           DT::renderDataTable({
-                            filter(reactive_objects$sitesUnique, FDT_STA_ID %in% reactive_objects$namesToSmash) %>%
+                            filter(reactive_objects$sitesUniqueFin, FDT_STA_ID %in% reactive_objects$namesToSmash) %>%
                               st_drop_geometry() %>%
                               datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '125px'))  }),
                           br(), br(),
@@ -420,7 +441,7 @@ shinyServer(function(input, output, session) {
   observeEvent(input$accept_cancel, {removeModal()})
   observeEvent(input$accept_ok, {
     # Get name and location information from tooMany
-    sitesUpdated <- filter(reactive_objects$sitesUnique, FDT_STA_ID %in% reactive_objects$namesToSmash) %>%
+    sitesUpdated <- filter(reactive_objects$sitesUniqueFin, FDT_STA_ID %in% reactive_objects$namesToSmash) %>%
       #st_drop_geometry() %>%
       distinct(FDT_STA_ID, .keep_all = T) %>%
       mutate(#`Buffer Distance` = 'Manual Review', # may not need column anymore
@@ -467,7 +488,7 @@ shinyServer(function(input, output, session) {
   observeEvent(input$changeAU, {
     showModal(modalDialog(title = 'Manually Adjust AUs', size = 'l',
                           DT::renderDataTable({
-                            filter(reactive_objects$sitesUnique, FDT_STA_ID %in% reactive_objects$namesToSmash) %>%
+                            filter(reactive_objects$sitesUniqueFin, FDT_STA_ID %in% reactive_objects$namesToSmash) %>%
                               st_drop_geometry() %>%
                               datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '125px'))  }),
                           br(), br(),
@@ -486,7 +507,7 @@ shinyServer(function(input, output, session) {
   observeEvent(input$adjust_cancel, {removeModal()})
   observeEvent(input$adjust_ok, {
     # Get name and location information from tooMany
-    sitesUpdated <- filter(reactive_objects$sitesUnique, FDT_STA_ID %in% reactive_objects$namesToSmash) %>%
+    sitesUpdated <- filter(reactive_objects$sitesUniqueFin, FDT_STA_ID %in% reactive_objects$namesToSmash) %>%
       #st_drop_geometry() %>%
       distinct(FDT_STA_ID, .keep_all = T) %>%
       mutate(ID305B = input$mergeAUID,
