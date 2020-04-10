@@ -153,29 +153,29 @@ shinyServer(function(input, output, session) {
     CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE, 
                  options= leafletOptions(zoomControl = TRUE,minZoom = 3, maxZoom = 20)) %>%
       setView(-78, 37.5, zoom=7)  %>% 
-#      addCircleMarkers(data = conventionals_D(), color='blue', fillColor='yellow', radius = 4,
-#                       fillOpacity = 0.5,opacity=0.5,weight = 1,stroke=T, group="Conventionals Stations",
-#                       label = ~FDT_STA, layerId = ~FDT_STA, 
-#                       popup = leafpop::popupTable(conventionals_D()),
-#                       popupOptions = popupOptions( maxHeight = 100 )) %>% 
-#      
-#      {if("sfc_MULTIPOLYGON" %in% class(st_geometry(AUs()))) 
-#        addPolygons(., data = AUs(),
-#                    layerId = ~ID305B,
-#                    label=~ID305B, group="All AUs in selected Region/Basin", 
-#                    color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
-#                    weight = 3,stroke=T,
-#                    popup=leafpop::popupTable(AUs()),
-#                    popupOptions = popupOptions( maxHeight = 100 )) %>% 
-#          hideGroup("All AUs in selected Region/Basin") 
-#        else addPolylines(., data = AUs(),
-#                          layerId = ~ID305B,
-#                          label=~ID305B, group="All AUs in selected Region/Basin", 
-#                          color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
-#                          weight = 3,stroke=T,
-#                          popup=leafpop::popupTable(AUs()),
-#                          popupOptions = popupOptions( maxHeight = 100 )) %>% 
-#          hideGroup("All AUs in selected Region/Basin")  } %>%
+      addCircleMarkers(data = conventionals_D(), color='blue', fillColor='yellow', radius = 4,
+                       fillOpacity = 0.5,opacity=0.5,weight = 1,stroke=T, group="Conventionals Stations in Basin",
+                       label = ~FDT_STA, layerId = ~FDT_STA, 
+                       popup = leafpop::popupTable(conventionals_D()),
+                       popupOptions = popupOptions( maxHeight = 100 )) %>% 
+      
+      {if("sfc_MULTIPOLYGON" %in% class(st_geometry(AUs()))) 
+        addPolygons(., data = AUs(),
+                    layerId = ~ID305B,
+                    label=~ID305B, group="All AUs in selected Region/Basin", 
+                    color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+                    weight = 3,stroke=T,
+                    popup=leafpop::popupTable(AUs()),
+                    popupOptions = popupOptions( maxHeight = 100 )) %>% 
+          hideGroup("All AUs in selected Region/Basin") 
+        else addPolylines(., data = AUs(),
+                          layerId = ~ID305B,
+                          label=~ID305B, group="All AUs in selected Region/Basin", 
+                          color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+                          weight = 3,stroke=T,
+                          popup=leafpop::popupTable(AUs()),
+                          popupOptions = popupOptions( maxHeight = 100 )) %>% 
+          hideGroup("All AUs in selected Region/Basin")  } %>%
       
       # first working method
      # addPolylines(data=AUs(),
@@ -185,18 +185,18 @@ shinyServer(function(input, output, session) {
      #              weight = 3,stroke=T,
      #              popup=leafpop::popupTable(AUs()),
      #              popupOptions = popupOptions( maxHeight = 100 )) %>% hideGroup("All AUs in selected Region/Basin") %>%
-#      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
-#                  fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
-#                  group="Assessment Regions",
-#                  popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG'))) %>% hideGroup('Assessment Regions') %>% #,'VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
-#      inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
-#      inlmisc::AddSearchButton(group = "Conventionals Stations", zoom = 15,propertyName = "label",
-#                               textPlaceholder = "Search Conventionals Stations") %>%
+      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
+                  fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
+                  group="Assessment Regions",
+                  popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG'))) %>% hideGroup('Assessment Regions') %>% #,'VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
+      inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
+      inlmisc::AddSearchButton(group = "Conventionals Stations in Basin", zoom = 15,propertyName = "label",
+                               textPlaceholder = "Search Conventionals Stations in Basin") %>%
       addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
-                       overlayGroups = c('Conventionals Stations',"All AUs in selected Region/Basin",'Assessment Regions'),
+                       overlayGroups = c('Conventionals Stations in Basin',"All AUs in selected Region/Basin",'Assessment Regions'),
                        options=layersControlOptions(collapsed=T),
                        position='topleft') %>%
-      hideGroup("Conventionals Stations")  })
+      hideGroup("Conventionals Stations in Basin")  })
   
   map_proxy <- leafletProxy("AUmap")
 
@@ -247,7 +247,7 @@ shinyServer(function(input, output, session) {
                                            "Segments of Stations Snapped to > 1 Segment",
                                            "Stations Snapped to 0 Segments",
                                            "All stations in the selected Region/Basin",
-                                           'Conventionals Stations',"All AUs in selected Region/Basin",'Assessment Regions'),
+                                           'Conventionals Stations in Basin',"All AUs in selected Region/Basin",'Assessment Regions'),
                          options=layersControlOptions(collapsed=T),
                          position='topleft')
     } else {
@@ -281,7 +281,7 @@ shinyServer(function(input, output, session) {
                                            "Segments of Stations Snapped to > 1 Segment",
                                            "Stations Snapped to 0 Segments",
                                            "All stations in the selected Region/Basin",
-                                           'Conventionals Stations',"All AUs in selected Region/Basin",'Assessment Regions'),
+                                           'Conventionals Stations in Basin',"All AUs in selected Region/Basin",'Assessment Regions'),
                          options=layersControlOptions(collapsed=T),
                          position='topleft') 
     } else {
@@ -305,7 +305,7 @@ shinyServer(function(input, output, session) {
                                            "Segments of Stations Snapped to > 1 Segment",
                                            "Stations Snapped to 0 Segments",
                                            "All stations in the selected Region/Basin",
-                                           'Conventionals Stations',"All AUs in selected Region/Basin",'Assessment Regions'),
+                                           'Conventionals Stations in Basin',"All AUs in selected Region/Basin",'Assessment Regions'),
                          options=layersControlOptions(collapsed=T),
                          position='topleft')
     } else {
@@ -330,7 +330,7 @@ shinyServer(function(input, output, session) {
                                          "Segments of Stations Snapped to > 1 Segment",
                                          "Stations Snapped to 0 Segments",
                                          "All stations in the selected Region/Basin",
-                                         'Conventionals Stations',"All AUs in selected Region/Basin",'Assessment Regions'),
+                                         'Conventionals Stations in Basin',"All AUs in selected Region/Basin",'Assessment Regions'),
                        options=layersControlOptions(collapsed=T),
                        position='topleft') })
   
@@ -536,6 +536,7 @@ shinyServer(function(input, output, session) {
       map_proxy %>% 
         # have to manually clear old sites to 'wipe' leaflet memory of joined sites
         clearGroup("Stations Snapped to 0 Segments") %>%
+        clearGroup("Stations Snapped to 1 AU segment") %>%
         clearGroup("Stations Snapped to > 1 Segment") %>%
         clearGroup("Segments of Stations Snapped to > 1 Segment") %>%
         
@@ -553,11 +554,13 @@ shinyServer(function(input, output, session) {
                          popupOptions = popupOptions( maxHeight = 100 )) %>%
             hideGroup("Segments of Stations Snapped to > 1 Segment")
           else . } %>%
-        addCircleMarkers(data=reactive_objects$snapSingle,
-                         layerId = ~paste0(FDT_STA_ID,'_snapSingle'), # need unique layerID 
-                         label=~FDT_STA_ID, group="Stations Snapped to 1 AU segment", 
-                         color='black', fillColor='cyan', radius = 5,
-                         fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
+        {if(nrow(reactive_objects$snapSingle) > 0)
+          addCircleMarkers(., data=reactive_objects$snapSingle,
+                           layerId = ~paste0(FDT_STA_ID,'_snapSingle'), # need unique layerID 
+                           label=~FDT_STA_ID, group="Stations Snapped to 1 AU segment", 
+                           color='black', fillColor='cyan', radius = 5,
+                           fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T)
+          else .}  %>%
         {if("sfc_MULTIPOLYGON" %in% class(st_geometry(reactive_objects$snap_input[['sf_output']]))) 
           addPolygons(., data=filter(reactive_objects$snap_input[['sf_output']],
                                   !(`Point Unique Identifier` %in% reactive_objects$tooMany_sites$FDT_STA_ID)),
@@ -599,7 +602,7 @@ shinyServer(function(input, output, session) {
                                            "Segments of Stations Snapped to > 1 Segment",
                                            "Stations Snapped to 0 Segments",
                                            "All stations in the selected Region/Basin",
-                                           'Conventionals Stations',"All AUs in selected Region/Basin",'Assessment Regions'),
+                                           'Conventionals Stations in Basin',"All AUs in selected Region/Basin",'Assessment Regions'),
                          options=layersControlOptions(collapsed=T),
                          position='topleft') 
     }    })
@@ -639,8 +642,8 @@ shinyServer(function(input, output, session) {
                     else . } %>%
                   as.data.frame(), file, row.names = F) }) 
   
-  #output$test <- renderPrint({
-  #  req(reactive_objects$finalAU)
-  #  reactive_objects$finalAU
-  #})
+#  output$test <- renderPrint({
+#    req(reactive_objects$finalAU)
+#    reactive_objects$snapSingle
+#  })
 })

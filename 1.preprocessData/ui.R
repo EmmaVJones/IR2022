@@ -47,12 +47,14 @@ shinyUI(fluidPage(theme= "yeti.css",
                                                  DT::dataTableOutput('selectedSiteTable'),
                                                  h5(strong('Associated AU Information')),
                                                  DT::dataTableOutput('associatedAUTable'),
+                                                 br(), br(), br(),
                                                  verbatimTextOutput('test')),
                                         tabPanel(strong('Updated Stations Data'),
                                                  br(),
                                                  fluidRow(
                                                    h5(strong('Adjusted Station Data')),
-                                                   div(DT::dataTableOutput("adjustedStationsTable"), style = "font-size:80%"))
+                                                   div(DT::dataTableOutput("adjustedStationsTable"), style = "font-size:80%")),
+                                                 br(), br(), br()
                                         ))),
                              tabPanel("WQS Review"),
                              tabPanel("About",
