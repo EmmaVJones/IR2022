@@ -43,10 +43,13 @@ vignettes/*.pdf
 0.CitmonDataOrganization/testCitmonData/
 0.CitmonDataOrganization/CitmonDataOrganization_portable/
 0.CitmonDataOrganization/James Beckley/
+0.CitmonDataOrganization/rsconnect/
 1.preprocessData/GIS/
 1.preprocessData/data/
+1.preprocessData/rsconnect/
 
 
+rsconnect/
 *.zip
 
 
