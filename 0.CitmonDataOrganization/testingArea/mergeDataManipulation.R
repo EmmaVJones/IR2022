@@ -1,16 +1,18 @@
 shinyApp(ui, server)
 
-
+cit <- read_csv('James Beckley/csv/2019VASOS_Data for DEQ_approvedRocky.csv') %>%
+  reassignColumns(`Station ID`,Latitude, Longitude)
 
 sites_Adjusted <- cit %>%
+#  reassignColumns(RCAStationID, LAT, LON) %>%
   group_by(originalStationID, Latitude, Longitude) %>%
   mutate(UID = group_indices()) %>%#row_number()) %>%
   dplyr::select(UID, everything()) %>%
   ungroup()
 
-notEnoughInfo <- filter(sites_Adjusted, is.na(originalStationID), is.na(Latitude)|is.na(Longitude)) 
+notEnoughInfo <- filter(sites_Adjusted, is.na(originalStationID) | is.na(Latitude) | is.na(Longitude)) 
 
-sitesUnique <- filter(sites_Adjusted, !is.na(originalStationID), !is.na(Latitude)|!is.na(Longitude))  %>% # drop sites without location information
+sitesUnique <- filter(sites_Adjusted, !is.na(originalStationID) & !is.na(Latitude) & !is.na(Longitude))  %>% # drop sites without location information
   distinct(originalStationID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
   #mutate(UID = row_number()) %>%
   #dplyr::select(UID, everything()) %>%

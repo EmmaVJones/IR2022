@@ -1,3 +1,5 @@
+cit <- read_csv('James Beckley/csv/RCABenthicMetricsBySample2019_benthicScores.csv')
+
 ui <- fluidPage(
   headerPanel(
     title='Citmon organization'),
@@ -88,7 +90,7 @@ server <- function(input, output, session){
   
   # Renamed columns into reproducible format for app, this is also the original raw data holder
   observeEvent(input$adjustInput, {
-    reactive_objects$sites_Adjusted <- reassignColumns(reactive_objects$sites_input, `Station Name`, `Latitude DD`, `Longitude DD`) %>%#Group_Station_ID, Latitude, Longitude)%>%
+    reactive_objects$sites_Adjusted <- reassignColumns(reactive_objects$sites_input, RCAStationID, LAT, LON) %>%#`Station Name`, `Latitude DD`, `Longitude DD`) %>%#Group_Station_ID, Latitude, Longitude)%>%
     # add UID now so it trickles through continuously to all other variables
     group_by(originalStationID, Latitude, Longitude) %>%
       mutate(UID = group_indices()) %>%#row_number()) %>%
@@ -97,13 +99,13 @@ server <- function(input, output, session){
   
   # Sites without spatial data to be given back to user as separate sheet upon download
   observeEvent(input$adjustInput, {
-    reactive_objects$notEnoughInfo <- filter(reactive_objects$sites_Adjusted, is.na(originalStationID), is.na(Latitude)|is.na(Longitude)) })# separate sites without location information or identifier)
+    reactive_objects$notEnoughInfo <- filter(reactive_objects$sites_Adjusted, is.na(originalStationID) | is.na(Latitude) | is.na(Longitude)) })# separate sites without location information or identifier)
   
   
   
   # Unique sites spatial dataset for map and table
   observeEvent(input$adjustInput, {
-    reactive_objects$sitesUnique <- filter(reactive_objects$sites_Adjusted, !is.na(originalStationID), !is.na(Latitude)|!is.na(Longitude))  %>% # drop sites without location information
+    reactive_objects$sitesUnique <- filter(reactive_objects$sites_Adjusted, !is.na(originalStationID) & !is.na(Latitude) & !is.na(Longitude))  %>% # drop sites without location information
       distinct(originalStationID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
       st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
                remove = F, # don't remove these lat/lon cols from df
@@ -116,8 +118,10 @@ server <- function(input, output, session){
       dplyr::select(reactive_objects$sitesUnique, originalStationID, Latitude, Longitude) %>%
         dplyr::rename('uniqueID' = 'originalStationID') %>%
         # sf objects use rbind for quieter results than dplyr::bind_rows()
-        rbind(dplyr::select(existingStations, FDT_STA_ID, Latitude, Longitude) %>%
-                dplyr::rename('uniqueID' = 'FDT_STA_ID')) )  })
+        rbind(dplyr::select(existingStations, STATION_ID, Latitude, Longitude) %>%
+                #rbind(dplyr::select(existingStations, FDT_STA_ID, Latitude, Longitude) %>%
+                dplyr::rename('uniqueID' = 'STATION_ID')) )  })
+  #dplyr::rename('uniqueID' = 'FDT_STA_ID')) )  })
   
   #  # Data associated with each unique site combo (orginalStationID, Lat, Long) for joining back on download
   #  observeEvent(input$adjustInput, {
@@ -145,10 +149,9 @@ server <- function(input, output, session){
       setView(-78, 37.5, zoom=6) %>%
       addCircleMarkers(data = existingStations, color='orange', fillColor='black', radius = 3,
                        fillOpacity = 0.5,opacity=0.5,weight = 1,stroke=T,group="Existing Stations",
-                       label = ~FDT_STA_ID, layerId = ~FDT_STA_ID#, 
-                       #popup = leafpop::popupTable(existingStations, 
-                       #                             zcol=c( "FDT_STA_ID", "STA_DESC", "Deq_Region",
-                       #                                     "Huc6_Vahu6","ID305B_1", "ID305B_2",  "ID305B_3"  ))
+                       label = ~STATION_ID, layerId = ~STATION_ID#, # for IR2018 data from VEGIS
+                       #label = ~FDT_STA_ID, layerId = ~FDT_STA_ID#, # with mary and paula dataset only
+                       #popup = leafpop::popupTable(existingStations, zcol=c( "FDT_STA_ID", "STA_DESC", "Deq_Region", "Huc6_Vahu6","ID305B_1", "ID305B_2",  "ID305B_3"  ))
       ) %>% 
       #      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
       #                  fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
@@ -202,16 +205,18 @@ server <- function(input, output, session){
         pull()
       # then existing sites
       existingSiteMatches <- filter(existingStations, 
-                                    FDT_STA_ID %in% siteid |
+                                    STATION_ID %in% siteid |
+                                      #FDT_STA_ID %in% siteid |
                                       Latitude %in% round(site_click$lat, 4) & 
                                       Longitude %in% round(site_click$lng, 4)) %>%
-        mutate(sites = FDT_STA_ID) %>%
+        mutate(sites = STATION_ID) %>%
+        #mutate(sites = FDT_STA_ID) %>%
         dplyr::select(sites) %>% 
         st_drop_geometry() %>%
         pull()
       
       # and save all this info for later
-      siteid_current <-  c(siteMatches, existingSiteMatches)
+      siteid_current <-  c(siteMatches, as.character(existingSiteMatches))
       
       # now for accepted sites
       if(!is.null(reactive_objects$sites_Accepted)){
@@ -271,8 +276,7 @@ server <- function(input, output, session){
   observeEvent(reactive_objects$namesToSmash, ignoreNULL=F, {
     #observe({
     # req(reactive_objects$namesToSmash)
-    
-    print(reactive_objects$namesToSmash)
+
     if(!is.null(reactive_objects$namesToSmash)){
       map_proxy %>%
         clearGroup(group='highlight') %>%
@@ -285,6 +289,9 @@ server <- function(input, output, session){
         clearGroup(group='highlight') 
     }
   })
+  
+  
+  
   
   # Accept selected site(s) Modal
   observeEvent(input$accept, {
@@ -327,6 +334,7 @@ server <- function(input, output, session){
   # Do something with Accepted Site(s)
   observeEvent(input$accept_cancel, {removeModal()})
   observeEvent(input$accept_ok, {
+    
     # update data with finalStationID, reviewer, and reviewer comments
     updatedData <- userEnteredStationDataTable() %>% #filter(reactive_objects$sitesUnique, originalStationID %in% reactive_objects$namesToSmash) %>%  # Fix sitesUnique for table to populate accepted information #
       st_drop_geometry() %>%
@@ -351,10 +359,14 @@ server <- function(input, output, session){
   # add accepted sites to map if they exist?
   observe({
     req(reactive_objects$sites_Accepted)
+    
     ## Update proxy map
     if(nrow(reactive_objects$sites_Accepted) > 0){
       map_proxy %>%
-        addCircleMarkers(data=reactive_objects$sites_Accepted,
+        addCircleMarkers(data=reactive_objects$sites_Accepted %>%
+                           st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+                                    remove = F, # don't remove these lat/lon cols from df
+                                    crs = 4326), # add coordinate reference system, needs to be geographic for now bc entering lat/lng
                          layerId = ~finalStationID,
                          label=~finalStationID, group="Accepted Sites", 
                          color='black', fillColor='green', radius = 5,
@@ -363,9 +375,8 @@ server <- function(input, output, session){
                          overlayGroups = c('Sites','Accepted Sites','Rejected Sites',
                                            'Merged Sites','Existing Stations','Assessment Regions'),
                          options=layersControlOptions(collapsed=T),
-                         position='topleft') }  })
-  
-  
+                         position='topleft') }  
+  })
   
   # Reject selected site(s) Modal
   observeEvent(input$reject, {
@@ -412,7 +423,10 @@ server <- function(input, output, session){
     ## Update proxy map
     if(nrow(reactive_objects$sites_Rejected) > 0){
       map_proxy %>%
-        addCircleMarkers(data=reactive_objects$sites_Rejected,
+        addCircleMarkers(data=reactive_objects$sites_Rejected %>%
+                           st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+                                    remove = F, # don't remove these lat/lon cols from df
+                                    crs = 4326), # add coordinate reference system, needs to be geographic for now bc entering lat/lng
                          layerId = ~originalStationID,
                          label=~originalStationID, group="Rejected Sites", 
                          color='black', fillColor='red', radius = 5,
@@ -492,7 +506,10 @@ server <- function(input, output, session){
       map_proxy %>% 
         # have to manually clear old sites to 'wipe' leaflet memory of joined sites
         clearGroup("Sites") %>%
-        addCircleMarkers(data=reactive_objects$sites_Merged,
+        addCircleMarkers(data=reactive_objects$sites_Merged %>%
+                           st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+                                    remove = F, # don't remove these lat/lon cols from df
+                                    crs = 4326), # add coordinate reference system, needs to be geographic for now bc entering lat/lng
                          layerId = ~finalStationID,
                          label=~finalStationID, group="Merged Sites", 
                          color='black', fillColor='purple', radius = 5,
@@ -527,11 +544,12 @@ server <- function(input, output, session){
   
   output$existing_selected_sites_table <- DT::renderDataTable({
     req(reactive_objects$namesToSmash)
-    datatable(filter(existingStations, FDT_STA_ID %in% reactive_objects$namesToSmash),
+    datatable(filter(existingStations, STATION_ID %in% reactive_objects$namesToSmash),
+              #datatable(filter(existingStations, FDT_STA_ID %in% reactive_objects$namesToSmash),
               # neat trick to avoid text wrapping of super long columns, keeps size of table consistent at single row
               class = 'nowrap display',
-              rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '75px')) 
-  })
+              rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '75px')) })
+  
   
   output$accepted_sites_table <- DT::renderDataTable({
     req(reactive_objects$sites_Accepted)

@@ -205,11 +205,11 @@ server <- function(input, output, session){
   
   # Sites without spatial data to be given back to user as separate sheet upon download
   observeEvent(input$adjustInput, {
-    reactive_objects$notEnoughInfo <- filter(reactive_objects$sites_Adjusted, is.na(originalStationID), is.na(Latitude)|is.na(Longitude)) })# separate sites without location information or identifier)
+    reactive_objects$notEnoughInfo <- filter(reactive_objects$sites_Adjusted, is.na(originalStationID) | is.na(Latitude) | is.na(Longitude)) })# separate sites without location information or identifier)
   
   # Unique sites spatial dataset for map and table
   observeEvent(input$adjustInput, {
-    reactive_objects$sitesUnique <- filter(reactive_objects$sites_Adjusted, !is.na(originalStationID), !is.na(Latitude)|!is.na(Longitude))  %>% # drop sites without location information
+    reactive_objects$sitesUnique <- filter(reactive_objects$sites_Adjusted, !is.na(originalStationID) & !is.na(Latitude) & !is.na(Longitude))  %>% # drop sites without location information
       distinct(originalStationID, Latitude, Longitude, .keep_all =T)  %>% #distinct by location and name
       st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
                remove = F, # don't remove these lat/lon cols from df
@@ -433,7 +433,11 @@ server <- function(input, output, session){
     ## Update proxy map
     if(nrow(reactive_objects$sites_Accepted) > 0){
       map_proxy %>%
-        addCircleMarkers(data=reactive_objects$sites_Accepted,
+        addCircleMarkers(data=reactive_objects$sites_Accepted %>%
+                           st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+                                    remove = F, # don't remove these lat/lon cols from df
+                                    crs = 4326), # add coordinate reference system, needs to be geographic for now bc entering lat/lng
+                         
                          layerId = ~finalStationID,
                          label=~finalStationID, group="Accepted Sites", 
                          color='black', fillColor='green', radius = 5,
@@ -490,7 +494,10 @@ server <- function(input, output, session){
     ## Update proxy map
     if(nrow(reactive_objects$sites_Rejected) > 0){
       map_proxy %>%
-        addCircleMarkers(data=reactive_objects$sites_Rejected,
+        addCircleMarkers(data=reactive_objects$sites_Rejected %>%
+                           st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+                                    remove = F, # don't remove these lat/lon cols from df
+                                    crs = 4326), # add coordinate reference system, needs to be geographic for now bc entering lat/lng
                          layerId = ~originalStationID,
                          label=~originalStationID, group="Rejected Sites", 
                          color='black', fillColor='red', radius = 5,
@@ -568,7 +575,10 @@ server <- function(input, output, session){
       map_proxy %>% 
         # have to manually clear old sites to 'wipe' leaflet memory of joined sites
         clearGroup("Sites") %>%
-        addCircleMarkers(data=reactive_objects$sites_Merged,
+        addCircleMarkers(data=reactive_objects$sites_Merged %>%
+                           st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+                                    remove = F, # don't remove these lat/lon cols from df
+                                    crs = 4326), # add coordinate reference system, needs to be geographic for now bc entering lat/lng
                          layerId = ~finalStationID,
                          label=~finalStationID, group="Merged Sites", 
                          color='black', fillColor='purple', radius = 5,

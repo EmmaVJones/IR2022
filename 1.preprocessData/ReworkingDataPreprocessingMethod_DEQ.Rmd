@@ -470,29 +470,14 @@ snapAndOrganizeAU_newOutput(irData_join, riverineAUs,
 rm(riverineAUs) #clean up workspace
 ```
 
-We can now filter the results to figure out sites that worked and sites that still need special attention. 
-
-Below are the sites that still need work.
-```{r conventionals_D_Region_NoAU still, echo=F}
-conventionals_D_Region_NoAU <- filter(Regional_Sites_AU, is.na(ID305B_1))
-DT::datatable(conventionals_D_Region_NoAU, escape=F, rownames = F, options = list(scrollX = TRUE))
-#View(conventionals_D_Region_NoAU)
-```
-
-These sites will still be snapped to WQS, but they still need AU information before they can be run through the assessment applications. A reminder at the end of the report will encourage users to complete that step.
 
 
-Below are the sites that worked. These can be combined with our conventionals_D_Region_AU layer now. 
-```{r Regional_Sites_AUgood, echo=F}
-Regional_Sites_AU <- filter(Regional_Sites_AU, !is.na(ID305B_1))
-DT::datatable(Regional_Sites_AU, escape=F, rownames = F, options = list(scrollX = TRUE))
-#View(Regional_Sites_AU)
 
+### WQS Work
 
-conventionals_D_Region_AU <- rbind(conventionals_D_Region_AU, 
-                                    Regional_Sites_AU %>% st_transform( st_crs(4326)), 
-                                    conventionals_D_Region_NoAU %>% st_transform( st_crs(4326)))
+Now that all stations are at least organized for AU attribution, we need to do the same for WQS attribution. Like before, we will use whatever assessor QAed information we can get our hands on as a starting point to reduce the amount of spatial snapping required.
 
-rm(Regional_Sites_AU) # clean up workspace
+```{r}
+
 ```
 
