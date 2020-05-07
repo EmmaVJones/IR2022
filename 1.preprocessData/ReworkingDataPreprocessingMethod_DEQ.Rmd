@@ -160,6 +160,25 @@ RegionalResultsCombined <- read_csv('C:/HardDriveBackup/R/GitHub/Rivers-StreamsA
 ```
 
 
+## Bring in Subbasin information (mainly for WQS work)
+
+Read in the statewide subbasin layer.
+
+```{r Statewide subbasin layer, echo=FALSE, message=FALSE, warning=FALSE, results = 'hide'}
+subbasinLayer <- st_read('GIS/deq_basins07.shp') %>%
+  mutate(BASIN_CODE = case_when(BASIN_CODE == '3-' ~ '3',
+                                BASIN_CODE == '8-' ~ '8',
+                                BASIN_CODE == '9-' ~ '9',
+                                TRUE ~ as.character(BASIN_CODE)),
+         SUBBASIN = case_when(BASIN_CODE == '3' ~ 'Rappahannock River',
+                              BASIN_CODE == '8-' ~ 'York River',
+                              BASIN_CODE == '9' ~ 'New River', 
+                              TRUE ~ as.character(SUBBASIN))) %>%
+  st_transform( st_crs(4326)) # transform to WQS84 for spatial intersection
+``` 
+
+
+
 ## Initial Join: Free Metadata
 
 So by using a simple join to existing information that has been QAed by a human, we can limit the amount of computational work and additional human QA.
@@ -179,7 +198,8 @@ irData_BRRO <- st_as_sf(irData,
                         coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
                         remove = F, # don't remove these lat/lon cols from df
                         crs = 4326) %>% # add coordinate reference system, needs to be geographic for now bc entering lat/lng, 
-  st_intersection(filter(assessmentLayer, ASSESS_REG == assessmentRegion) )
+  st_intersection(filter(assessmentLayer, ASSESS_REG == assessmentRegion) ) %>%
+  st_join(dplyr::select(subbasinLayer, BASIN_NAME, BASIN_CODE, SUBBASIN), join = st_intersects)
 
 irData_join <- dplyr::left_join(irData_BRRO, 
                                 # but first drop columns that we want from spatial layer
@@ -195,6 +215,7 @@ irData_join <- dplyr::left_join(irData_BRRO,
   
 # 9-PCK004.XX is duplicated bc lake and riverine assessment info attached, so nrow goes up by 1 at join step
 ```
+
 
 
 ## Just missing data from here
@@ -221,7 +242,7 @@ irData_missing <- #filter(cit, FDT_STA_ID %in% irData_missing$FDT_STA_ID) %>%
             conventionals_D, by = c('FDT_STA_ID','Latitude', 'Longitude')) %>%
   dplyr::select(-geometry,geometry)
 
-rm(conventionals_D)#; rm(cit); rm(nonA)
+#rm(conventionals_D)#; rm(cit); rm(nonA) # keep for WQS work
 
 ```
 
@@ -473,11 +494,24 @@ rm(riverineAUs) #clean up workspace
 
 
 
+
+
+
 ### WQS Work
 
 Now that all stations are at least organized for AU attribution, we need to do the same for WQS attribution. Like before, we will use whatever assessor QAed information we can get our hands on as a starting point to reduce the amount of spatial snapping required.
 
+Starting with irData_join bc that has the sites that have WQS info already
+
 ```{r}
 
+irData_missingWQS <- filter(irData_join, is.na(CLASS)) # these had no previous records
+
+irData_finalWQS <- filter(irData_join, !is.na(CLASS))
+
+# make sure we didn't lose anyone
+nrow(irData_finalWQS) + nrow(irData_missingWQS) == nrow(irData_join)
+
 ```
+
 

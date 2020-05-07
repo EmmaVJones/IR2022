@@ -1,0 +1,153 @@
+
+
+
+
+
+### WQS Work
+
+Now that all stations are at least organized for AU attribution, we need to do the same for WQS attribution. Like before, we will use whatever assessor QAed information we can get our hands on as a starting point to reduce the amount of spatial snapping required.
+
+Starting with irData_join bc that has the sites that have WQS info already
+
+```{r}
+
+irData_missingWQS <- filter(irData_join, is.na(CLASS)) # these had no previous records
+
+irData_finalWQS <- filter(irData_join, !is.na(CLASS))
+
+# make sure we didn't lose anyone
+nrow(irData_finalWQS) + nrow(irData_missingWQS) == nrow(irData_join)
+
+```
+
+
+Join sites missing WQS back previously populated station information.
+
+```{r}
+irData_missingWQS <- #filter(cit, FDT_STA_ID %in% irData_missing$FDT_STA_ID) %>%
+   #bind_rows(filter(nonA, FDT_STA_ID %in% irData_missing$FDT_STA_ID)) %>%
+  #bind_rows(filter(conventionals_D, FDT_STA_ID %in% irData_missing$FDT_STA_ID))
+  left_join(dplyr::select(irData_missingWQS, UID:Longitude, BASIN_NAME, BASIN_CODE, SUBBASIN), 
+            conventionals_D, by = c('FDT_STA_ID','Latitude', 'Longitude')) %>%
+  dplyr::select(-geometry,geometry)
+```
+
+
+#### Polygon files
+
+Since it is much faster to look for spatial joins by polygons compared to snapping to lines, we will run spatial joins by estuarine polys and reservoir layers first.
+
+##### Estuarine Polygons
+
+Find any sites that fall into an estuary WQS polygon.
+  - see optional code to write those sites to a separate csv for future reference
+3) Removes any estuarine sites from the data frame of unique conventionals sites that need WQS information.
+
+```{r Filter Out Estuary Statewide, echo=F, results = 'hide'}}
+
+estuaryPolys <- st_read('GIS/WQS_layers_04282020.gdb', layer = 'estuarinepolygons_04282020' , fid_column_name = "OBJECTID") %>%
+  # Fix error in data
+  mutate(Basin_Code = case_when(BASIN == '7' ~ 'Small Coastal', 
+                                TRUE ~ as.character(Basin_Code)),
+         BASIN = case_when(BASIN == '7' ~ '7A',
+                           TRUE ~ as.character(BASIN))) %>%
+   st_transform( st_crs(4326)) # transform to WQS84 for spatial intersection 
+
+
+irData_missing_EstuaryPoly <- st_join(irData_missingWQS, estuaryPolys, join = st_intersects) %>%
+      filter(!is.na(OBJECTID))
+
+#write.csv(irData_missing_EstuaryPoly, 'irData_missing_EstuaryPoly.csv', row.names = F) 
+# you can change the file location like so:
+#write.csv(irData_missing_Estuary, 'C:/Assessment/2020/dataProcessing/irData_missing_Estuary.csv', row.names = F) 
+
+irData_missingWQS_noEP <- filter(irData_missingWQS, ! FDT_STA_ID %in% irData_missing_EstuaryPoly$FDT_STA_ID)
+rm(estuaryPolys) # remove from memory
+```
+
+Below is the table of sites that are estuarine.
+
+```{r estuarySitesTable, echo=F}
+DT::datatable(irData_WQS_EstuaryPoly %>% st_drop_geometry(), escape=F, rownames = F, options = list(scrollX = TRUE))
+#View(irData_WQS_EstuaryPoly)
+```
+
+```{r,echo=F}
+cat(paste('Removing the above sites, the unique sites have gone from ', nrow(irData_missingWQS),' to ',nrow(irData_missingWQS_noEP),'. The next step is to find the lake/reservoir stations and link them to the appropriate AU and WQS for analyses in the Lake Assessment App.', sep=''))
+```
+
+
+##### Reservoir Polygons
+
+```{r inlineText3, echo=F}
+cat(paste('Working with the ', nrow(irData_missingWQS_noEP),' sites that did not connect to a STATION_ID/FDT_STA_ID from last cycle, we will first do a spatial join to the reservoir/lakes WQS to see if any sites are lake sites before using the more computationally intensive stream snapping process.', sep=''))
+```
+
+
+```{r reservoirStatewideWQS, echo=F, results = 'hide'}
+
+reservoirWQS <- st_read('GIS/WQS_layers_04282020.gdb', layer = 'lakes_reservoirs_04282020' , fid_column_name = "OBJECTID") %>%
+  st_transform(4326)
+
+#irData_missingWQSsubB_Lakes <- st_join(reservoirWQS, irData_missingWQS_noEP, join = st_intersects) %>%
+#    filter(!is.na(FDT_STA_ID)) %>% # only keep rows where join successful
+#    mutate(`Point Unique Identifier` = FDT_STA_ID, 
+#           `Buffer Distance` = 'Within Polygon') %>%
+#    dplyr::select(`Point Unique Identifier`, `Buffer Distance`, OBJECTID:Shape)
+  
+
+
+## holder for stations to drop from further analyses
+stationsToRemove <- data.frame(FDT_STA_ID = NA, OBJECTID_Assigned = NA)
+
+## Go through sites in each basin
+for(i in 1:length(unique(irData_missingWQS_noEP$BASIN_CODE))){
+  # find lake WQSs, if Any
+  irData_missing_Lakes <- st_join(filter(reservoirWQS, BASIN == unique(irData_missingWQS_noEP$BASIN_CODE)[i]),
+                                  irData_missingWQS_noEP, join = st_intersects) %>%
+    filter(!is.na(FDT_STA_ID)) %>% # only keep rows where join successful
+    mutate(`Point Unique Identifier` = FDT_STA_ID, 
+           `Buffer Distance` = 'Within Polygon') %>%
+    dplyr::select(`Point Unique Identifier`, `Buffer Distance`, OBJECTID:Shape)
+  
+  # Organize all lake sites from previous assessment info
+  lakeStations <- filter(irData_final, grepl('L_', ID305B_1) | grepl('L_', ID305B_2) | grepl('L_', ID305B_3) |
+                           STATION_TYPE_1 == "L" | STATION_TYPE_2 == "L" | STATION_TYPE_3 == "L") %>%
+    filter(BASIN_CODE == unique(irData_missingWQS_noEP$BASIN_CODE)[i]) %>%
+    rbind(filter(irData_join, FDT_STA_ID %in% irData_missing_Lakes$`Point Unique Identifier`))
+
+  # save lake sites to special result for assessor to review, match riverine output
+  # this is going to differ slightly from the riverine output in that tbl_output isn't necessary since all sites that don't fall into a lake (or estuary) AU will be
+  # processed as riverine AND input_sites will contain stations that fell into lake AU and previously attributed lake sites
+  lake_snapList_AU <- list('sf_output' = irData_missing_Lakes,
+                           'inputSites' = lakeStations)
+  
+  stationFixes <- data.frame(FDT_STA_ID = as.character(irData_missing_Lakes$`Point Unique Identifier`), 
+                             ID305B_Assigned = as.character(irData_missing_Lakes$ID305B))
+  stationsToRemove <- bind_rows(stationsToRemove, stationFixes)
+  
+  saveRDS(lake_snapList_AU,paste0("data/preAnalyzedRegionalAUdata/", assessmentRegion,
+                                  "/Lacustrine/", unique(reservoirAUs$Basin)[i], ".RDS"))
+
+}
+
+
+# and remove lake AU sites from the sites without AUs
+
+irData_missing_NoAU <- mutate(irData_missing, ID305B_1 = NA) %>% # need column for snapping tools
+  filter(!(FDT_STA_ID %in% stationsToRemove$FDT_STA_ID))
+
+# update irData_join so fixed lake sites won't try to snap to riverine AUs
+irData_join_fixed <- right_join(irData_join, stationsToRemove %>% drop_na(), by = 'FDT_STA_ID') %>%
+  mutate(ID305B_1 = ID305B_Assigned,
+         STATION_TYPE_1 = 'L') %>% 
+  dplyr::select(-ID305B_Assigned) 
+  
+
+irData_join <- filter(irData_join, !FDT_STA_ID %in% irData_join_fixed$FDT_STA_ID) %>%
+  rbind(irData_join_fixed)
+
+rm(reservoirAUs) # remove from memory
+```
+
+

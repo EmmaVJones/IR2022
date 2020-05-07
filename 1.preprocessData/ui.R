@@ -57,7 +57,16 @@ shinyUI(fluidPage(theme= "yeti.css",
                                                             br(), br(), br()
                                                    )))),
                              navbarMenu("Water Quality Standards QA",
-                                        tabPanel("Watershed Selection"),
+                                        tabPanel("Watershed Selection",
+                                                 sidebarPanel(
+                                                   # Went with selectInput here instead of dynamic select input bc it will be too time consuming in the long run to reorganize and split new versions of WQS by assessment regions
+                                                   selectInput("WQSsubbasinSelection", "Select SubBasin", choices = basinCodesConversion$Basin_Code),
+                                                   selectInput("WQSsubbasinSelection", "Select SubBasin", choices = basinCodesConversion$Basin_Code),
+                                                   selectInput('WQSwaterbodyType','Waterbody Type', choices = c('Riverine','Lacustrine','Estuarine')),
+                                                   br(),
+                                                   actionButton('WQSbegin', HTML("Begin Review With Selection <br/>(Clears Cached Results)"),class='btn-block')),
+                                                 mainPanel(
+                                                   leafletOutput('WQSVAmap'))),
                                         tabPanel("Manual Review")
                                         ),
                              tabPanel("About",

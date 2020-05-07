@@ -1,0 +1,217 @@
+---
+title: "Statewide Data Preprocessing"
+author: "Emma Jones"
+date: "5/6/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(tidyverse)
+library(sf)
+library(readxl)
+
+```
+
+This project is a outlines how to rebuild the automated preprocessing steps completed by assessment staff for 2020IR for the 2022IR with adjustments to incorporate updates to the WQS layer and attribution process.
+
+Each step will be written as individual modules where lengthy code to complete each step is stored elsewhere and sourced for use. This method of organizing the project helps with project maintenance and troubleshooting specific problem areas when they occur.
+
+## Data Organization
+
+The key data needed for these analyses is the conventionals dataset that Roger Stewart pulls every two years for each IR window. This method is built such that additional stations that need WQS data attached (for EDAS/CEDS Stations Table update project) can be run through just that portion of the methodology.
+
+
+### Conventionals Data
+
+This version of the method smashed together a fully QAed version of the conventionals dataset (2020IR) and a not fully QAed dataset from 2019 pulled using Roger's conventionals methods. For 2022 final dataset, a single conventional dataset will be brought in.
+
+#### Conventionals data smashing 2013-2018 + 2019
+
+```{r conventionals smash}
+#source('preprocessingModules/conventionalsSmashing2013-2019.R')
+```
+
+So we will use this as a pretend dataset to simuate what one could expect from 2022 IR, e.g. some attributed (AU and WQS) stations as well as some new stuff. This exercise will be conducted for BRRO, but the methods will apply statewide.
+
+### Other data
+
+Stations pulled from CEDS with Lat/Lng info could be run through the WQS steps if uploaded and reorganized here.
+
+Cross that bridge when we get there...
+
+
+### Find Distinct Sites
+
+No matter where you are pulling data in from, you need to limit these computationally heavy spatial analyses to one per site. Running a distinct on the dataset and making it a spatial dataset is the best next step.
+
+```{r distinct sites}
+#conventionals_D <- distinct(conventionals, FDT_STA_ID, .keep_all = T) %>%
+#  select(FDT_STA_ID:FDT_SPG_CODE, Latitude:STA_CBP_NAME, -FDT_DATE_TIME) # drop data to avoid any confusion
+#rm(conventionals) # remove full conventionals dataset to save memory
+
+distinctSites <- readRDS('data/conventionals_D.RDS')
+```
+
+### Attach assessment region and subbasin information
+
+Assessment region is important for processing each region through a loop, AU connection, and WQS attachment. Subbasin information is important for WQS processing.
+
+```{r assessment and subbasin join}
+source('preprocessingModules/assessmentLayerSubbasinJoin.R')
+distinctSitesToDo <- distinctSites_sf 
+# keep a copy of original distinct sites to check that no one was lost at the end
+``` 
+
+**Note the VAHU6 data is derived spatially, so this is a good first step, but when there is human QAed VAHU6 data available, we will use that data instead. Sometimes assessors use stations outside a VAHU6 to assess said VAHU6.**
+
+### Spatially Join WQS
+
+Since WQS is in transition to new system, we first need to do all spatial joins to new WQS layer to get appropriate UID information, then we can use human QAed info from previous assessment (where available) to double check the standards snapped correctly.
+
+Here is the table used to store link information from stations to appropriate WQS.
+
+```{r WQStable}
+WQStable <- tibble(StationID = NA, UID = NA)
+
+# in future bring in existing table
+```
+
+
+
+Since it is much faster to look for spatial joins by polygons compared to snapping to lines, we will run spatial joins by estuarine polys and reservoir layers first.
+
+##### Estuarine Polygons
+
+Find any sites that fall into an estuary WQS polygon. This method is only applied to subbasins that intersect estuarine areas.
+Removes any estuarine sites from the data frame of unique sites that need WQS information.
+
+```{r estuary methods}
+source('preprocessingModules/WQS_estuaryPoly.R')
+
+# Bring in estuary layer
+estuarinePolys <- st_read('GIS/WQS_layers_05072020.gdb', layer = 'estuarinepolygons_05072020' , fid_column_name = "OBJECTID") %>%
+  mutate(UID = paste0('EP_', as.character(BASIN), "_", sprintf("%06d",as.numeric(as.character(OBJECTID))))) %>% # using OBEJCTID as row number for now
+  st_transform(4326)
+  
+WQStable <- estuaryPolygonJoin(estuarinePolys, distinctSitesToDo, WQStable)
+
+rm(estuarinePolys) # clean up workspace
+```
+
+Remove stations that fell inside estuarine polygons from the 'to do' list.
+
+```{r remove estuary poly sites}
+distinctSitesToDo <- filter(distinctSitesToDo, ! FDT_STA_ID %in% WQStable$StationID)
+```
+
+
+##### Lake Polygons
+
+Find any sites that fall into a lake WQS polygon. This method is applied to all subbasins.
+Removes any lake sites from the data frame of unique sites that need WQS information.
+
+
+```{r lake methods}
+source('preprocessingModules/WQS_lakePoly.R')
+
+lakesPoly <- st_read('GIS/WQS_layers_05072020.gdb', layer = 'lakes_reservoirs_05072020' , fid_column_name = "OBJECTID") %>%
+  mutate(UID = paste0('LP_', as.character(BASIN), "_", sprintf("%06d",as.numeric(as.character(OBJECTID))))) %>% # using OBEJCTID as row number for now
+  st_transform(4326)
+
+WQStable <- lakePolygonJoin(lakePoly, distinctSitesToDo, WQStable)
+
+rm(lakesPoly) # clean up workspace
+```
+
+Remove stations that fell inside lake polygons from the 'to do' list.
+
+```{r remove estuary poly sites}
+distinctSitesToDo <- filter(distinctSitesToDo, ! FDT_STA_ID %in% WQStable$StationID)
+```
+
+
+
+### Spatially Join WQS Lines
+
+Now on to the more computationally heavy WQS line snapping methods. First we will try to attach riverine WQS, and where stations remain we will try the estuarine WQS snap.
+
+##### Riverine Lines
+
+Buffer all sites that don't fall into a polygon layer. The output will add a field called `Buffer Distance` to the WQStable to indicate distance required for snapping. This does not get transported to the data of record, but it is useful to keep for now for QA purposes. If more than one segment is found within a set buffer distance, that many rows will be attached to the WQStable with the identifying station name. It is up to the QA tool to help the user determine which of these UID's are correct and drop the other records.
+
+Removes any riverine sites from the data frame of unique sites that need WQS information.
+
+```{r riverine methods}
+source('snappingFunctions/snapWQS.R')
+
+riverine <- st_read('GIS/WQS_layers_05072020.gdb', layer = 'riverine_05072020' , fid_column_name = "OBJECTID") %>%
+  mutate(UID = paste0('RL_', as.character(BASIN), "_", sprintf("%06d",as.numeric(as.character(OBJECTID))))) %>% # using OBEJCTID as row number for now
+  st_transform(102003) # forcing to albers from start bc such a huge layer
+  #st_transform(4326)
+
+WQStable <- snapAndOrganizeWQS(distinctSitesToDo[1:50,], 'FDT_STA_ID', riverine, 
+                               bufferDistances = seq(20,80,by=20)) # buffering by 20m from 20 - 80 meters
+
+
+rm(riverine)
+```
+
+Remove stations that attached to riverine segments from the 'to do' list.
+
+```{r remove estuary poly sites}
+distinctSitesToDo <- filter(distinctSitesToDo, ! FDT_STA_ID %in% WQStable$StationID)
+```
+
+
+##### Estuarine Lines
+
+If a site doesn't attach to a riverine segment, our last step is to try to attach estuary line segments before throwing an empty site to the users for the wild west of manual QA. 
+Removes any estuary lines sites from the data frame of unique sites that need WQS information.
+
+```{r estuarine lines methods}
+source('snappingFunctions/snapWQS.R')
+
+estuarineLines <- st_read('GIS/WQS_layers_05072020.gdb', layer = 'estuarinelines_05072020' , fid_column_name = "OBJECTID")
+  mutate(UID = paste0('EL_', as.character(BASIN), "_", sprintf("%06d",as.numeric(as.character(OBJECTID))))) %>% # using OBEJCTID as row number for now
+  st_transform(102003) # forcing to albers from start bc such a huge layer
+  #st_transform(4326)
+
+WQStable <- snapAndOrganizeWQS(distinctSitesToDo[1:50,], 'FDT_STA_ID', estuarineLines, 
+                               bufferDistances = seq(20,80,by=20)) # buffering by 20m from 20 - 80 meters
+
+
+rm(estuarineLines)
+```
+
+Remove stations that attached to riverine segments from the 'to do' list.
+
+```{r remove estuary poly sites}
+distinctSitesToDo <- filter(distinctSitesToDo, ! FDT_STA_ID %in% WQStable$StationID)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+### Attach any free data available from previous assessment cycles
+
+This data is smashed together from the regions who returned their preprocessing steps from the 2020IR. This procedure also updates existing WQS designations to updated WQS.
+
+```{r 2020IR preprocessing data statewide}
+source('preprocessingModules/2020IRpreprocessingDataStatewide.R')
+```
+
+
+
+
+
+

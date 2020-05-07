@@ -6,9 +6,18 @@ source('global.R')
 assessmentRegions <- st_read( 'GIS/AssessmentRegions_simple.shp')
 assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
   st_transform( st_crs(4326)) 
+basin7 <- st_read('GIS/deq_basins07.shp') %>%
+  mutate(BASIN_CODE = case_when(BASIN_CODE == '3-' ~ '3',
+                                BASIN_CODE == '8-' ~ '8',
+                                BASIN_CODE == '9-' ~ '9',
+                                TRUE ~ as.character(BASIN_CODE)))
 
 
 shinyServer(function(input, output, session) {
+  
+########################################################################################################################################################  
+  
+  ## Assessment Unit side of application 
   
   # color palette for assessment polygons
   pal <- colorFactor(
@@ -17,10 +26,10 @@ shinyServer(function(input, output, session) {
   
   
   # empty reactive objects list
-  reactive_objects=reactiveValues()
+  reactive_objects = reactiveValues() # for AU part of app
+
   
-  
-  ## Watershed Selection Tab
+  ## Watershed Selection Tab Assessment Unit
   
   # Query VAHUC6's By Selectize arguments
   the_data <- reactive({assessmentLayer})
@@ -663,8 +672,51 @@ shinyServer(function(input, output, session) {
                     else . } %>%
                   as.data.frame(), file, row.names = F) }) 
   
+  
+##################################################################################################################################################
+  
+  ## WQS Side of Application
+  
+  # empty reactive objects list
+  reactive_objects_WQS = reactiveValues() # for WQS
+  
+  ## Watershed Selection Tab WQS
+  
+  # Update map Subbasin based on user selection
+  #WQSbasin_filter <- shiny::callModule(dynamicSelect, "basinSelection", region_filter, "Basin" )
+  
+  # Copy data as observer for download filename
+  #region <- reactive({req(input$begin) 
+  #  unique(region_filter()$ASSESS_REG)})
+  #basin <- reactive({req(input$begin)
+  #  unique(basin_filter()$Basin)})
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 #  output$test <- renderPrint({
 #    req(reactive_objects$finalAU)
 #    reactive_objects$snapSingle
 #  })
+  
+  
+  
+  
+  
 })

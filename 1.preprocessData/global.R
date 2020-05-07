@@ -21,3 +21,5 @@ source('snappingFunctions/snapOrganizationFunctions_messAround.R')
 #  st_transform(4326)
 
 #conventionals_D <- st_read(paste0('data/conventionals_D_James River Basin.shp')) 
+
+basinCodesConversion <- read_csv('data/basinCodeConversion.csv')

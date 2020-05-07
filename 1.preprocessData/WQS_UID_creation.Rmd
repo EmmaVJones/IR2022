@@ -1,0 +1,35 @@
+---
+title: "WQS UID Creation"
+author: "Emma Jones"
+date: "5/7/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(sf)
+```
+
+## Background 
+
+This document walks users through the creation of the UID (unique identifier) field for all WQS layer types. The system was initiated on the geodatabase last updated by Tish Robertson (tish.robertson@deq.virginia.gov) on May 5, 2020. 
+
+### UID naming schema
+The naming convention concatenates the layer type in a two digit code, outlined below, the 1-2 digit basin code, and a 0-padded 6 digit number. The 6 digit system was built to accomodate the size of the largest layer, the riverine lines layer (n = 318,195 at time of publication). 
+
+```{r layer type code}
+layerTypeCode <- data.frame(LTcode = c('RL', 'LP', 'EL', 'EP'),
+                            LayerName = c('riverinelines', '', 'estuarinelines',''))
+```
+
+```{r}
+st_layers('GIS/WQS_layers_05072020.gdb')
+```
+
+```{r}
+estuarineLines <- st_read('GIS/WQS_layers_05072020.gdb', layer = 'estuarinelines_05072020' , fid_column_name = "OBJECTID") %>%
+  mutate(UID = paste0('EL_', as.character(BASIN), "_", sprintf("%06d",as.numeric(as.character(OBJECTID))))) # using OBEJCTID as row number for now
+st_write(estuarineLines, 'GIS/WQS_layers_05072020/estuarinelines_05072020.shp') # Have to write to shapefile since can't write to fileGDB outside esri
+```
+
