@@ -24,7 +24,7 @@ estuaryPolygonJoin <- function(estuarinePolys,
     filter(!is.na(OBJECTID)) 
   
   WQStable <- bind_rows(WQStable,
-                        dplyr::select(estuaryPolyWQS, FDT_STA_ID, UID) %>% 
+                        dplyr::select(estuaryPolyWQS, FDT_STA_ID, WQS_ID) %>% 
                           st_drop_geometry() %>%
                           rename('StationID' = 'FDT_STA_ID')) %>%
     drop_na()

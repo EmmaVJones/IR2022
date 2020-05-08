@@ -207,6 +207,18 @@ There should be some leftovers, add those to WQStable and add flag.
 
 ### QA Spatial Attribution Process
 
+Bring in existing sites with AU and WQS information for QA.
+
+```{r existingSites}
+source('preprocessingModules/2020IRpreprocessingDataStatewide.R')
+```
+
+Check each station that has QA data from previous cycles.
+
+```{r join human QA}
+source('preprocessingModules/wqsQA.R')
+WQStableQA <- humanQA(WQStable) #still not quite right
+```
 
 
 

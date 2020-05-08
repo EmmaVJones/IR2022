@@ -1,5 +1,5 @@
 st_layers('GIS/WQS_layers_04282020.gdb')
-st_layers('GIS/WQS_layers_05072020.gdb')
+st_layers('GIS/WQS_layers_05082020.gdb')
 st_layers('GIS/WQS_layers_05062020_EVJ.gdb')
 
 riverine <- st_read('GIS/WQS_layers_05062020.gdb', layer = 'riverine_05062020' , fid_column_name = "OBJECTID")

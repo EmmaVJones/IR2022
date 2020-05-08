@@ -1,4 +1,12 @@
 
+# function to find sites with +1 segment
+snapCheck <- function(successDataFrame){
+  successDataFrame %>%
+    group_by(`Point Unique Identifier`) %>%
+    filter(n()>1)
+}
+
+
 # snap a point to multiline at a given distance and return the multilinestring feature
 
 snap_bufferMethod <- function(POINT, MULTILINESTRING, distance){
@@ -33,7 +41,7 @@ snap_Point_to_Feature <- function(POINT, # sf POINT file
     b <- mutate(b,`Point Unique Identifier` = cn,
                 `Buffer Distance` = paste(bufferDistances[x], 
                                           st_crs(POINT)$units, sep = ' ')) %>%
-      dplyr::select(`Point Unique Identifier`, `Buffer Distance`, UID) %>%
+      dplyr::select(`Point Unique Identifier`, `Buffer Distance`, WQS_ID) %>%
       st_drop_geometry()}
   return(b)
 }
@@ -45,10 +53,11 @@ snap_Points_to_Feature <- function(MULTIPOINT, # sf MULTIPOINT file
                                    POINT_UID_colname, # as.character(name of unique identifier in POINT file)
                                    MULTILINESTRING, # stream network
                                    bufferDistances # numeric sequence of distances to run buffer, these will be in
-){              # the unit of the MULTIPOINT and MULTILINESTRING files)
+                                   # the unit of the MULTIPOINT and MULTILINESTRING files)
+                                   ){              
   
   # place to store stuff
-  tbl_output <- tibble(`Point Unique Identifier`= character(), `Buffer Distance` = character(), UID = character())
+  tbl_output <- tibble(`Point Unique Identifier`= character(), `Buffer Distance` = character(), WQS_ID = character())
   
   # Don't love using a loop here but can't figure out better way at present
   for(i in 1:nrow(MULTIPOINT)) {
@@ -65,8 +74,10 @@ snap_Points_to_Feature <- function(MULTIPOINT, # sf MULTIPOINT file
 snapAndOrganizeWQS <- function(sites, # sf MULTIPOINT file
                                POINT_UID_colname,# as.character(name of unique identifier in POINT file)
                                WQSlayer,# stream network
-                               bufferDistances # numeric sequence of distances to run buffer, these will be in
-                               ){              # the unit of the MULTIPOINT and MULTILINESTRING files
+                               bufferDistances, # numeric sequence of distances to run buffer, these will be in
+                               # the unit of the MULTIPOINT and MULTILINESTRING files
+                               WQStable ){
+  
 
   # transform to Albers for spatial intersection, do this inside function to not change layer used in other analyses
   sites <- sites %>% st_transform(102003)  
@@ -74,6 +85,10 @@ snapAndOrganizeWQS <- function(sites, # sf MULTIPOINT file
   
   snapList_WQS <- snap_Points_to_Feature(sites, POINT_UID_colname,
                                          WQSlayer, bufferDistances)
-  return(snapList_WQS)
+  WQStable <- bind_rows(WQStable,
+                        rename(snapList_WQS, 'StationID'= 'Point Unique Identifier') %>%
+                          dplyr::select(StationID, WQS_ID, `Buffer Distance`))
+  
+  return(WQStable)
 }
   
