@@ -7,10 +7,16 @@ assessmentRegions <- st_read( 'GIS/AssessmentRegions_simple.shp')
 assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
   st_transform( st_crs(4326)) 
 basin7 <- st_read('GIS/deq_basins07.shp') %>%
+  st_transform(4326) %>%
   mutate(BASIN_CODE = case_when(BASIN_CODE == '3-' ~ '3',
                                 BASIN_CODE == '8-' ~ '8',
                                 BASIN_CODE == '9-' ~ '9',
                                 TRUE ~ as.character(BASIN_CODE)))
+
+# Attach SUBBASIN info to appropriate assessment Region
+basinAssessmentRegion <- st_intersection(basin7, assessmentRegions) %>%
+  st_drop_geometry()
+#write.csv(basinAssessmentRegion, 'data/basinAssessmentRegion.csv')
 
 
 shinyServer(function(input, output, session) {
@@ -683,37 +689,20 @@ shinyServer(function(input, output, session) {
   ## Watershed Selection Tab WQS
   
   # Update map Subbasin based on user selection
-  #WQSbasin_filter <- shiny::callModule(dynamicSelect, "basinSelection", region_filter, "Basin" )
-  
+  WQS_data <- reactive({basinAssessmentRegion})
+  WQSregion_filter <- shiny::callModule(dynamicSelect, "WQSDEQregionSelection", WQS_data, "ASSESS_REG" )
+  WQSbasin_filter <- shiny::callModule(dynamicSelect, "WQSsubbasinSelection", WQSregion_filter, "SUBBASIN" )
+   
   # Copy data as observer for download filename
-  #region <- reactive({req(input$begin) 
-  #  unique(region_filter()$ASSESS_REG)})
-  #basin <- reactive({req(input$begin)
-  #  unique(basin_filter()$Basin)})
+  WQSregion <- reactive({req(input$WQSbegin) 
+    unique(WQSregion_filter()$ASSESS_REG)})
+  WQSbasin <- reactive({req(input$WQSbegin)
+    unique(WQSbasin_filter()$SUBBASIN)})
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-#  output$test <- renderPrint({
-#    req(reactive_objects$finalAU)
-#    reactive_objects$snapSingle
-#  })
+  output$test <- renderPrint({
+    #req(reactive_objects$finalAU)
+    WQS_data()
+  })
   
   
   

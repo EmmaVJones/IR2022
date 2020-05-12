@@ -2,7 +2,7 @@
 # function to find sites with +1 segment
 snapCheck <- function(successDataFrame){
   successDataFrame %>%
-    group_by(`Point Unique Identifier`) %>%
+    group_by(StationID) %>%
     filter(n()>1)
 }
 

@@ -148,7 +148,7 @@ riverine <- st_read('GIS/WQS_layers_05082020.gdb', layer = 'riverine_05082020' ,
   st_transform(102003) # forcing to albers from start bc such a huge layer
   #st_transform(4326)
 
-WQStable <- snapAndOrganizeWQS(distinctSitesToDo[1:500,], 'FDT_STA_ID', riverine, 
+WQStable <- snapAndOrganizeWQS(distinctSitesToDo, 'FDT_STA_ID', riverine, 
                                bufferDistances = seq(20,80,by=20),  # buffering by 20m from 20 - 80 meters
                                WQStable)
 
@@ -160,9 +160,20 @@ Remove stations that attached to riverine segments from the 'to do' list.
 
 ```{r remove estuary poly sites}
 distinctSitesToDo <- filter(distinctSitesToDo, ! FDT_STA_ID %in% WQStable$StationID)
+```
 
-saveRDS(WQStable, 'WQStable1_500.RDS')
-saveRDS(distinctSitesToDo, 'distinctSitesToDo1_500.RDS')
+
+For sites that did not snap to any riverine segments, we need to test against the estuarine WQS segments.
+
+```{r no riverine snaps}
+distinctSitesToDo <- filter(WQStable, `Buffer Distance` =='No connections within 80 m') %>%
+  left_join(dplyr::select(distinctSites_sf, FDT_STA_ID, Latitude, Longitude, SUBBASIN) %>%
+              rename('StationID'= 'FDT_STA_ID'), by='StationID') %>%
+  dplyr::select(-c(geometry)) %>%
+  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+           remove = T, # don't remove these lat/lon cols from df
+           crs = 4326)
+                            
 ```
 
 
@@ -185,7 +196,7 @@ WQStable <- snapAndOrganizeWQS(filter(distinctSitesToDo, SUBBASIN %in% c("Potoma
                                                                          "Chesapeake Bay - Mainstem", "James River - Lower",  
                                                                          "Appomattox River","Chowan River", 
                                                                          "Atlantic Ocean - South" , "Dismal Swamp/Albemarle Sound"))[1:25,],
-                               'FDT_STA_ID', estuarineLines, 
+                               'StationID', estuarineLines, 
                                bufferDistances = seq(20,80,by=20),  # buffering by 20m from 20 - 80 meters
                                WQStable)
 
@@ -195,17 +206,43 @@ rm(estuarineLines)
 Remove stations that attached to riverine segments from the 'to do' list.
 
 ```{r remove estuary poly sites}
-distinctSitesToDo <- filter(distinctSitesToDo, ! FDT_STA_ID %in% WQStable$StationID)
+distinctSitesToDo <- filter(distinctSitesToDo, ! StationID %in% WQStable$StationID)
+```
+
+
+Make sure all stations from original distinct station list have some sort of record (blank or populated) int the WQStable.
+
+```{r double check no one lost}
+distinctSites$FDT_STA_ID[!(distinctSites$FDT_STA_ID %in% unique(WQStable$StationID))]
+```
+
+And that none of the missing sites (sites that fall outside of the assessmentLayer) are not missing from the WQS snapping process.
+
+```{r missingSites got WQS}
+missingSites$FDT_STA_ID[!(missingSites$FDT_STA_ID %in% unique(WQStable$StationID))]
 ```
 
 
 
-
-There should be some leftovers, add those to WQStable and add flag.
-
-
-
 ### QA Spatial Attribution Process
+
+See how many sites snapped to too many WQS segments
+
+```{r snapCheck}
+tooMany <- snapCheck(WQStable)
+
+fine <- filter(WQStable, ! (StationID %in% tooMany$StationID)) %>% 
+  filter(`Buffer Distance` %in% c(NA,  "20 m", "40 m", "60 m" ,"80 m"))
+none <- filter(WQStable, ! StationID %in% tooMany$StationID) %>%
+  filter(`Buffer Distance` == "No connections within 80 m")
+
+# quick stats 
+(nrow(fine) / nrow(distinctSites)) * 100 # ~ 74% snapped to one segment
+(length(unique(tooMany$StationID)) / nrow(distinctSites)) * 100 # ~ 23% need extra manual review
+(nrow(none) / nrow(distinctSites)) * 100 # ~ 4% snapped to one segment
+
+rm(fine);rm(none);rm(tooMany)
+```
 
 
 
@@ -217,10 +254,24 @@ This data is smashed together from the regions who returned their preprocessing 
 
 ```{r 2020IR preprocessing data statewide}
 source('preprocessingModules/2020IRpreprocessingDataStatewide.R')
+
+WQStableCheck <- filter(WQStable, StationID %in% existingData$FDT_STA_ID)
 ```
 
 
+### Use UID to attach standards for sites were existing data occurs
 
+```{r get standards based on UID}
+source('preprocessingModules/wqsQA.R')
+WQStableChecked <- humanQA(WQStableCheck)
+```
+So the above object WQStableChecked isn't perfect in that where we have a site that has human QAed data we now have the associated WQS_ID, but we have weeded out sites that don't have the same WQS as the human QAed sites. There are still duplicated sites in this dataset for a human to go through.
+
+That QA step got us practically nowhere so saving out the WQStable object as the official dataset for application building.
+```{r data for app}
+saveRDS(WQStable, 'data/processedWQS/WQStable.RDS')
+write.csv(WQStable, 'data/processedWQS/WQStable.csv', row.names = F)
+```
 
 
 

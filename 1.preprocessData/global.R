@@ -23,3 +23,9 @@ source('snappingFunctions/snapOrganizationFunctions_messAround.R')
 #conventionals_D <- st_read(paste0('data/conventionals_D_James River Basin.shp')) 
 
 basinCodesConversion <- read_csv('data/basinCodeConversion.csv')
+
+
+# Attach SUBBASIN info to appropriate assessment Region
+# <- st_intersection(basin7, assessmentRegions) %>%
+#  st_drop_geometry()
+#write.csv(basinAssessmentRegion, 'data/basinAssessmentRegion.csv')

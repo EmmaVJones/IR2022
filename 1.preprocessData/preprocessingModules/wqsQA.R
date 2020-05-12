@@ -6,7 +6,7 @@ equals <- function(x, y){
   suppressWarnings(if(as.character(x) != as.character(y)){return('flag')})
 }
 
-humanQA <- function(WQStable){
+humanQA <- function(WQS_table){
   nameConversion <- data.frame(abbrev = c('RL', 'EL', 'EP','LP'),
                                realName = c('riverine_05082020','estuarinelines_05082020','estuarinepolygons_05082020',
                                             'lakes_reservoirs_05082020'))
@@ -19,24 +19,27 @@ humanQA <- function(WQStable){
                         fid_column_name = "OBJECTID") %>%
       st_drop_geometry()
     
-    dealWithMe <- filter(WQStable, str_extract(WQS_ID, "^.{2}") == nameConversion$abbrev[i]) %>%
+    dealWithMe <- filter(WQS_table, str_extract(WQS_ID, "^.{2}") == nameConversion$abbrev[i]) %>%
       left_join(wqsLayer, by = 'WQS_ID') %>%
-      dplyr::select(StationID, WQS_ID, `Buffer Distance`, SEC, CLASS, SPSTDS, PWS, contains("Trout"), Tier_III)
+      dplyr::select(StationID, WQS_ID, `Buffer Distance`, SEC, CLASS, SPSTDS, PWS, contains("Trout"), Tier_III) 
     
-    WQStableQA <- left_join(dealWithMe, rename(existingData, "StationID" = 'FDT_STA_ID'), by = 'StationID') %>%
-      mutate(SEC_flag = equals(SEC.x, SEC.y), 
-             CLASS_flag = equals(CLASS.x, CLASS.y),
-             SPSTDS_flag = equals(SPSTDS.x, SPSTDS.y),
-             PWS_flag = equals(PWS.x, PWS.y),
-             Tier_III_flag = equals(Tier_III.x, Tier_III.y) )
+    if(nrow(dealWithMe) > 0){
+      WQStableQA <- left_join(dealWithMe, rename(existingData, "StationID" = 'FDT_STA_ID'), by = 'StationID') %>%
+        mutate(SEC_flag = equals(SEC.x, SEC.y), 
+               CLASS_flag = equals(CLASS.x, CLASS.y),
+               SPSTDS_flag = equals(SPSTDS.x, SPSTDS.y),
+               PWS_flag = equals(PWS.x, PWS.y),
+               Tier_III_flag = equals(Tier_III.x, Tier_III.y) )
       
-    if('Trout' %in% names(WQStable)){
-      WQStable <- mutate(WQStable, Trout_flag = equals(Trout.x, Trout.y))
+      if('Trout' %in% names(dealWithMe)){
+        WQStableQA <- mutate(WQStableQA, Trout_flag = equals(Trout.x, Trout.y))
+      }
+      
+      toDrop <- bind_rows(toDrop,
+                          filter_all(WQStableQA, any_vars(str_detect(., pattern = "flag"))) %>%
+                            dplyr::select(StationID, WQS_ID))
     }
     
-    toDrop <- bind_rows(toDrop,
-                       filter_all(WQStableQA, any_vars(str_detect(., pattern = "flag"))) %>%
-                         dplyr::select(StationID, WQS_ID))
   }
   WQStable_QAed <- filter(WQStable, ! WQS_ID %in% toDrop$WQS_ID)
   
