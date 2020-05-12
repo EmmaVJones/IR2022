@@ -1,7 +1,12 @@
 #source('global.R')
 
 ### All conventionals sites
-##conventionals_D <- st_read('GIS/conventionals_D.shp')
+#conventionals_D <- st_read('GIS/conventionals_D.shp') %>%
+conventionals_D <- readRDS('data/conventionals_D.RDS') %>%
+  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+           remove = F, # don't remove these lat/lon cols from df
+           crs = 4326) %>%
+  mutate(StationID= FDT_STA_ID)
 
 #assessmentRegions <- st_read( 'GIS/AssessmentRegions_simple.shp')
 #assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
@@ -132,7 +137,7 @@ shinyServer(function(input, output, session) {
     # Make dataset of sites that snapped to a single AU and join AU info  
     reactive_objects$snapSingle <- filter(reactive_objects$sitesUnique, FDT_STA_ID %in% reactive_objects$snap_input[['sf_output']]$`Point Unique Identifier`) %>%
       filter(!(FDT_STA_ID %in% reactive_objects$tooMany_sites$FDT_STA_ID))# filter out sites that attached to more than one segment
-    # Make dataset of sites associated with too many segments
+    # Make dataset of sites associated with no many segments
     reactive_objects$snapNone <- filter(reactive_objects$sitesUnique, FDT_STA_ID %in% reactive_objects$snap_input[['tbl_output']]$`Point Unique Identifier`) 
     # Make empty dataset of sites that assessors touched
     reactive_objects$sitesAdjusted <-  reactive_objects$sitesUnique[0,]

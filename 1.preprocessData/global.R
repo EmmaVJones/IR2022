@@ -11,7 +11,8 @@ library(writexl)
 library(shinycssloaders)
 
 source('appModules/multipleDependentSelectizeArguments.R')
-source('snappingFunctions/snapOrganizationFunctions_messAround.R')
+source('snappingFunctions/snapOrganizationFunctions_messAround.R') # turn this back on when messing with AU side of things again
+
 
 #snapList_AU <- readRDS("data/preAnalyzedRegionalAUdata/BRRO/Riverine/James River Basin.RDS")
 #snapList_AU <- readRDS("data/preAnalyzedRegionalAUdata/BRRO/Lacustrine/Roanoke River Basin.RDS")
@@ -34,5 +35,11 @@ basinCodesConversion <- read_csv('data/basinCodeConversion.csv') %>%
 #  left_join(mutate(basinCodesConversion, BASIN_CODE = BASIN), by="BASIN_CODE")
 #write.csv(basinAssessmentRegion, 'data/basinAssessmentRegion.csv')
 basinAssessmentRegion <- read_csv('data/basinAssessmentReg_clb.csv') %>% # Cleo QAed verison
-  filter(VAHU6_NOTE !=  "NOT IN THIS REGION")
+  filter(VAHU6_NOTE !=  "NOT IN THIS REGION") %>%
+  left_join(mutate(basinCodesConversion, BASIN_CODE = BASIN), by="BASIN_CODE")
 
+
+# WQS layer type to WQS_ID conversion
+#st_layers('GIS/WQS_layers_05082020.gdb')
+WQSlayerConversion <- tibble(waterbodyType = c('Riverine','Lacustrine','Estuarine','Estuarine'),
+                             WQS_ID = c('RL','LP','EL','EP')) 
