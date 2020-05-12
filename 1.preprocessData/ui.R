@@ -59,15 +59,30 @@ shinyUI(fluidPage(theme= "yeti.css",
                              navbarMenu("Water Quality Standards QA",
                                         tabPanel("Watershed Selection",
                                                  sidebarPanel(
-                                                   dynamicSelectInput("WQSDEQregionSelection", "Select DEQ Assessment Region", multiple = FALSE),
-                                                   dynamicSelectInput("WQSsubbasinSelection", "Select Subbasin", multiple = FALSE),
-                                                   selectInput('WQSwaterbodyType','Assessment Type', choices = c('Riverine','Lacustrine','Estuarine')),
-                                                   br(),
-                                                   actionButton('WQSbegin', HTML("Begin Review With Selection <br/>(Clears Cached Results)"),class='btn-block')),
+                                                   fluidRow(column(5, selectInput('WQSwaterbodyType','Waterbody Type', choices = c('Riverine','Lacustrine','Estuarine'))),
+                                                            column(7, actionButton('WQSstart',HTML("Begin Review With <br/>Waterbody Selection <br/>(Clears Cached Results)"),
+                                                                                   class='btn-block')))),
+                                                   #conditionalPanel(condition = ("input.WQSstart != 0"), 
+                                                  #                  dynamicSelectInput("WQSDEQregionSelection", "Select DEQ Assessment Region", multiple = FALSE),
+                                                  #                  dynamicSelectInput("WQSsubbasinSelection", "Select Subbasin", multiple = FALSE),
+                                                  #                  br(),
+                                                  #                  actionButton('WQSbegin', HTML("Begin Review With Selection <br/>(Clears Cached Results)"),class='btn-block'))),
+                                                   
                                                  mainPanel(
                                                    verbatimTextOutput('test'),
-                                                   leafletOutput('WQSVAmap'))),
+                                                   leafletOutput('WQSVAmap'),
+                                                   h5(strong('Preprocessing Data Recap for Selected Region/Subbasin/Type Combination')),
+                                                   fluidRow(column(3, textOutput('singleSnapSummary1WQS')),
+                                                            column(3, textOutput('snapTooManySummary1WQS')),
+                                                            column(3, textOutput('noSnapSummary1WQS')),
+                                                            column(3, textOutput('regionalSitesSummary1WQS'))),
+                                                   br()#,
+                                                   #h5(strong('Assessment Units in Selected Major Basin')),
+                                                   #DT::dataTableOutput('AUSummary'), br(), br(), br() # a little breathing room
+                                                   )),
                                         tabPanel("Manual Review")
+                                                 
+                                        
                                         ),
                              tabPanel("About",
                                       p('This app was created to help assessors attach correct AU and WQS information to 

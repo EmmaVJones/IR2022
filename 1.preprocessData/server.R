@@ -1,21 +1,22 @@
-source('global.R')
+#source('global.R')
 
-## All conventionals sites
-#conventionals_D <- st_read('GIS/conventionals_D.shp')
+### All conventionals sites
+##conventionals_D <- st_read('GIS/conventionals_D.shp')
 
-assessmentRegions <- st_read( 'GIS/AssessmentRegions_simple.shp')
-assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
-  st_transform( st_crs(4326)) 
-basin7 <- st_read('GIS/deq_basins07.shp') %>%
-  st_transform(4326) %>%
-  mutate(BASIN_CODE = case_when(BASIN_CODE == '3-' ~ '3',
-                                BASIN_CODE == '8-' ~ '8',
-                                BASIN_CODE == '9-' ~ '9',
-                                TRUE ~ as.character(BASIN_CODE)))
+#assessmentRegions <- st_read( 'GIS/AssessmentRegions_simple.shp')
+#assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
+#  st_transform( st_crs(4326)) 
+#basin7 <- st_read('GIS/deq_basins07.shp') %>%
+#  st_transform(4326) %>%
+#  mutate(BASIN_CODE = case_when(BASIN_CODE == '3-' ~ '3',
+#                                BASIN_CODE == '8-' ~ '8',
+#                                BASIN_CODE == '9-' ~ '9',
+#                                TRUE ~ as.character(BASIN_CODE)))
 
 # Attach SUBBASIN info to appropriate assessment Region
-basinAssessmentRegion <- st_intersection(basin7, assessmentRegions) %>%
-  st_drop_geometry()
+#basinAssessmentRegion <- st_intersection(basin7, assessmentRegions) %>%
+#  st_drop_geometry() %>%
+#  left_join(mutate(basinCodesConversion, BASIN_CODE = BASIN), by="BASIN_CODE")
 #write.csv(basinAssessmentRegion, 'data/basinAssessmentRegion.csv')
 
 
@@ -691,18 +692,53 @@ shinyServer(function(input, output, session) {
   # Update map Subbasin based on user selection
   WQS_data <- reactive({basinAssessmentRegion})
   WQSregion_filter <- shiny::callModule(dynamicSelect, "WQSDEQregionSelection", WQS_data, "ASSESS_REG" )
-  WQSbasin_filter <- shiny::callModule(dynamicSelect, "WQSsubbasinSelection", WQSregion_filter, "SUBBASIN" )
+  WQSbasin_filter <- shiny::callModule(dynamicSelect, "WQSsubbasinSelection", WQSregion_filter, "Basin_Code" )
    
   # Copy data as observer for download filename
   WQSregion <- reactive({req(input$WQSbegin) 
     unique(WQSregion_filter()$ASSESS_REG)})
   WQSbasin <- reactive({req(input$WQSbegin)
-    unique(WQSbasin_filter()$SUBBASIN)})
+    unique(WQSbasin_filter()$Basin_Code)})
+  
+  WQSstatewide <- eventReactive(input$WQSstart, {
+    typeName <- case_when(input$WQSwaterbodyType == 'Lacustrine' ~ 'lakes_reservoirs',
+                          input$WQSwaterbodyType == 'Estuarine' ~ 'estuarinepolygons',
+                          TRUE ~ as.character(input$WQSwaterbodyType))
+    st_read('GIS/WQS_layers_05082020.gdb', layer = paste0(tolower(typeName),'_05082020') , fid_column_name = "OBJECTID") %>%
+      st_transform(4326) })
+  
+  
+  #WQSs <- eventReactive(input$WQSbegin, {
+  #  req(WQSstatewide(), WQSbasin_filter(), input$WQSwaterbodyType)
+  #  WQSstatewide() %>%
+  #    # limit to just selected filters
+  #    filter(BASIN %in% unique(WQSbasin_filter()$BASIN)) })
+  
   
   output$test <- renderPrint({
-    #req(reactive_objects$finalAU)
-    WQS_data()
+    
+    WQSstatewide() #%>% withSpinner()
+    #filter(basinCodesConversion, Basin_Code %in% input$WQSsubbasinSelection)$BASIN
   })
+  
+  ## Map output of basin and assessmentType_sf
+  #output$VAmap <- renderLeaflet({
+  #  input$begin
+  #  
+  #  m <- mapview(basin_filter(),label= basin_filter()$VAHU6, layer.name = 'VAHU6 in Selected Basin',
+  #               popup= leafpop::popupTable(basin_filter(), zcol=c('VAHU6',"VaName","VAHU5","ASSESS_REG")))
+  #  m@map %>% setView(st_bbox(basin_filter())$xmax[[1]],st_bbox(basin_filter())$ymax[[1]],zoom = 7)  })
+#  
+#  
+#  ## Table of AUs within Selected Region/Basin
+#  output$AUSummary <-  DT::renderDataTable({ req(AUs())
+#    DT::datatable(AUs() %>% st_set_geometry(NULL), rownames = FALSE, 
+#                  options= list(scrollX = TRUE, pageLength = nrow(AUs()), 
+#                                scrollY = "300px", dom='t'))   })
+  
+  
+  
+
   
   
   

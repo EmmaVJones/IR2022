@@ -8,6 +8,7 @@ library(leaflet)
 library(inlmisc)
 library(DT)
 library(writexl)
+library(shinycssloaders)
 
 source('appModules/multipleDependentSelectizeArguments.R')
 source('snappingFunctions/snapOrganizationFunctions_messAround.R')
@@ -22,10 +23,16 @@ source('snappingFunctions/snapOrganizationFunctions_messAround.R')
 
 #conventionals_D <- st_read(paste0('data/conventionals_D_James River Basin.shp')) 
 
-basinCodesConversion <- read_csv('data/basinCodeConversion.csv')
+basinCodesConversion <- read_csv('data/basinCodeConversion.csv') %>%
+  filter(BASIN != 7) %>%
+  bind_rows(data.frame(BASIN = '7D', Basin_Code = 'Small Coastal'))
 
 
 # Attach SUBBASIN info to appropriate assessment Region
-# <- st_intersection(basin7, assessmentRegions) %>%
-#  st_drop_geometry()
+#basinAssessmentRegion <- st_intersection(basin7, assessmentRegions) %>%
+#  st_drop_geometry() %>%
+#  left_join(mutate(basinCodesConversion, BASIN_CODE = BASIN), by="BASIN_CODE")
 #write.csv(basinAssessmentRegion, 'data/basinAssessmentRegion.csv')
+basinAssessmentRegion <- read_csv('data/basinAssessmentReg_clb.csv') %>% # Cleo QAed verison
+  filter(VAHU6_NOTE !=  "NOT IN THIS REGION")
+
