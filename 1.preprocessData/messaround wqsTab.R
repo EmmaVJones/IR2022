@@ -38,7 +38,7 @@ snap_input_Region <- snap_input %>%
 sitesUnique <- snap_input %>%
   left_join(conventionals_DWQS, by = 'StationID') %>%
   st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
-           remove = T, # don't remove these lat/lon cols from df
+           remove = F, # don't remove these lat/lon cols from df
            crs = 4326) 
 # Make dataset of all WQS_IDs available for table purposes, this will hold corrected WQS_ID information after user review
 WQS_IDs <- snap_input
@@ -63,6 +63,22 @@ snapNone <- filter(sitesUnique, is.na(WQS_ID)) %>%
   filter(StationID %in% snap_input_Region$StationID) %>% # limit assignment to just what falls in a region
   left_join(test2 %>% st_drop_geometry(), by = 'WQS_ID')#left_join(WQSs() %>% st_drop_geometry(), by = 'WQS_ID')
 
+
+
+##########################################
+### start here tomorrow
+sitesUniqueFin <- left_join(conventionals_DWQS %>% st_drop_geometry(), 
+                            sitesUnique %>% st_drop_geometry(),  by = 'StationID') %>%
+  dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, FDT_STA_ID, everything())
+  #rbind(sitesUnique,
+                  #      mutate(conventionals_DWQS, WQS_ID = NA, `Buffer Distance` = NA, n = NA) %>% 
+                  #        dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, FDT_STA_ID, everything())) 
+
+namesToSmash <- c('9-NEW181.66')
+
+selectedSiteTableWQS <- filter(sitesUniqueFin, FDT_STA_ID %in% namesToSmash) %>%
+  st_drop_geometry()
+                                            
 
 pal <- colorFactor(
   palette = topo.colors(7),

@@ -41,9 +41,22 @@ ui <- shinyUI(fluidPage(theme= "yeti.css",
                                                          actionButton('changeAUWQS', 'Manual AU Adjustment', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('exchange')),
                                                          actionButton('checkMeOutWQS', 'Check Me Out', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('exchange')),
                                                          downloadButton('downloadAUWQS', label = "Export reviews",style='color: #fff; background-color: #228b22; border-color: #134e13')        ),
-                                                       br(),)
-                                                                    
-                                              ))))
+                                                       br(),
+                                                       tabsetPanel(tabPanel(strong('Stations Data and Spatially Joined WQS'),
+                                                                             br(),
+                                                                             h5(strong('Selected Station Information')),
+                                                                             DT::dataTableOutput('selectedSiteTableWQS'),
+                                                                             h5(strong('Spatially Joined WQS Information')),
+                                                                             DT::dataTableOutput('associatedWQSTableWQS'),
+                                                                             br(), br(), br()),
+                                                                    tabPanel(strong('Updated Stations Data'),
+                                                                             br(),
+                                                                             fluidRow(
+                                                                               h5(strong('Adjusted Station Data')),
+                                                                               div(DT::dataTableOutput("adjustedStationsTableWQS"), style = "font-size:80%")),
+                                                                             br(), br(), br() )
+                                                       )
+                                              )))))
 
 server <- shinyServer(function(input, output, session) {
   # color palette for assessment polygons
@@ -141,7 +154,7 @@ server <- shinyServer(function(input, output, session) {
     WQSreactive_objects$sitesUnique <- WQSreactive_objects$snap_input %>%
       left_join(conventionals_DWQS, by = 'StationID') %>%
       st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
-               remove = T, # don't remove these lat/lon cols from df
+               remove = F, # don't remove these lat/lon cols from df
                crs = 4326)
     # Make dataset of all WQS_IDs available for table purposes, this will hold corrected WQS_ID information after user review
     WQSreactive_objects$WQS_IDs <- WQSreactive_objects$snap_input 
@@ -170,6 +183,13 @@ server <- shinyServer(function(input, output, session) {
     # Make dataset for user to download
     WQSreactive_objects$finalWQS <- WQSreactive_objects$sitesUnique %>% st_drop_geometry()
   })
+  
+  # Make dataset of all selectable sites on map
+  observe({
+    req(WQSreactive_objects$sitesUnique, conventionals_DWQS)
+    WQSreactive_objects$sitesUniqueFin <- rbind(WQSreactive_objects$sitesUnique,
+                                                mutate(conventionals_DWQS, WQS_ID = NA, `Buffer Distance` = NA, n = NA) %>% 
+                                                dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, FDT_STA_ID, everything()))  })
   
   # UI summaries of data pulled in to app, first and second tab
   output$singleSnapSummary1WQS <- renderPrint({ req(WQSreactive_objects$snap_input)
@@ -326,7 +346,64 @@ server <- shinyServer(function(input, output, session) {
       showNotification("There are no sites that snapped to 0 WQS segments in preprocessing steps. Nothing to plot.")
     }
   })
-
+  
+  # Map marker click (to identify selected sites\
+  observeEvent(input$WQSmap_marker_click, {
+    site_click <- input$WQSmap_marker_click # this is all the info based on your click
+    siteid <- strsplit(site_click$id, "_")[[1]][1] # this is just the layerID associated with your click
+    # have to remove the unique layerID after _ to make sense of StationID
+    
+    if(!is.null(siteid)){ # if you clicked a point with info, find all Stations that match (with a round)
+      # first find site matches from user input dataset, by lat and long
+      siteMatches <- filter(WQSreactive_objects$sitesUniqueFin, 
+                            StationID %in% siteid) %>%
+        st_drop_geometry() %>%
+        pull()
+      
+      
+      # and save all this info for later
+      siteid_current <-  c(siteMatches)#, as.character(existingSiteMatches))
+      
+      # add the current site(s) to the selected list for highlighting and displaying in table
+      if(is.null(WQSreactive_objects$namesToSmash)){
+        WQSreactive_objects$namesToSmash <- siteid_current
+      } else {
+        WQSreactive_objects$namesToSmash <- append(siteid_current, WQSreactive_objects$namesToSmash)    }
+    }
+  })
+  
+  # Update map marker highlights
+  observeEvent(WQSreactive_objects$namesToSmash, ignoreNULL=F, {
+    if(!is.null(WQSreactive_objects$namesToSmash)){
+      WQSmap_proxy %>%
+        clearGroup(group='highlight') %>%
+        addCircleMarkers(data=filter(WQSreactive_objects$sitesUniqueFin, StationID %in% WQSreactive_objects$namesToSmash),
+                         layerId = ~paste0(StationID,'_sitesHighlighted'),  # need unique layerID 
+                         group='highlight', 
+                         radius = 20, 
+                         color='chartreuse', opacity = 0.75, fillOpacity = 0.4)  
+    } else {
+      WQSmap_proxy %>%
+        clearGroup(group='highlight') }  })
+  
+  ## Clear all selected sites
+  observeEvent(input$clear_allWQS, {
+    WQSreactive_objects$namesToSmash=NULL
+    WQSmap_proxy %>%
+      clearGroup(group='highlight')  })
+  
+  output$selectedSiteTableWQS <- DT::renderDataTable({
+    req(WQSreactive_objects$namesToSmash)
+    filter(WQSreactive_objects$sitesUniqueFin, FDT_STA_ID %in% WQSreactive_objects$namesToSmash) %>%
+      st_drop_geometry() %>%
+      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'))  })
+  
+  output$associatedWQSTableWQS <- DT::renderDataTable({
+    req(WQSreactive_objects$namesToSmash)
+    filter(WQSs(), WQS_ID %in% filter(WQSreactive_objects$snap_input, StationID %in% WQSreactive_objects$namesToSmash)$WQS_ID) %>%
+      st_drop_geometry() %>%
+      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'))  })
+  
   
 })
 
