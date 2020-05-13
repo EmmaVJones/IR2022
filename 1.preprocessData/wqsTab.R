@@ -37,9 +37,10 @@ server <- shinyServer(function(input, output, session) {
     typeName <- case_when(input$WQSwaterbodyType == 'Lacustrine' ~ 'lakes_reservoirs',
                           input$WQSwaterbodyType == 'Estuarine' ~ 'estuarinepolygons',
                           TRUE ~ as.character(input$WQSwaterbodyType))
-    withProgress(message = 'Reading in Large Spatial File',
-                 st_read('GIS/WQS_layers_05082020.gdb', layer = paste0(tolower(typeName),'_05082020') , fid_column_name = "OBJECTID") %>%
-                   st_transform(4326) )})
+    #withProgress(message = 'Reading in Large Spatial File',
+     #            st_read('GIS/WQS_layers_05082020.gdb', layer = paste0(tolower(typeName),'_05082020') , fid_column_name = "OBJECTID") %>%
+    #               st_transform(4326) )})
+    withProgress(test) }) # riverine test
   
   # Update map Subbasin based on user selection
   output$WQSDEQregionSelection_ <- renderUI({
@@ -89,10 +90,24 @@ server <- shinyServer(function(input, output, session) {
   
   ### WQS reactive 
   observeEvent(input$WQSbegin, {
+    # All sites limited to waterbody type and subbasin
     WQSreactive_objects$snap_input <- readRDS('data/processedWQS/WQStable.RDS') %>%
       filter(str_extract(WQS_ID, "^.{2}") %in% filter(WQSlayerConversion, waterbodyType %in% input$WQSwaterbodyType)$WQS_ID) %>%
+      filter(gsub("_","",str_extract(WQS_ID, ".{3}_")) %in% 
+               str_pad(unique(filter(basinAssessmentRegion, BASIN_CODE %in% basinCodes())$BASIN_CODE), 
+                       width = 2, side = 'left', pad = '0')) %>%
       group_by(StationID) %>%
       mutate(n = n()) %>% ungroup()
+    # Sites limited to just region of interest
+    WQSreactive_objects$snap_input_Region <- WQSreactive_objects$snap_input %>%
+      left_join(conventionals_D, by = 'StationID') %>%
+      st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+               remove = T, # don't remove these lat/lon cols from df
+               crs = 4326) %>%
+      st_intersection(filter(assessmentRegions, ASSESS_REG %in% input$WQSDEQregionSelection)) %>%
+      st_drop_geometry() %>% # back to tibble
+      rename('Buffer Distance' = 'Buffer.Distance') %>%
+      dplyr::select(StationID, WQS_ID, `Buffer Distance`, n)
     # Make dataset of all sites for highlighting purposes, preliminary list
     WQSreactive_objects$sitesUnique <- WQSreactive_objects$snap_input %>%
       left_join(conventionals_D, by = 'StationID') %>%
@@ -101,17 +116,21 @@ server <- shinyServer(function(input, output, session) {
                crs = 4326)
     # Make dataset of all WQS_IDs available for table purposes, this will hold corrected WQS_ID information after user review
     WQSreactive_objects$WQS_IDs <- WQSreactive_objects$snap_input 
-    # Make dataset of multiple segments snapped to single site
-    WQSreactive_objects$tooMany <- filter(WQSreactive_objects$snap_input, n > 1) %>%
+    # Make dataset of multiple segments snapped to single site IN REGION
+    WQSreactive_objects$tooMany <- filter(WQSreactive_objects$snap_input_Region, n > 1) %>%
       group_by(StationID) %>% mutate(colorFac = row_number()) %>% ungroup()
-    # Make dataset of sites associated with too many segments
+    # Make dataset of sites associated with too many segments IN REGION
     WQSreactive_objects$tooMany_sites <- filter(WQSreactive_objects$sitesUnique, StationID %in% WQSreactive_objects$tooMany$StationID) %>%
-      left_join(WQSs() %>% st_drop_geometry(), by = 'WQS_ID')
-    # Make dataset of sites that snapped to a single WQS and join WQS info  
+      left_join(WQSs() %>% st_drop_geometry(), by = 'WQS_ID') %>%
+      distinct(StationID, .keep_all = T) %>%
+      dplyr::select(-c(WQS_ID, `Buffer Distance`, n))
+    # Make dataset of sites that snapped to a single WQS and join WQS info  IN REGION
     WQSreactive_objects$snapSingle <- filter(WQSreactive_objects$sitesUnique, n == 1) %>%
+      filter(StationID %in% WQSreactive_objects$snap_input_Region$StationID) %>% # limit assignment to just what falls in a region
       left_join(WQSs() %>% st_drop_geometry(), by = 'WQS_ID')
-    # Make dataset of sites associated with no segments
+    # Make dataset of sites associated with no segments IN REGION
     WQSreactive_objects$snapNone <- filter(WQSreactive_objects$sitesUnique, is.na(WQS_ID)) %>%
+      filter(StationID %in% WQSreactive_objects$snap_input_Region$StationID) %>% # limit assignment to just what falls in a region
       left_join(WQSs() %>% st_drop_geometry(), by = 'WQS_ID')
     # Make empty dataset of sites that assessors touched
     WQSreactive_objects$sitesAdjusted <-  WQSreactive_objects$sitesUnique[0,]

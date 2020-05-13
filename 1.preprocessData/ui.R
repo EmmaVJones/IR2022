@@ -59,27 +59,25 @@ shinyUI(fluidPage(theme= "yeti.css",
                              navbarMenu("Water Quality Standards QA",
                                         tabPanel("Watershed Selection",
                                                  sidebarPanel(
-                                                   fluidRow(column(5, selectInput('WQSwaterbodyType','Waterbody Type', choices = c('Riverine','Lacustrine','Estuarine'))),
+                                                   fluidRow(column(5, selectInput('WQSwaterbodyType','Waterbody Type', choices = unique(WQSlayerConversion$waterbodyType))),
                                                             column(7, actionButton('WQSstart',HTML("Begin Review With <br/>Waterbody Selection <br/>(Clears Cached Results)"),
-                                                                                   class='btn-block')))),
-                                                   #conditionalPanel(condition = ("input.WQSstart != 0"), 
-                                                  #                  dynamicSelectInput("WQSDEQregionSelection", "Select DEQ Assessment Region", multiple = FALSE),
-                                                  #                  dynamicSelectInput("WQSsubbasinSelection", "Select Subbasin", multiple = FALSE),
-                                                  #                  br(),
-                                                  #                  actionButton('WQSbegin', HTML("Begin Review With Selection <br/>(Clears Cached Results)"),class='btn-block'))),
-                                                   
+                                                                                   class='btn-block'))),
+                                                   hr(),
+                                                   conditionalPanel(condition = ("input.WQSstart"), # dynamicSelectInput did not work with progress bar for spatial file
+                                                                    uiOutput('WQSDEQregionSelection_'),
+                                                                    uiOutput('WQSsubbasinSelection_'),
+                                                                    br(),
+                                                                    uiOutput('WQSbegin_'))),
+                                                 
                                                  mainPanel(
-                                                   verbatimTextOutput('test'),
+                                                   #verbatimTextOutput('test'),
                                                    leafletOutput('WQSVAmap'),
                                                    h5(strong('Preprocessing Data Recap for Selected Region/Subbasin/Type Combination')),
                                                    fluidRow(column(3, textOutput('singleSnapSummary1WQS')),
                                                             column(3, textOutput('snapTooManySummary1WQS')),
                                                             column(3, textOutput('noSnapSummary1WQS')),
                                                             column(3, textOutput('regionalSitesSummary1WQS'))),
-                                                   br()#,
-                                                   #h5(strong('Assessment Units in Selected Major Basin')),
-                                                   #DT::dataTableOutput('AUSummary'), br(), br(), br() # a little breathing room
-                                                   )),
+                                                   br())),
                                         tabPanel("Manual Review")
                                                  
                                         
