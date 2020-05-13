@@ -16,17 +16,46 @@ ui <- shinyUI(fluidPage(theme= "yeti.css",
                                                                         uiOutput('WQSbegin_'))),
                                                        
                                                        mainPanel(
-                                                         #verbatimTextOutput('test'),
                                                          leafletOutput('WQSVAmap'),
                                                          h5(strong('Preprocessing Data Recap for Selected Region/Subbasin/Type Combination')),
                                                          fluidRow(column(3, textOutput('singleSnapSummary1WQS')),
                                                                   column(3, textOutput('snapTooManySummary1WQS')),
                                                                   column(3, textOutput('noSnapSummary1WQS')),
                                                                   column(3, textOutput('regionalSitesSummary1WQS'))),
-                                                         br())
-                                              )))))
+                                                         br(),
+                                                         verbatimTextOutput('test')) ),
+                                              tabPanel('Manual Review',
+                                                       wellPanel(
+                                                         fluidRow(column(3, textOutput('singleSnapSummary2WQS'),
+                                                                         actionButton('plotSingleSnapSummaryWQS', HTML('Plot stations that snapped <br/>to 1 WQS Segment'))),
+                                                                  column(3, textOutput('snapTooManySummary2WQS'),
+                                                                         actionButton('plotSnapTooManySummaryWQS', HTML('Plot stations that snapped <br/>to > 1 WQS Segment'))),
+                                                                  column(3, textOutput('noSnapSummary2WQS'),
+                                                                         actionButton('plotNoSnapSummaryWQS', HTML('Plot stations that snapped <br/>to 0 WQS segments'))),
+                                                                  column(3, textOutput('regionalSitesSummary2WQS'),
+                                                                         actionButton('plotRegionalSitesSummaryWQS', HTML('Plot all stations in <br/>the selected Region/Basin'))))),
+                                                       leafletOutput('WQSmap'),
+                                                       fluidRow(
+                                                         actionButton('clear_allWQS', 'Clear Selection', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('backspace')),
+                                                         actionButton('acceptWQS', 'Accept', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('check-circle')),
+                                                         actionButton('changeAUWQS', 'Manual AU Adjustment', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('exchange')),
+                                                         actionButton('checkMeOutWQS', 'Check Me Out', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('exchange')),
+                                                         downloadButton('downloadAUWQS', label = "Export reviews",style='color: #fff; background-color: #228b22; border-color: #134e13')        ),
+                                                       br(),)
+                                                                    
+                                              ))))
 
 server <- shinyServer(function(input, output, session) {
+  # color palette for assessment polygons
+  pal <- colorFactor(
+    palette = topo.colors(7),
+    domain = assessmentRegions$ASSESS_REG)
+  
+  palBufferDistance <- colorFactor(
+    palette = terrain.colors(5),#colorRamps::blue2red(5),
+    levels = c("20 m", "40 m", "60 m", "80 m", "No connections within 80 m"))
+  
+  
   # empty reactive objects list
   WQSreactive_objects = reactiveValues() # for WQS
   
@@ -100,7 +129,7 @@ server <- shinyServer(function(input, output, session) {
       mutate(n = n()) %>% ungroup()
     # Sites limited to just region of interest
     WQSreactive_objects$snap_input_Region <- WQSreactive_objects$snap_input %>%
-      left_join(conventionals_D, by = 'StationID') %>%
+      left_join(conventionals_DWQS, by = 'StationID') %>%
       st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
                remove = T, # don't remove these lat/lon cols from df
                crs = 4326) %>%
@@ -110,7 +139,7 @@ server <- shinyServer(function(input, output, session) {
       dplyr::select(StationID, WQS_ID, `Buffer Distance`, n)
     # Make dataset of all sites for highlighting purposes, preliminary list
     WQSreactive_objects$sitesUnique <- WQSreactive_objects$snap_input %>%
-      left_join(conventionals_D, by = 'StationID') %>%
+      left_join(conventionals_DWQS, by = 'StationID') %>%
       st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
                remove = T, # don't remove these lat/lon cols from df
                crs = 4326)
@@ -118,7 +147,11 @@ server <- shinyServer(function(input, output, session) {
     WQSreactive_objects$WQS_IDs <- WQSreactive_objects$snap_input 
     # Make dataset of multiple segments snapped to single site IN REGION
     WQSreactive_objects$tooMany <- filter(WQSreactive_objects$snap_input_Region, n > 1) %>%
-      group_by(StationID) %>% mutate(colorFac = row_number()) %>% ungroup()
+      group_by(StationID) %>% mutate(colorFac = row_number()) %>% ungroup() 
+    # Make a dataset of actual segments for plotting
+    WQSreactive_objects$tooMany_sf <- filter(WQSs(), WQS_ID %in% WQSreactive_objects$tooMany$WQS_ID) %>%
+      left_join(WQSreactive_objects$tooMany, by = 'WQS_ID') %>%
+      dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, everything())
     # Make dataset of sites associated with too many segments IN REGION
     WQSreactive_objects$tooMany_sites <- filter(WQSreactive_objects$sitesUnique, StationID %in% WQSreactive_objects$tooMany$StationID) %>%
       left_join(WQSs() %>% st_drop_geometry(), by = 'WQS_ID') %>%
@@ -159,9 +192,140 @@ server <- shinyServer(function(input, output, session) {
   
   
   output$test <- renderPrint({
-    print(WQSs())
+    print(class(st_geometry(WQSs())))
   })
   
+  ### WQS REVIEW TAB ##################################################################################
+  
+  # WQS Map
+  output$WQSmap <- renderLeaflet({
+    req(WQSreactive_objects$snap_input)
+    CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE, 
+                 options= leafletOptions(zoomControl = TRUE,minZoom = 3, maxZoom = 20)) %>%
+      setView(-78, 37.5, zoom=7)  %>% 
+#      addCircleMarkers(data = conventionals_DWQS, color='blue', fillColor='yellow', radius = 4,
+#                       fillOpacity = 0.5,opacity=0.8,weight = 1,stroke=T, group="Conventionals Stations in Basin",
+#                       label = ~FDT_STA_ID, layerId = ~FDT_STA_ID) %>% 
+#      
+#      {if("sfc_MULTIPOLYGON" %in% class(st_geometry(WQSs()))) 
+#        addPolygons(., data = WQSs(),
+#                    layerId = ~WQS_ID,
+#                    label=~WQS_ID, group="All WQS in selected Region/Basin", 
+#                    color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+#                    weight = 3,stroke=T,
+#                    popup=leafpop::popupTable(WQSs()),
+#                    popupOptions = popupOptions( maxHeight = 100 )) %>% 
+#          hideGroup("All WQS in selected Region/Basin") 
+#        else addPolylines(., data = WQSs(),
+#                          layerId = ~WQS_ID,
+#                          label=~WQS_ID, group="All WQS in selected Region/Basin", 
+#                          color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+#                          weight = 3,stroke=T,
+#                          popup=leafpop::popupTable(WQSs()),
+#                          popupOptions = popupOptions( maxHeight = 100 )) %>% 
+#          hideGroup("All WQS in selected Region/Basin")  } %>%
+      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
+                  fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
+                  group="Assessment Regions",
+                  popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG'))) %>% hideGroup('Assessment Regions') %>% #,'VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
+#      inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
+#      inlmisc::AddSearchButton(group = "Conventionals Stations in Basin", zoom = 15,propertyName = "label",
+#                               textPlaceholder = "Search Conventionals Stations in Basin") %>%
+      addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                       overlayGroups = c('Conventionals Stations in Basin',"All WQS in selected Region/Basin",'Assessment Regions'),
+                       options=layersControlOptions(collapsed=T),
+                       position='topleft') 
+    #%>%
+#      hideGroup("Conventionals Stations in Basin")    
+    })
+  
+  WQSmap_proxy <- leafletProxy("WQSmap")
+  
+  # Add layers to map as requested- Single snapped sites
+  observeEvent(input$plotSingleSnapSummaryWQS, {
+    if (nrow(WQSreactive_objects$snapSingle) > 0 ){
+      WQSmap_proxy %>%
+        addCircleMarkers(data=WQSreactive_objects$snapSingle,
+                         layerId = ~paste0(StationID,'_snapSingle'), # need unique layerID 
+                         label=~StationID, group="Stations Snapped to 1 WQS Segment", 
+                         radius = 5, fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T, color = 'black',
+                         fillColor= ~palBufferDistance(WQSreactive_objects$snapSingle$`Buffer Distance`)) %>%
+        addLegend(position = 'topright', pal = palBufferDistance, values = WQSreactive_objects$snapSingle$`Buffer Distance`, 
+                  group = 'Stations Snapped to 1 WQS Segment') %>%
+        addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                         overlayGroups = c("Adjusted Sites",
+                                           "Stations Snapped to 1 WQS Segment",
+                                           "Stations Snapped to > 1 WQS Segment",
+                                           "WQS Segments of Stations Snapped to > 1 Segment",
+                                           "Stations Snapped to 0 WQS Segments",
+                                           #"All stations in the selected Region/Basin",
+                                           #'Conventionals Stations in Basin',
+                                           "All WQS in selected Region/Basin",'Assessment Regions'),
+                         options=layersControlOptions(collapsed=T),
+                         position='topleft')
+    } else {
+      showNotification("There are no sites that snapped to only 1 WQS segment in preprocessing steps. Nothing to plot.")
+    }
+  })
+  
+  # Add layers to map as requested- Too many snapped sites
+  observeEvent(input$plotSnapTooManySummaryWQS, {
+    
+    if(nrow(WQSreactive_objects$tooMany_sites) > 0){
+      palTooMany <- colorNumeric(c('green','yellow', 'blue','red', 'pink','purple'), domain = WQSreactive_objects$tooMany$colorFac)
+      
+      WQSmap_proxy %>%
+        addCircleMarkers(data=WQSreactive_objects$tooMany_sites,
+                         layerId = ~paste0(StationID,'_tooMany'),  # need unique layerID 
+                         label=~StationID, group="Stations Snapped to > 1 WQS Segment", 
+                         color='black', fillColor='orange', radius = 5,
+                         fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
+        addPolylines(data=WQSreactive_objects$tooMany_sf,
+                     layerId = ~paste0(WQS_ID,'_tooMany'),  # need unique layerID 
+                     label=~WQS_ID, group="WQS Segments of Stations Snapped to > 1 Segment", 
+                     color = ~palTooMany(WQSreactive_objects$tooMany_sf$colorFac),weight = 3,stroke=T,
+                     popup=leafpop::popupTable(WQSreactive_objects$tooMany_sf),
+                     popupOptions = popupOptions( maxHeight = 100 )) %>%
+        hideGroup("WQS Segments of Stations Snapped to > 1 Segment") %>%
+        addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                         overlayGroups = c("Adjusted Sites",
+                                           "Stations Snapped to 1 WQS Segment",
+                                           "Stations Snapped to > 1 WQS Segment",
+                                           "WQS Segments of Stations Snapped to > 1 Segment",
+                                           "Stations Snapped to 0 WQS Segments",
+                                           #"All stations in the selected Region/Basin",
+                                           #'Conventionals Stations in Basin',
+                                           "All WQS in selected Region/Basin",'Assessment Regions'),
+                         options=layersControlOptions(collapsed=T),
+                         position='topleft') 
+    } else {
+      showNotification("There are no sites that snapped to > 1 WQS segment in preprocessing steps. Nothing to plot.")
+    }   })
+  
+  observeEvent(input$plotNoSnapSummaryWQS, {
+    if (nrow(WQSreactive_objects$snapNone) > 0 ){
+      WQSmap_proxy %>%
+        addCircleMarkers(data=WQSreactive_objects$snapNone,
+                         layerId = ~paste0(StationID,'_snapNone'), # need unique layerID 
+                         label=~StationID, 
+                         group="Stations Snapped to 0 WQS Segments", 
+                         color='black', fillColor='yellow', radius = 5,
+                         fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
+        addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                         overlayGroups = c("Adjusted Sites",
+                                           "Stations Snapped to 1 WQS Segment",
+                                           "Stations Snapped to > 1 WQS Segment",
+                                           "WQS Segments of Stations Snapped to > 1 Segment",
+                                           "Stations Snapped to 0 WQS Segments",
+                                           #"All stations in the selected Region/Basin",
+                                           #'Conventionals Stations in Basin',
+                                           "All WQS in selected Region/Basin",'Assessment Regions'),
+                         options=layersControlOptions(collapsed=T),
+                         position='topleft')
+    } else {
+      showNotification("There are no sites that snapped to 0 WQS segments in preprocessing steps. Nothing to plot.")
+    }
+  })
 
   
 })

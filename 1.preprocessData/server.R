@@ -700,8 +700,9 @@ shinyServer(function(input, output, session) {
                           input$WQSwaterbodyType == 'Estuarine' ~ 'estuarinepolygons',
                           TRUE ~ as.character(input$WQSwaterbodyType))
     #withProgress(message = 'Reading in Large Spatial File',
-    #            st_read('GIS/WQS_layers_05082020.gdb', layer = paste0(tolower(typeName),'_05082020') , fid_column_name = "OBJECTID") %>%
-    #               st_transform(4326) )})
+    #            st_zm(
+    #                  st_read('GIS/WQS_layers_05082020.gdb', layer = paste0(tolower(typeName),'_05082020') , fid_column_name = "OBJECTID") %>%
+    #                  st_transform(4326))  )})
     withProgress(test) }) # riverine test
   
   # Update map Subbasin based on user selection
