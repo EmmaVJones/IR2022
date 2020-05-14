@@ -22,8 +22,7 @@ ui <- shinyUI(fluidPage(theme= "yeti.css",
                                                                   column(3, textOutput('snapTooManySummary1WQS')),
                                                                   column(3, textOutput('noSnapSummary1WQS')),
                                                                   column(3, textOutput('regionalSitesSummary1WQS'))),
-                                                         br(),
-                                                         verbatimTextOutput('test')) ),
+                                                         br()) ),
                                               tabPanel('Manual Review',
                                                        wellPanel(
                                                          fluidRow(column(3, textOutput('singleSnapSummary2WQS'),
@@ -42,10 +41,11 @@ ui <- shinyUI(fluidPage(theme= "yeti.css",
                                                          actionButton('checkMeOutWQS', 'Check Me Out', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('exchange')),
                                                          downloadButton('downloadAUWQS', label = "Export reviews",style='color: #fff; background-color: #228b22; border-color: #134e13')        ),
                                                        br(),
+                                                       verbatimTextOutput('test'),
                                                        tabsetPanel(tabPanel(strong('Stations Data and Spatially Joined WQS'),
                                                                              br(),
                                                                              h5(strong('Selected Station Information')),
-                                                                             DT::dataTableOutput('selectedSiteTableWQS'),
+                                                                             DT::dataTableOutput('selectedSiteTableWQS'), br(),
                                                                              h5(strong('Spatially Joined WQS Information')),
                                                                              DT::dataTableOutput('associatedWQSTableWQS'),
                                                                              br(), br(), br()),
@@ -152,7 +152,7 @@ server <- shinyServer(function(input, output, session) {
       dplyr::select(StationID, WQS_ID, `Buffer Distance`, n)
     # Make dataset of all sites for highlighting purposes, preliminary list
     WQSreactive_objects$sitesUnique <- WQSreactive_objects$snap_input %>%
-      left_join(conventionals_DWQS, by = 'StationID') %>%
+      full_join(conventionals_DWQS, by = 'StationID') %>%
       st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
                remove = F, # don't remove these lat/lon cols from df
                crs = 4326)
@@ -179,17 +179,21 @@ server <- shinyServer(function(input, output, session) {
       filter(StationID %in% WQSreactive_objects$snap_input_Region$StationID) %>% # limit assignment to just what falls in a region
       left_join(WQSs() %>% st_drop_geometry(), by = 'WQS_ID')
     # Make empty dataset of sites that assessors touched
-    WQSreactive_objects$sitesAdjusted <-  WQSreactive_objects$sitesUnique[0,]
+    WQSreactive_objects$sitesAdjusted <-  WQSreactive_objects$sitesUnique[0,]  %>%
+      dplyr::select(StationID, WQS_ID, `Buffer Distance`) %>%
+      mutate(Comments = as.character())
     # Make dataset for user to download
-    WQSreactive_objects$finalWQS <- WQSreactive_objects$sitesUnique %>% st_drop_geometry()
+    WQSreactive_objects$finalWQS <- WQSlookup
+    # Make dataset of all selectable sites on map
+    #WQSreactive_objects$sitesUniqueFin <- conventionals_DWQS 
   })
   
-  # Make dataset of all selectable sites on map
-  observe({
-    req(WQSreactive_objects$sitesUnique, conventionals_DWQS)
-    WQSreactive_objects$sitesUniqueFin <- rbind(WQSreactive_objects$sitesUnique,
-                                                mutate(conventionals_DWQS, WQS_ID = NA, `Buffer Distance` = NA, n = NA) %>% 
-                                                dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, FDT_STA_ID, everything()))  })
+#  # Make dataset of all selectable sites on map
+#  observe({
+#    req(WQSreactive_objects$sitesUnique, conventionals_DWQS)
+#    WQSreactive_objects$sitesUniqueFin <- conventionals_DWQS })
+#    # for now, all sites are in conventionals pull, but this may not always be true
+#      #rbind(WQSreactive_objects$sitesUnique, mutate(conventionals_DWQS, WQS_ID = NA, `Buffer Distance` = NA, n = NA) %>% dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, FDT_STA_ID, everything()))  })
   
   # UI summaries of data pulled in to app, first and second tab
   output$singleSnapSummary1WQS <- renderPrint({ req(WQSreactive_objects$snap_input)
@@ -211,9 +215,6 @@ server <- shinyServer(function(input, output, session) {
 # not sure I'm going to do that for WQS  
   
   
-  output$test <- renderPrint({
-    print(class(st_geometry(WQSs())))
-  })
   
   ### WQS REVIEW TAB ##################################################################################
   
@@ -298,8 +299,8 @@ server <- shinyServer(function(input, output, session) {
         addCircleMarkers(data=WQSreactive_objects$tooMany_sites,
                          layerId = ~paste0(StationID,'_tooMany'),  # need unique layerID 
                          label=~StationID, group="Stations Snapped to > 1 WQS Segment", 
-                         color='black', fillColor='orange', radius = 5,
-                         fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>%
+                         color='black', fillColor='red', radius = 5,
+                         fillOpacity = 0.8,opacity=0.5,weight = 2,stroke=T) %>%
         addPolylines(data=WQSreactive_objects$tooMany_sf,
                      layerId = ~paste0(WQS_ID,'_tooMany'),  # need unique layerID 
                      label=~WQS_ID, group="WQS Segments of Stations Snapped to > 1 Segment", 
@@ -322,6 +323,7 @@ server <- shinyServer(function(input, output, session) {
       showNotification("There are no sites that snapped to > 1 WQS segment in preprocessing steps. Nothing to plot.")
     }   })
   
+  # Add layers to map as requested- 0 snapped sites
   observeEvent(input$plotNoSnapSummaryWQS, {
     if (nrow(WQSreactive_objects$snapNone) > 0 ){
       WQSmap_proxy %>%
@@ -347,7 +349,7 @@ server <- shinyServer(function(input, output, session) {
     }
   })
   
-  # Map marker click (to identify selected sites\
+  # Map marker click (to identify selected sites
   observeEvent(input$WQSmap_marker_click, {
     site_click <- input$WQSmap_marker_click # this is all the info based on your click
     siteid <- strsplit(site_click$id, "_")[[1]][1] # this is just the layerID associated with your click
@@ -355,12 +357,11 @@ server <- shinyServer(function(input, output, session) {
     
     if(!is.null(siteid)){ # if you clicked a point with info, find all Stations that match (with a round)
       # first find site matches from user input dataset, by lat and long
-      siteMatches <- filter(WQSreactive_objects$sitesUniqueFin, 
+      siteMatches <- filter(WQSreactive_objects$sitesUnique, 
                             StationID %in% siteid) %>%
         st_drop_geometry() %>%
-        pull()
-      
-      
+        pull(StationID)
+
       # and save all this info for later
       siteid_current <-  c(siteMatches)#, as.character(existingSiteMatches))
       
@@ -377,7 +378,7 @@ server <- shinyServer(function(input, output, session) {
     if(!is.null(WQSreactive_objects$namesToSmash)){
       WQSmap_proxy %>%
         clearGroup(group='highlight') %>%
-        addCircleMarkers(data=filter(WQSreactive_objects$sitesUniqueFin, StationID %in% WQSreactive_objects$namesToSmash),
+        addCircleMarkers(data=filter(WQSreactive_objects$sitesUnique, StationID %in% WQSreactive_objects$namesToSmash),
                          layerId = ~paste0(StationID,'_sitesHighlighted'),  # need unique layerID 
                          group='highlight', 
                          radius = 20, 
@@ -394,7 +395,7 @@ server <- shinyServer(function(input, output, session) {
   
   output$selectedSiteTableWQS <- DT::renderDataTable({
     req(WQSreactive_objects$namesToSmash)
-    filter(WQSreactive_objects$sitesUniqueFin, FDT_STA_ID %in% WQSreactive_objects$namesToSmash) %>%
+    filter(WQSreactive_objects$sitesUnique, FDT_STA_ID %in% WQSreactive_objects$namesToSmash) %>%
       st_drop_geometry() %>%
       datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'))  })
   
@@ -403,6 +404,144 @@ server <- shinyServer(function(input, output, session) {
     filter(WQSs(), WQS_ID %in% filter(WQSreactive_objects$snap_input, StationID %in% WQSreactive_objects$namesToSmash)$WQS_ID) %>%
       st_drop_geometry() %>%
       datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'))  })
+  
+  
+  ## Accept Snapped WQS Modal
+  observeEvent(input$acceptWQS, {
+    showModal(modalDialog(title = 'Accept Snapped WQS', size = 'l',
+                          DT::renderDataTable({
+                            filter(WQSreactive_objects$sitesUnique, FDT_STA_ID %in% WQSreactive_objects$namesToSmash) %>%
+                              st_drop_geometry() %>%
+                              datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '125px'))  }),
+                          br(), br(),
+                          textInput('acceptCommentWQS', 'Additional Comments and Documentation'),
+                          actionButton('accept_okWQS', 'Accept', 
+                                       style='color: #fff; background-color: #337ab7; border-color: #2e6da4;font-size:120%', 
+                                       icon=icon('check-circle')),
+                          actionButton('accept_cancelWQS', 'Cancel', 
+                                       style='color: #fff; background-color: #337ab7; border-color: #2e6da4;font-size:120%', 
+                                       icon=icon('window-close'))    ))  })
+  
+  # Do something with AU Accept Modal
+  observeEvent(input$accept_cancelWQS, {removeModal()})
+  observeEvent(input$accept_okWQS, {
+    # Get name and WQS_ID information from tooMany
+    sitesUpdated <- filter(WQSreactive_objects$sitesUnique, StationID %in% WQSreactive_objects$namesToSmash) %>%
+      #st_drop_geometry() %>%
+      #distinct(FDT_STA_ID, .keep_all = T) %>%
+      mutate(`Buffer Distance` = paste0('Manual Review | ', `Buffer Distance`),
+             Comments = paste0('Manual Accept | ',input$acceptCommentWQS)) %>%
+      dplyr::select(StationID, WQS_ID, `Buffer Distance`, Comments)
+    
+    
+    # add the current site(s) to the adjusted list 
+    #if(nrow(reactive_objects$sitesAdjusted) == 0){
+    #  reactive_objects$sitesAdjusted
+    #} else {
+    WQSreactive_objects$sitesAdjusted <- rbind(WQSreactive_objects$sitesAdjusted, sitesUpdated) # rbind works better for sf objects
+    #}
+    
+    dropMe <- unique(sitesUpdated$StationID)
+    
+    ## Remove Site from "to do' list
+    # remove from snap to > 1 WQS sites and segments
+    WQSreactive_objects$tooMany_sites <- filter(WQSreactive_objects$tooMany_sites, !(StationID %in% dropMe)) # drop sites
+    WQSreactive_objects$tooMany_sf <- filter(WQSreactive_objects$tooMany_sf, !(StationID %in% dropMe)) # drop segments
+    
+    # and if part of snap to 1 WQS, fix that data
+    WQSreactive_objects$snapSingle <- filter(WQSreactive_objects$snapSingle, !(StationID%in% dropMe)) # drop sites
+    
+    # and if part of snap to 0 WQS, fix that data
+    WQSreactive_objects$snapNone <- filter(WQSreactive_objects$snapNone, !(StationID %in% dropMe)) # drop sites
+    
+    # update output dataset
+    WQSreactive_objects$finalWQS <- filter(WQSreactive_objects$finalWQS, !(StationID %in% dropMe)) %>%
+      bind_rows(sitesUpdated)
+    
+    
+    # Empty map selection
+    WQSreactive_objects$namesToSmash <- NULL
+    
+    ### Clear modal
+    removeModal()
+  })
+  
+  output$test <- renderPrint({
+    print(class(st_geometry(WQSreactive_objects$tooMany_sf)))
+  })
+  
+  
+  # update WQSmap after WQS adjustment
+  observe({
+    req(WQSreactive_objects$sitesAdjusted)
+    if(nrow(WQSreactive_objects$tooMany_sites)> 0){
+      palTooMany <- colorNumeric(c('green','yellow', 'blue','red', 'pink','purple'), domain = WQSreactive_objects$tooMany$colorFac)
+      
+      ## Update proxy map
+      if(nrow(WQSreactive_objects$sitesAdjusted) > 0){
+        WQSmap_proxy %>% 
+          # have to manually clear old sites to 'wipe' leaflet memory of joined sites
+          clearGroup("Stations Snapped to 0 WQS Segments") %>%
+          clearGroup("Stations Snapped to 1 WQS Segment") %>%
+          clearGroup("Stations Snapped to > 1 WQS Segment") %>%
+          clearGroup("WQS Segments of Stations Snapped to > 1 Segment") %>%
+          
+          {if(nrow(WQSreactive_objects$tooMany_sites) > 0)
+            addCircleMarkers(., data=WQSreactive_objects$tooMany_sites,
+                             layerId = ~paste0(StationID,'_tooMany'),  # need unique layerID 
+                             label=~StationID, group="Stations Snapped to > 1 WQS Segment", 
+                             color='black', fillColor='red', radius = 5,
+                             fillOpacity = 0.8,opacity=0.5,weight = 2,stroke=T) %>%
+              addPolylines(., data=WQSreactive_objects$tooMany_sf,
+                           layerId = ~paste0(WQS_ID,'_tooMany'),  # need unique layerID 
+                           label=~WQS_ID, group="WQS Segments of Stations Snapped to > 1 Segment", 
+                           color = ~palTooMany(WQSreactive_objects$tooMany_sf$colorFac),weight = 3,stroke=T,
+                           popup=leafpop::popupTable(WQSreactive_objects$tooMany_sf),
+                           popupOptions = popupOptions( maxHeight = 100 ))# %>%
+              #hideGroup("WQS Segments of Stations Snapped to > 1 Segment")
+            else . } %>%
+          {if(nrow(WQSreactive_objects$snapSingle) > 0)
+            addCircleMarkers(., data=WQSreactive_objects$snapSingle,
+                             layerId = ~paste0(StationID,'_snapSingle'), # need unique layerID 
+                             label=~StationID, group="Stations Snapped to 1 WQS Segment", 
+                             radius = 5, fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T, color = 'black',
+                             fillColor= ~palBufferDistance(WQSreactive_objects$snapSingle$`Buffer Distance`)) #%>%
+              #addLegend(position = 'topright', pal = palBufferDistance, values = WQSreactive_objects$snapSingle$`Buffer Distance`, 
+              #          group = 'Stations Snapped to 1 WQS Segment')
+            else .}  %>%
+          {if(nrow(WQSreactive_objects$snapNone) > 0)
+            addCircleMarkers(., data=WQSreactive_objects$snapNone,
+                             layerId = ~paste0(StationID,'_snapNone'), # need unique layerID 
+                             label=~StationID, 
+                             group="Stations Snapped to 0 WQS Segments", 
+                             color='black', fillColor='yellow', radius = 5,
+                             fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T)
+            else . } %>%
+          addCircleMarkers(data=WQSreactive_objects$sitesAdjusted,
+                           layerId = ~paste0(StationID,'_sitesAdjusted'),  # need unique layerID 
+                           label=~StationID, group="Adjusted Sites", 
+                           color='black', fillColor='purple', radius = 5,
+                           fillOpacity = 0.5,opacity=0.5,weight = 2,stroke=T) %>% 
+          addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                           overlayGroups = c("Adjusted Sites",
+                                             "Stations Snapped to 1 WQS Segment",
+                                             "Stations Snapped to > 1 WQS Segment",
+                                             "WQS Segments of Stations Snapped to > 1 Segment",
+                                             "Stations Snapped to 0 WQS Segments",
+                                             #"All stations in the selected Region/Basin",
+                                             #'Conventionals Stations in Basin',
+                                             "All WQS in selected Region/Basin",'Assessment Regions'),
+                           options=layersControlOptions(collapsed=T),
+                           position='topleft') 
+      }  }  })
+  
+
+  
+  ## User adjusted WQS table 
+  output$adjustedStationsTableWQS <- DT::renderDataTable({
+    req(WQSreactive_objects$namesToSmash, WQSreactive_objects$sitesAdjusted)
+    filter(WQSreactive_objects$sitesAdjusted, StationID %in% WQSreactive_objects$namesToSmash) %>%
+      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'))  })
   
   
 })

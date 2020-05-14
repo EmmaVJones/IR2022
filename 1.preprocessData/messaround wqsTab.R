@@ -36,7 +36,7 @@ snap_input_Region <- snap_input %>%
 
 # Make dataset of all sites in subbasin for highlighting purposes, preliminary list, left at subbasin in case regional swapping occurs or outside state boundary
 sitesUnique <- snap_input %>%
-  left_join(conventionals_DWQS, by = 'StationID') %>%
+  full_join(conventionals_DWQS, by = 'StationID') %>%
   st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
            remove = F, # don't remove these lat/lon cols from df
            crs = 4326) 
@@ -62,14 +62,21 @@ snapSingle <- filter(sitesUnique, n == 1) %>%
 snapNone <- filter(sitesUnique, is.na(WQS_ID)) %>%
   filter(StationID %in% snap_input_Region$StationID) %>% # limit assignment to just what falls in a region
   left_join(test2 %>% st_drop_geometry(), by = 'WQS_ID')#left_join(WQSs() %>% st_drop_geometry(), by = 'WQS_ID')
+# Make empty dataset of sites that assessors touched
+sitesAdjusted <-  sitesUnique[0,] %>%
+  dplyr::select(StationID, WQS_ID, `Buffer Distance`) %>%
+  mutate(Comments = as.character())
+# Make dataset for user to download
+finalWQS <- WQSlookup
 
 
 
 ##########################################
 ### start here tomorrow
-sitesUniqueFin <- left_join(conventionals_DWQS %>% st_drop_geometry(), 
-                            sitesUnique %>% st_drop_geometry(),  by = 'StationID') %>%
-  dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, FDT_STA_ID, everything())
+#sitesUniqueFin <- conventionals_DWQS
+  #left_join(conventionals_DWQS %>% st_drop_geometry(), 
+                  #          dplyr::select(sitesUnique, StationID, WQS_ID = NA, `Buffer Distance` = NA, n = NA)  %>% st_drop_geometry(),  by = 'StationID') %>%
+  #dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, FDT_STA_ID, everything())
   #rbind(sitesUnique,
                   #      mutate(conventionals_DWQS, WQS_ID = NA, `Buffer Distance` = NA, n = NA) %>% 
                   #        dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, FDT_STA_ID, everything())) 
@@ -78,6 +85,19 @@ namesToSmash <- c('9-NEW181.66')
 
 selectedSiteTableWQS <- filter(sitesUniqueFin, FDT_STA_ID %in% namesToSmash) %>%
   st_drop_geometry()
+
+
+sitesUpdated <- filter(sitesUnique, StationID %in% namesToSmash) %>%
+  #st_drop_geometry() %>%
+  #distinct(FDT_STA_ID, .keep_all = T) %>%
+  mutate(`Buffer Distance` = paste0('Manual Review | ', `Buffer Distance`),
+         Comments = paste0('Manual Accept | ', 'comment comment comment')) %>%#input$acceptCommentWQS)) %>%
+  dplyr::select(StationID, WQS_ID, `Buffer Distance`, Comments)
+
+
+sitesAdjusted <- rbind(sitesAdjusted, sitesUpdated) # rbind works better for sf objects
+
+
                                             
 
 pal <- colorFactor(

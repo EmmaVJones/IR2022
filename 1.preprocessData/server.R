@@ -8,6 +8,10 @@ conventionals_DWQS <- readRDS('data/conventionals_D.RDS') %>%
            crs = 4326) %>%
   mutate(StationID= FDT_STA_ID)
 
+# Existing WQS lookup table, substitute newest one when available
+WQSlookup <- tibble(StationID = as.character(), WQS_ID = as.character(), 
+                    `Buffer Distance` = as.character(), Comments = as.character())
+
 #assessmentRegions <- st_read( 'GIS/AssessmentRegions_simple.shp')
 #assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
 #  st_transform( st_crs(4326)) 
