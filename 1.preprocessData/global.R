@@ -43,3 +43,31 @@ basinAssessmentRegion <- read_csv('data/basinAssessmentReg_clb.csv') %>% # Cleo 
 #st_layers('GIS/WQS_layers_05082020.gdb')
 WQSlayerConversion <- tibble(waterbodyType = c('Riverine','Lacustrine','Estuarine','Estuarine'),
                              WQS_ID = c('RL','LP','EL','EP')) 
+
+
+
+# Persistent data storage on server
+#outputDir <- "WQSlookupTable" # location on server to save data
+
+saveData <- function(data,outputDir) {
+  #data <- t(data)
+  # Create a unique file name
+  
+  fileName <- sprintf("%s_%s.csv", format(Sys.time(), "%Y%m%d_%H%M%S"), 'WQSlookup')
+  # Write the file to the local system
+  write.csv(
+    x = data,
+    file = file.path(outputDir, fileName), 
+    row.names = FALSE, quote = TRUE
+  )
+}
+
+loadData <- function(outputDir) {
+  # Read all the files into a list
+  files <- list.files(outputDir, full.names = TRUE)
+  data <- lapply(files, read.csv, stringsAsFactors = FALSE) 
+  # Concatenate all data together into one data.frame
+  data <- do.call(rbind, data) %>%
+    distinct(StationID, WQS_ID)
+  data
+}

@@ -20,6 +20,8 @@ snap_input <- readRDS('data/processedWQS/WQStable.RDS') %>%
   filter(gsub("_","",str_extract(WQS_ID, ".{3}_")) %in% 
            str_pad(unique(filter(basinAssessmentRegion, BASIN_CODE %in% basinCodes)$BASIN_CODE), 
                    width = 2, side = 'left', pad = '0')) %>%
+  # filter out any sites that happen to have existing WQS_ID
+  filter(! WQS_ID %in% WQSlookup$WQS_ID) %>%
   group_by(StationID) %>%
   mutate(n = n()) %>% ungroup() 
 snap_input_Region <- snap_input %>%
@@ -81,15 +83,15 @@ finalWQS <- WQSlookup
                   #      mutate(conventionals_DWQS, WQS_ID = NA, `Buffer Distance` = NA, n = NA) %>% 
                   #        dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, FDT_STA_ID, everything())) 
 
-namesToSmash <- c('9-NEW181.66')
+namesToSmash <- c('9-SNK005.38')
 
-selectedSiteTableWQS <- filter(sitesUniqueFin, FDT_STA_ID %in% namesToSmash) %>%
-  st_drop_geometry()
+selectedSiteTableWQS <- filter(sitesUnique, FDT_STA_ID %in% namesToSmash) %>%
+  st_drop_geometry() 
 
 
 sitesUpdated <- filter(sitesUnique, StationID %in% namesToSmash) %>%
   #st_drop_geometry() %>%
-  #distinct(FDT_STA_ID, .keep_all = T) %>%
+  distinct( StationID, .keep_all = T) %>%
   mutate(`Buffer Distance` = paste0('Manual Review | ', `Buffer Distance`),
          Comments = paste0('Manual Accept | ', 'comment comment comment')) %>%#input$acceptCommentWQS)) %>%
   dplyr::select(StationID, WQS_ID, `Buffer Distance`, Comments)
@@ -97,7 +99,8 @@ sitesUpdated <- filter(sitesUnique, StationID %in% namesToSmash) %>%
 
 sitesAdjusted <- rbind(sitesAdjusted, sitesUpdated) # rbind works better for sf objects
 
-
+unique(c(as.character(filter(tooMany, StationID %in% namesToSmash)$WQS_ID), # likely WQS
+         as.character(test2$WQS_ID)))
                                             
 
 pal <- colorFactor(
