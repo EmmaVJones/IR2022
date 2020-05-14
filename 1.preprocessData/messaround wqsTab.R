@@ -14,6 +14,9 @@ basinCodes <- filter(basinAssessmentRegion, BASIN %in% c('9', '2A', '2B')) %>% #
     distinct(BASIN_CODE) %>% 
     pull() 
 
+
+WQSlookup <- loadData("WQSlookupTable")
+
 # this is all sites limited to waterbody type and subbasin
 snap_input <- readRDS('data/processedWQS/WQStable.RDS') %>%
   filter(str_extract(WQS_ID, "^.{2}") %in% filter(WQSlayerConversion, waterbodyType %in% 'Riverine')$WQS_ID) %>% 
@@ -21,7 +24,7 @@ snap_input <- readRDS('data/processedWQS/WQStable.RDS') %>%
            str_pad(unique(filter(basinAssessmentRegion, BASIN_CODE %in% basinCodes)$BASIN_CODE), 
                    width = 2, side = 'left', pad = '0')) %>%
   # filter out any sites that happen to have existing WQS_ID
-  filter(! WQS_ID %in% WQSlookup$WQS_ID) %>%
+  filter(! StationID %in% WQSlookup$StationID) %>%
   group_by(StationID) %>%
   mutate(n = n()) %>% ungroup() 
 snap_input_Region <- snap_input %>%

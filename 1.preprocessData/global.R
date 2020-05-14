@@ -65,9 +65,9 @@ saveData <- function(data,outputDir) {
 loadData <- function(outputDir) {
   # Read all the files into a list
   files <- list.files(outputDir, full.names = TRUE)
-  data <- lapply(files, read.csv, stringsAsFactors = FALSE) 
+  data <- lapply(files, read_csv) 
   # Concatenate all data together into one data.frame
   data <- do.call(rbind, data) %>%
-    distinct(StationID, WQS_ID)
+    distinct(StationID, WQS_ID, .keep_all = T)
   data
 }

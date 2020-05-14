@@ -104,7 +104,7 @@ server <- shinyServer(function(input, output, session) {
                 choices= op)  })
   output$WQSbegin_ <- renderUI({
     req(WQSstatewide(), input$WQSDEQregionSelection, input$WQSsubbasinSelection)
-    actionButton('WQSbegin', HTML("Begin Review With Subbasin Selection <br/>(Clears Cached Results)"),
+    actionButton('WQSbegin', HTML("Begin Review With Subbasin Selection <br/>(Retrieves Last Saved Result)"),
                  class='btn-block')  })
     
   basinCodes <- reactive({
@@ -143,7 +143,7 @@ server <- shinyServer(function(input, output, session) {
                str_pad(unique(filter(basinAssessmentRegion, BASIN_CODE %in% basinCodes())$BASIN_CODE), 
                        width = 2, side = 'left', pad = '0')) %>%
       # filter out any sites that happen to have existing WQS_ID
-      filter(! WQS_ID %in% WQSreactive_objects$WQSlookup$WQS_ID) %>%
+      filter(! StationID %in% WQSreactive_objects$WQSlookup$StationID) %>%
       group_by(StationID) %>%
       mutate(n = n()) %>% ungroup()
     # Sites limited to just region of interest
@@ -474,7 +474,8 @@ server <- shinyServer(function(input, output, session) {
   })
   
   output$test <- renderPrint({
-    print(class(st_geometry(WQSreactive_objects$tooMany_sf)))
+    WQSreactive_objects$tooMany_sites
+    WQSreactive_objects$tooMany_sf
   })
   
   ## Manual WQS Adjustment Modal
@@ -541,6 +542,7 @@ server <- shinyServer(function(input, output, session) {
     req(WQSreactive_objects$sitesAdjusted)
     if(nrow(WQSreactive_objects$tooMany_sites)> 0){
       palTooMany <- colorNumeric(c('green','yellow', 'blue','red', 'pink','purple'), domain = WQSreactive_objects$tooMany$colorFac)
+    }
       
       ## Update proxy map
       if(nrow(WQSreactive_objects$sitesAdjusted) > 0){
@@ -550,6 +552,7 @@ server <- shinyServer(function(input, output, session) {
           clearGroup("Stations Snapped to 1 WQS Segment") %>%
           clearGroup("Stations Snapped to > 1 WQS Segment") %>%
           clearGroup("WQS Segments of Stations Snapped to > 1 Segment") %>%
+          
           
           {if(nrow(WQSreactive_objects$tooMany_sites) > 0)
             addCircleMarkers(., data=WQSreactive_objects$tooMany_sites,
@@ -564,7 +567,7 @@ server <- shinyServer(function(input, output, session) {
                            popup=leafpop::popupTable(WQSreactive_objects$tooMany_sf),
                            popupOptions = popupOptions( maxHeight = 100 )) %>%
               hideGroup("WQS Segments of Stations Snapped to > 1 Segment")
-            else . } %>%
+            else .} %>%
           {if(nrow(WQSreactive_objects$snapSingle) > 0)
             addCircleMarkers(., data=WQSreactive_objects$snapSingle,
                              layerId = ~paste0(StationID,'_snapSingle'), # need unique layerID 
@@ -598,7 +601,7 @@ server <- shinyServer(function(input, output, session) {
                                              "All WQS in selected Region/Basin",'Assessment Regions'),
                            options=layersControlOptions(collapsed=T),
                            position='topleft') 
-      }  }  })
+      }    })
   
   
   ## User adjusted WQS table 
