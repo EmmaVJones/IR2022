@@ -48,6 +48,7 @@ vignettes/*.pdf
 1.preprocessData/data/
 1.preprocessData/www/
 1.preprocessData/rsconnect/
+1.preprocessData/WQSlookupTable/
 
 
 rsconnect/
