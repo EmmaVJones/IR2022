@@ -22,7 +22,7 @@ ui <- shinyUI(fluidPage(theme= "yeti.css",
                                                                   column(3, textOutput('snapTooManySummary1WQS')),
                                                                   column(3, textOutput('noSnapSummary1WQS')),
                                                                   column(3, textOutput('regionalSitesSummary1WQS'))),
-                                                         verbatimTextOutput('test'),
+                                                         #verbatimTextOutput('test'),
                                                          
                                                          br()) ),
                                               tabPanel('Manual Review',
@@ -210,7 +210,8 @@ server <- shinyServer(function(input, output, session) {
     if(input$WQSwaterbodyType == 'Estuarine'){
       WQSreactive_objects$tooMany_sf_EL <- filter(WQSsEL(), WQS_ID %in% WQSreactive_objects$tooMany$WQS_ID) %>%              # bonus polyline feature for Estuarine
         left_join(WQSreactive_objects$tooMany, by = 'WQS_ID') %>%
-        dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, everything())    }
+        dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, everything())    
+      } else {WQSreactive_objects$tooMany_sf_EL <- WQSs()[0,]} # create dummy variable
     # Make dataset of sites associated with too many segments IN REGION
     WQSreactive_objects$tooMany_sites <- filter(WQSreactive_objects$sitesUnique, StationID %in% WQSreactive_objects$tooMany$StationID) %>%
       left_join(WQSs() %>% st_drop_geometry(), by = 'WQS_ID') %>%
@@ -370,8 +371,7 @@ server <- shinyServer(function(input, output, session) {
                          label=~StationID, group="Stations Snapped to > 1 WQS Segment", 
                          color='black', fillColor='red', radius = 5,
                          fillOpacity = 0.8,opacity=0.5,weight = 2,stroke=T) %>%
-        {if(nrow(WQSreactive_objects$tooMany_sf) > 0) 
-        {if("sfc_MULTIPOLYGON" %in% class(st_geometry(WQSreactive_objects$tooMany_sf))) 
+        {if(nrow(WQSreactive_objects$tooMany_sf) > 0 & "sfc_MULTIPOLYGON" %in% class(st_geometry(WQSreactive_objects$tooMany_sf))) 
           addPolygons(., data=WQSreactive_objects$tooMany_sf,
                       layerId = ~paste0(WQS_ID,'_tooMany'),  # need unique layerID 
                       label=~WQS_ID, group="WQS Segments of Stations Snapped to > 1 Segment", 
@@ -379,14 +379,15 @@ server <- shinyServer(function(input, output, session) {
                       popup=leafpop::popupTable(WQSreactive_objects$tooMany_sf),
                       popupOptions = popupOptions( maxHeight = 100 )) %>% 
             hideGroup("All WQS in selected Region/Basin")
-          else 
-            addPolylines(., data=WQSreactive_objects$tooMany_sf,
-                         layerId = ~paste0(WQS_ID,'_tooMany'),  # need unique layerID 
-                         label=~WQS_ID, group="WQS Segments of Stations Snapped to > 1 Segment", 
-                         color = ~palTooMany(WQSreactive_objects$tooMany_sf$colorFac),weight = 3,stroke=T,
-                         popup=leafpop::popupTable(WQSreactive_objects$tooMany_sf),
-                         popupOptions = popupOptions( maxHeight = 100 )) %>%
-            hideGroup("WQS Segments of Stations Snapped to > 1 Segment")}
+          else . } %>%
+        {if(nrow(WQSreactive_objects$tooMany_sf) > 0 & "sfc_MULTILINESTRING" %in% class(st_geometry(WQSreactive_objects$tooMany_sf)))
+          addPolylines(., data=WQSreactive_objects$tooMany_sf,
+                       layerId = ~paste0(WQS_ID,'_tooMany'),  # need unique layerID 
+                       label=~WQS_ID, group="WQS Segments of Stations Snapped to > 1 Segment", 
+                       color = ~palTooMany(WQSreactive_objects$tooMany_sf$colorFac),weight = 3,stroke=T,
+                       popup=leafpop::popupTable(WQSreactive_objects$tooMany_sf),
+                       popupOptions = popupOptions( maxHeight = 100 )) %>%
+            hideGroup("WQS Segments of Stations Snapped to > 1 Segment")
           else . } %>%
         {if(nrow(WQSreactive_objects$tooMany_sf_EL) > 0)
           addPolylines(., data=WQSreactive_objects$tooMany_sf_EL,
@@ -750,6 +751,8 @@ server <- shinyServer(function(input, output, session) {
                  else . } %>%
                as.data.frame(), "WQSlookupTable")
   })  
+  
+
 
 })
 
