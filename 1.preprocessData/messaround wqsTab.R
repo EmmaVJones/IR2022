@@ -3,6 +3,10 @@ st_layers('GIS/WQS_layers_05082020.gdb')
 
 WQSwaterbodyType <- 'Estuarine'
 
+test <- st_zm(st_read('GIS/WQS_layers_05082020.gdb', layer = 'lakes_reservoirs_05082020' , fid_column_name = "OBJECTID") %>%
+                st_transform(4326) )
+
+
 test <- st_zm(st_read('GIS/WQS_layers_05082020.gdb', layer = 'estuarinelines_05082020' , fid_column_name = "OBJECTID") %>%
   st_transform(4326) )
 
