@@ -8,7 +8,16 @@ test <- st_zm(st_read('GIS/WQS_layers_05082020.gdb', layer = 'riverine_05082020'
 test2 <- test %>%
   filter(BASIN %in% filter(basinCodesConversion, Basin_Code %in% c('New'))$BASIN)
 
-basinCodes <- filter(basinAssessmentRegion, BASIN %in% c('9', '2A', '2B')) %>% #unique(WQSstatewide()$BASIN)) %>%
+
+test3 <- st_zm(st_read('GIS/WQS_layers_05082020.gdb', layer = 'lakes_reservoirs_05082020' , fid_column_name = "OBJECTID") %>%
+                 st_transform(4326) )
+
+test4 <- test %>%
+  filter(BASIN %in% filter(basinCodesConversion, Basin_Code %in% c('New'))$BASIN)
+
+
+
+basinCodes <- filter(basinAssessmentRegion, BASIN %in% c('9', '2A', '2B','4A','4B')) %>% #unique(WQSstatewide()$BASIN)) %>%
     filter(ASSESS_REG %in% 'BRRO') %>% #input$WQSDEQregionSelection) %>%
     filter(Basin_Code %in% 'New') %>% #input$WQSsubbasinSelection) %>%
     distinct(BASIN_CODE) %>% 
@@ -16,10 +25,13 @@ basinCodes <- filter(basinAssessmentRegion, BASIN %in% c('9', '2A', '2B')) %>% #
 
 
 WQSlookup <- loadData("WQSlookupTable")
+conventionals_DWQS_Region <- st_intersection(conventionals_DWQS, 
+                                             filter(basin7, BASIN_CODE %in% basinCodes))
 
 # this is all sites limited to waterbody type and subbasin
 snap_input <- readRDS('data/processedWQS/WQStable.RDS') %>%
-  filter(str_extract(WQS_ID, "^.{2}") %in% filter(WQSlayerConversion, waterbodyType %in% 'Riverine')$WQS_ID) %>% 
+  filter(str_extract(WQS_ID, "^.{2}") %in% filter(WQSlayerConversion, waterbodyType %in% 'Lacustrine')$WQS_ID) %>%  ######### Lacustrine
+  #filter(str_extract(WQS_ID, "^.{2}") %in% filter(WQSlayerConversion, waterbodyType %in% 'Riverine')$WQS_ID) %>%   ####### Riverine
   filter(gsub("_","",str_extract(WQS_ID, ".{3}_")) %in% 
            str_pad(unique(filter(basinAssessmentRegion, BASIN_CODE %in% basinCodes)$BASIN_CODE), 
                    width = 2, side = 'left', pad = '0')) %>%
@@ -46,7 +58,7 @@ sitesUnique <- snap_input %>%
            remove = F, # don't remove these lat/lon cols from df
            crs = 4326) 
 # Make dataset of all WQS_IDs available for table purposes, this will hold corrected WQS_ID information after user review
-WQS_IDs <- snap_input
+#WQS_IDs <- snap_input
 # Make dataset of multiple segments snapped to single site
 tooMany <- filter(snap_input_Region, n > 1) %>%
   group_by(StationID) %>% mutate(colorFac = row_number()) %>% ungroup() 

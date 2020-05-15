@@ -70,15 +70,47 @@ shinyUI(fluidPage(theme= "yeti.css",
                                                                     uiOutput('WQSbegin_'))),
                                                  
                                                  mainPanel(
-                                                   #verbatimTextOutput('test'),
                                                    leafletOutput('WQSVAmap'),
                                                    h5(strong('Preprocessing Data Recap for Selected Region/Subbasin/Type Combination')),
                                                    fluidRow(column(3, textOutput('singleSnapSummary1WQS')),
                                                             column(3, textOutput('snapTooManySummary1WQS')),
                                                             column(3, textOutput('noSnapSummary1WQS')),
                                                             column(3, textOutput('regionalSitesSummary1WQS'))),
-                                                   br())),
-                                        tabPanel("Manual Review")
+                                                   br()) ),
+                                        tabPanel('Manual Review',
+                                                 wellPanel(
+                                                   fluidRow(column(3, textOutput('singleSnapSummary2WQS'),
+                                                                   actionButton('plotSingleSnapSummaryWQS', HTML('Plot stations that snapped <br/>to 1 WQS Segment'))),
+                                                            column(3, textOutput('snapTooManySummary2WQS'),
+                                                                   actionButton('plotSnapTooManySummaryWQS', HTML('Plot stations that snapped <br/>to > 1 WQS Segment'))),
+                                                            column(3, textOutput('noSnapSummary2WQS'),
+                                                                   actionButton('plotNoSnapSummaryWQS', HTML('Plot stations that snapped <br/>to 0 WQS segments'))))),
+                                                 #column(3, textOutput('regionalSitesSummary2WQS'),
+                                                 #       actionButton('plotRegionalSitesSummaryWQS', HTML('Plot all stations in <br/>the selected Region/Basin'))))),
+                                                 leafletOutput('WQSmap'),
+                                                 fluidRow(
+                                                   actionButton('clear_allWQS', 'Clear Selection', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('backspace')),
+                                                   actionButton('acceptWQS', 'Accept', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('check-circle')),
+                                                   actionButton('changeWQS', 'Manual WQS Adjustment', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('exchange')),
+                                                   actionButton('checkMeOutWQS', 'Check Me Out', style='color: #fff; background-color: #337ab7; border-color: #2e6da4%', icon=icon('exchange')),
+                                                   actionButton("saveWQS", label = "Export reviews",style='color: #fff; background-color: #228b22; border-color: #134e13')        ),
+                                                 #downloadButton('downloadWQS', label = "Export reviews",style='color: #fff; background-color: #228b22; border-color: #134e13')        ),
+                                                 br(),
+                                                 #verbatimTextOutput('test'),
+                                                 tabsetPanel(tabPanel(strong('Stations Data and Spatially Joined WQS'),
+                                                                      br(),
+                                                                      h5(strong('Selected Station Information')),
+                                                                      DT::dataTableOutput('selectedSiteTableWQS'), br(),
+                                                                      h5(strong('Spatially Joined WQS Information')),
+                                                                      DT::dataTableOutput('associatedWQSTableWQS'),
+                                                                      br(), br(), br()),
+                                                             tabPanel(strong('Updated Stations Data'),
+                                                                      br(),
+                                                                      fluidRow(
+                                                                        h5(strong('Adjusted Station Data')),
+                                                                        div(DT::dataTableOutput("adjustedStationsTableWQS"), style = "font-size:80%")),
+                                                                      br(), br(), br() )
+                                                 ))
                                                  
                                         
                                         ),
