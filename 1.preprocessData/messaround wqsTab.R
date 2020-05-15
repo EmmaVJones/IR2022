@@ -12,14 +12,14 @@ test2 <- test %>%
 test3 <- st_zm(st_read('GIS/WQS_layers_05082020.gdb', layer = 'lakes_reservoirs_05082020' , fid_column_name = "OBJECTID") %>%
                  st_transform(4326) )
 
-test4 <- test %>%
+test4 <- test3 %>%
   filter(BASIN %in% filter(basinCodesConversion, Basin_Code %in% c('New'))$BASIN)
 
 
 
-basinCodes <- filter(basinAssessmentRegion, BASIN %in% c('9', '2A', '2B','4A','4B')) %>% #unique(WQSstatewide()$BASIN)) %>%
-    filter(ASSESS_REG %in% 'BRRO') %>% #input$WQSDEQregionSelection) %>%
-    filter(Basin_Code %in% 'New') %>% #input$WQSsubbasinSelection) %>%
+basinCodes <- filter(basinAssessmentRegion, BASIN %in% c('6A')) %>% #unique(WQSstatewide()$BASIN)) %>%
+    filter(ASSESS_REG %in% 'SWRO') %>% #input$WQSDEQregionSelection) %>%
+    filter(Basin_Code %in% 'Tennessee-Big Sandy') %>% #input$WQSsubbasinSelection) %>%
     distinct(BASIN_CODE) %>% 
     pull() 
 
@@ -41,11 +41,11 @@ snap_input <- readRDS('data/processedWQS/WQStable.RDS') %>%
   mutate(n = n()) %>% ungroup() 
 snap_input_Region <- snap_input %>%
   # limit to just region of interest
-  left_join(conventionals_DWQS, by = 'StationID') %>%
+  left_join(conventionals_DWQS_Region, by = 'StationID') %>%
   st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
            remove = T, # don't remove these lat/lon cols from df
            crs = 4326) %>%
-  st_intersection(filter(assessmentRegions, ASSESS_REG %in% 'BRRO')) %>%#input$WQSDEQregionSelection) %>%
+  st_intersection(filter(assessmentRegions, ASSESS_REG %in% 'SWRO')) %>%#input$WQSDEQregionSelection) %>%
   st_drop_geometry() %>% # back to tibble
   rename('Buffer Distance' = 'Buffer.Distance') %>%
   dplyr::select(StationID, WQS_ID, `Buffer Distance`, n)
@@ -53,7 +53,7 @@ snap_input_Region <- snap_input %>%
 
 # Make dataset of all sites in subbasin for highlighting purposes, preliminary list, left at subbasin in case regional swapping occurs or outside state boundary
 sitesUnique <- snap_input %>%
-  full_join(conventionals_DWQS, by = 'StationID') %>%
+  full_join(conventionals_DWQS_Region, by = 'StationID') %>%
   st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
            remove = F, # don't remove these lat/lon cols from df
            crs = 4326) 
@@ -90,12 +90,12 @@ finalWQS <- WQSlookup
 
 ##########################################
 ### start here tomorrow
-#sitesUniqueFin <- conventionals_DWQS
-  #left_join(conventionals_DWQS %>% st_drop_geometry(), 
+#sitesUniqueFin <- conventionals_DWQS_Region
+  #left_join(conventionals_DWQS_Region %>% st_drop_geometry(), 
                   #          dplyr::select(sitesUnique, StationID, WQS_ID = NA, `Buffer Distance` = NA, n = NA)  %>% st_drop_geometry(),  by = 'StationID') %>%
   #dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, FDT_STA_ID, everything())
   #rbind(sitesUnique,
-                  #      mutate(conventionals_DWQS, WQS_ID = NA, `Buffer Distance` = NA, n = NA) %>% 
+                  #      mutate(conventionals_DWQS_Region, WQS_ID = NA, `Buffer Distance` = NA, n = NA) %>% 
                   #        dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, FDT_STA_ID, everything())) 
 
 namesToSmash <- c('9-SNK005.38')
@@ -139,28 +139,28 @@ CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE,
                    weight = 1,
                    fillColor= ~palBufferDistance(snapSingle$`Buffer Distance`), fillOpacity = 0.5,stroke=0.3) %>%
   addLegend(position = 'topright', pal = palBufferDistance, values = snapSingle$`Buffer Distance`, 
-            group = 'Stations Snapped to 1 WQS Segment')
+            group = 'Stations Snapped to 1 WQS Segment') %>%
   
   
   
-  addCircleMarkers(data = conventionals_DWQS, color='blue', fillColor='yellow', radius = 4,
+  addCircleMarkers(data = conventionals_DWQS_Region, color='blue', fillColor='yellow', radius = 4,
                    fillOpacity = 0.5,opacity=0.8,weight = 1,stroke=T, group="Conventionals Stations in Basin",
                    label = ~FDT_STA_ID, layerId = ~FDT_STA_ID) %>% 
-  {if("sfc_MULTIPOLYGON" %in% class(st_geometry(test2)))#WQSs()))) 
-    addPolygons(., data = test2,#WQSs(),
+  {if("sfc_MULTIPOLYGON" %in% class(st_geometry(test4)))#WQSs()))) 
+    addPolygons(., data = test4,#WQSs(),
                 layerId = ~WQS_ID,
                 label=~WQS_ID, group="All WQS in selected Region/Basin", 
-                color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+                color = 'blue', 
                 weight = 3,stroke=T,
                 popup=leafpop::popupTable(test2),#WQSs()),
                 popupOptions = popupOptions( maxHeight = 100 )) %>% 
       hideGroup("All WQS in selected Region/Basin") 
-    else addPolylines(., data =test2, # WQSs(),
+    else addPolylines(., data =test4, # WQSs(),
               layerId = ~WQS_ID,
               label=~WQS_ID, group="All WQS in selected Region/Basin", 
-              color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+              color = 'blue',
               weight = 3,stroke=T,
-              popup=leafpop::popupTable(test2),#WQSs()),
+              popup=leafpop::popupTable(test4),#WQSs()),
               popupOptions = popupOptions( maxHeight = 100 )) %>% 
   hideGroup("All WQS in selected Region/Basin")  } %>%
   addPolygons(data= assessmentRegions,  color = 'black', weight = 1,

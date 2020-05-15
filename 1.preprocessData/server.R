@@ -85,8 +85,9 @@ shinyServer(function(input, output, session) {
   AUs <- eventReactive(input$begin, {
     req(basin_filter(), input$assessmentType)
     typeName <- ifelse(input$assessmentType != 'Lacustrine', input$assessmentType, 'Reservoir')
-    st_read(paste0('data/processedGIS/va_2018_aus_', tolower(typeName),'_', 
-                   region(), "_", basin(), '.shp')) %>%
+    st_zm(
+      st_read(paste0('data/processedGIS/va_2018_aus_', tolower(typeName),'_', 
+                   region(), "_", basin(), '.shp'))) %>%
       st_transform(4326)})
   
  
@@ -692,6 +693,35 @@ shinyServer(function(input, output, session) {
                   as.data.frame(), file, row.names = F) }) 
   
   
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 ##################################################################################################################################################
   
   ## WQS Side of Application
@@ -712,9 +742,10 @@ shinyServer(function(input, output, session) {
                           input$WQSwaterbodyType == 'Estuarine' ~ 'estuarinepolygons',
                           TRUE ~ as.character(input$WQSwaterbodyType))
     withProgress(message = 'Reading in Large Spatial File',
-                st_read('GIS/WQS_layers_05082020.gdb', layer = paste0(tolower(typeName),'_05082020') , fid_column_name = "OBJECTID") %>%
+                 st_zm(
+                   st_read('GIS/WQS_layers_05082020.gdb', layer = paste0(tolower(typeName),'_05082020') , fid_column_name = "OBJECTID")) %>%
                    st_transform(4326) )})
-   # withProgress(test) }) # riverine test
+    #withProgress(test3) }) # riverine test
   
   # Update map Subbasin based on user selection
   output$WQSDEQregionSelection_ <- renderUI({
@@ -770,6 +801,9 @@ shinyServer(function(input, output, session) {
   observeEvent(input$WQSbegin, {
     # Bring in existing WQS information
     WQSreactive_objects$WQSlookup <- loadData("WQSlookupTable")
+    # limit conventionals_DWQS to just chosen subbasin
+    WQSreactive_objects$conventionals_DWQS_Region <- st_intersection(conventionals_DWQS, 
+                                                                     filter(basin7, BASIN_CODE %in% basinCodes()))
     
     # All sites limited to waterbody type and subbasin
     WQSreactive_objects$snap_input <- readRDS('data/processedWQS/WQStable.RDS') %>%
@@ -783,7 +817,7 @@ shinyServer(function(input, output, session) {
       mutate(n = n()) %>% ungroup()
     # Sites limited to just region of interest
     WQSreactive_objects$snap_input_Region <- WQSreactive_objects$snap_input %>%
-      left_join(conventionals_DWQS, by = 'StationID') %>%
+      left_join(WQSreactive_objects$conventionals_DWQS_Region, by = 'StationID') %>%
       st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
                remove = T, # don't remove these lat/lon cols from df
                crs = 4326) %>%
@@ -793,7 +827,7 @@ shinyServer(function(input, output, session) {
       dplyr::select(StationID, WQS_ID, `Buffer Distance`, n)
     # Make dataset of all sites for highlighting purposes, preliminary list
     WQSreactive_objects$sitesUnique <- WQSreactive_objects$snap_input %>%
-      full_join(conventionals_DWQS, by = 'StationID') %>%
+      full_join(WQSreactive_objects$conventionals_DWQS_Region, by = 'StationID') %>%
       st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
                remove = F, # don't remove these lat/lon cols from df
                crs = 4326)
@@ -826,15 +860,15 @@ shinyServer(function(input, output, session) {
     # Make dataset for user to download
     WQSreactive_objects$finalWQS <- WQSreactive_objects$WQSlookup
     # Make dataset of all selectable sites on map
-    #WQSreactive_objects$sitesUniqueFin <- conventionals_DWQS 
+    #WQSreactive_objects$sitesUniqueFin <- WQSreactive_objects$conventionals_DWQS_Region 
   })
   
   #  # Make dataset of all selectable sites on map
   #  observe({
-  #    req(WQSreactive_objects$sitesUnique, conventionals_DWQS)
-  #    WQSreactive_objects$sitesUniqueFin <- conventionals_DWQS })
+  #    req(WQSreactive_objects$sitesUnique, WQSreactive_objects$conventionals_DWQS_Region)
+  #    WQSreactive_objects$sitesUniqueFin <- WQSreactive_objects$conventionals_DWQS_Region })
   #    # for now, all sites are in conventionals pull, but this may not always be true
-  #      #rbind(WQSreactive_objects$sitesUnique, mutate(conventionals_DWQS, WQS_ID = NA, `Buffer Distance` = NA, n = NA) %>% dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, FDT_STA_ID, everything()))  })
+  #      #rbind(WQSreactive_objects$sitesUnique, mutate(WQSreactive_objects$conventionals_DWQS_Region, WQS_ID = NA, `Buffer Distance` = NA, n = NA) %>% dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, FDT_STA_ID, everything()))  })
   
   # UI summaries of data pulled in to app, first and second tab
   output$singleSnapSummary1WQS <- renderPrint({ req(WQSreactive_objects$snap_input)
@@ -865,40 +899,39 @@ shinyServer(function(input, output, session) {
     CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE, 
                  options= leafletOptions(zoomControl = TRUE,minZoom = 3, maxZoom = 20)) %>%
       setView(-78, 37.5, zoom=7)  %>% 
-      #      addCircleMarkers(data = conventionals_DWQS, color='blue', fillColor='yellow', radius = 4,
-      #                       fillOpacity = 0.5,opacity=0.8,weight = 1,stroke=T, group="Conventionals Stations in Basin",
-      #                       label = ~FDT_STA_ID, layerId = ~FDT_STA_ID) %>% 
-      #      
-      #      {if("sfc_MULTIPOLYGON" %in% class(st_geometry(WQSs()))) 
-      #        addPolygons(., data = WQSs(),
-      #                    layerId = ~WQS_ID,
-      #                    label=~WQS_ID, group="All WQS in selected Region/Basin", 
-      #                    color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
-      #                    weight = 3,stroke=T,
-      #                    popup=leafpop::popupTable(WQSs()),
-    #                    popupOptions = popupOptions( maxHeight = 100 )) %>% 
-    #          hideGroup("All WQS in selected Region/Basin") 
-    #        else addPolylines(., data = WQSs(),
-    #                          layerId = ~WQS_ID,
-    #                          label=~WQS_ID, group="All WQS in selected Region/Basin", 
-    #                          color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
-    #                          weight = 3,stroke=T,
-    #                          popup=leafpop::popupTable(WQSs()),
-    #                          popupOptions = popupOptions( maxHeight = 100 )) %>% 
-    #          hideGroup("All WQS in selected Region/Basin")  } %>%
-    addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
-                fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
-                group="Assessment Regions",
-                popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG'))) %>% hideGroup('Assessment Regions') %>% #,'VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
-      #      inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
-      #      inlmisc::AddSearchButton(group = "Conventionals Stations in Basin", zoom = 15,propertyName = "label",
-      #                               textPlaceholder = "Search Conventionals Stations in Basin") %>%
+      addCircleMarkers(data = WQSreactive_objects$conventionals_DWQS_Region, color='blue', fillColor='yellow', radius = 4,
+                       fillOpacity = 0.5,opacity=0.8,weight = 1,stroke=T, group="Conventionals Stations in Basin",
+                       label = ~FDT_STA_ID, layerId = ~FDT_STA_ID) %>% 
+      
+      {if("sfc_MULTIPOLYGON" %in% class(st_geometry(WQSs()))) 
+        addPolygons(., data = WQSs(),
+                    layerId = ~WQS_ID,
+                    label=~WQS_ID, group="All WQS in selected Region/Basin", 
+                    color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+                    weight = 3,stroke=T,
+                    popup=leafpop::popupTable(WQSs()),
+                    popupOptions = popupOptions( maxHeight = 100 )) %>% 
+          hideGroup("All WQS in selected Region/Basin") 
+        else addPolylines(., data = WQSs(),
+                          layerId = ~WQS_ID,
+                          label=~WQS_ID, group="All WQS in selected Region/Basin", 
+                          color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+                          weight = 3,stroke=T,
+                          popup=leafpop::popupTable(WQSs()),
+                          popupOptions = popupOptions( maxHeight = 100 )) %>% 
+          hideGroup("All WQS in selected Region/Basin")  } %>%
+      addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
+                  fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
+                  group="Assessment Regions",
+                  popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG'))) %>% hideGroup('Assessment Regions') %>% #,'VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
+      inlmisc::AddHomeButton(raster::extent(-83.89, -74.80, 36.54, 39.98), position = "topleft") %>%
+      inlmisc::AddSearchButton(group = "Conventionals Stations in Basin", zoom = 15,propertyName = "label",
+                               textPlaceholder = "Search Conventionals Stations in Basin") %>%
       addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                        overlayGroups = c('Conventionals Stations in Basin',"All WQS in selected Region/Basin",'Assessment Regions'),
                        options=layersControlOptions(collapsed=T),
-                       position='topleft') 
-    #%>%
-    #      hideGroup("Conventionals Stations in Basin")    
+                       position='topleft') %>%
+      hideGroup("Conventionals Stations in Basin")    
   })
   
   WQSmap_proxy <- leafletProxy("WQSmap")
@@ -942,13 +975,22 @@ shinyServer(function(input, output, session) {
                          label=~StationID, group="Stations Snapped to > 1 WQS Segment", 
                          color='black', fillColor='red', radius = 5,
                          fillOpacity = 0.8,opacity=0.5,weight = 2,stroke=T) %>%
-        addPolylines(data=WQSreactive_objects$tooMany_sf,
-                     layerId = ~paste0(WQS_ID,'_tooMany'),  # need unique layerID 
-                     label=~WQS_ID, group="WQS Segments of Stations Snapped to > 1 Segment", 
-                     color = ~palTooMany(WQSreactive_objects$tooMany_sf$colorFac),weight = 3,stroke=T,
-                     popup=leafpop::popupTable(WQSreactive_objects$tooMany_sf),
-                     popupOptions = popupOptions( maxHeight = 100 )) %>%
-        hideGroup("WQS Segments of Stations Snapped to > 1 Segment") %>%
+        {if("sfc_MULTIPOLYGON" %in% class(st_geometry(WQSreactive_objects$tooMany_sf))) 
+          addPolygons(., data=WQSreactive_objects$tooMany_sf,
+                      layerId = ~paste0(WQS_ID,'_tooMany'),  # need unique layerID 
+                      label=~WQS_ID, group="WQS Segments of Stations Snapped to > 1 Segment", 
+                      color = ~palTooMany(WQSreactive_objects$tooMany_sf$colorFac),weight = 3,stroke=T,
+                      popup=leafpop::popupTable(WQSreactive_objects$tooMany_sf),
+                      popupOptions = popupOptions( maxHeight = 100 )) %>% 
+            hideGroup("All WQS in selected Region/Basin") 
+          else 
+            addPolylines(., data=WQSreactive_objects$tooMany_sf,
+                         layerId = ~paste0(WQS_ID,'_tooMany'),  # need unique layerID 
+                         label=~WQS_ID, group="WQS Segments of Stations Snapped to > 1 Segment", 
+                         color = ~palTooMany(WQSreactive_objects$tooMany_sf$colorFac),weight = 3,stroke=T,
+                         popup=leafpop::popupTable(WQSreactive_objects$tooMany_sf),
+                         popupOptions = popupOptions( maxHeight = 100 )) %>%
+            hideGroup("WQS Segments of Stations Snapped to > 1 Segment")  } %>%
         addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                          overlayGroups = c("Adjusted Sites",
                                            "Stations Snapped to 1 WQS Segment",
@@ -1034,20 +1076,6 @@ shinyServer(function(input, output, session) {
     WQSmap_proxy %>%
       clearGroup(group='highlight')  })
   
-  output$selectedSiteTableWQS <- DT::renderDataTable({
-    req(WQSreactive_objects$namesToSmash)
-    filter(WQSreactive_objects$sitesUnique, FDT_STA_ID %in% WQSreactive_objects$namesToSmash) %>%
-      st_drop_geometry() %>%
-      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'))  })
-  
-  output$associatedWQSTableWQS <- DT::renderDataTable({
-    req(WQSreactive_objects$namesToSmash)
-    filter(WQSs(), WQS_ID %in% filter(WQSreactive_objects$snap_input, StationID %in% WQSreactive_objects$namesToSmash)$WQS_ID) %>%
-      st_drop_geometry() %>%
-      dplyr::select(WQS_ID, everything()) %>%
-      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'))  })
-  
-  
   ## Accept Snapped WQS Modal
   observeEvent(input$acceptWQS, {
     showModal(modalDialog(title = 'Accept Snapped WQS', size = 'l',
@@ -1132,7 +1160,6 @@ shinyServer(function(input, output, session) {
                           actionButton('adjust_cancelWQS', 'Cancel', 
                                        style='color: #fff; background-color: #337ab7; border-color: #2e6da4;font-size:120%', 
                                        icon=icon('window-close'))    ))  })
-  
   
   # Do something with WQS Adjustment Modal
   observeEvent(input$adjust_cancelWQS, {removeModal()})
@@ -1240,13 +1267,35 @@ shinyServer(function(input, output, session) {
                          position='topleft') 
     }    })
   
+  ### Stations Data and Spatially Joined WQS Tab
+  output$selectedSiteTableWQS <- DT::renderDataTable({
+    req(WQSreactive_objects$namesToSmash)
+    filter(WQSreactive_objects$sitesUnique, FDT_STA_ID %in% WQSreactive_objects$namesToSmash) %>%
+      st_drop_geometry() %>%
+      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'))  })
   
-  ## User adjusted WQS table 
+  output$associatedWQSTableWQS <- DT::renderDataTable({
+    req(WQSreactive_objects$namesToSmash)
+    filter(WQSs(), WQS_ID %in% filter(WQSreactive_objects$snap_input, StationID %in% WQSreactive_objects$namesToSmash)$WQS_ID) %>%
+      st_drop_geometry() %>%
+      dplyr::select(WQS_ID, everything()) %>%
+      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'))  })
+  
+  ### Updated Stations Data and Manually QAed WQS Tab
   output$adjustedStationsTableWQS <- DT::renderDataTable({
     req(WQSreactive_objects$namesToSmash, WQSreactive_objects$sitesAdjusted)
     filter(WQSreactive_objects$sitesAdjusted, StationID %in% WQSreactive_objects$namesToSmash) %>%
       st_drop_geometry() %>%
       datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'))  })
+  
+  ## User adjusted WQS table, WQS details
+  output$associatedWQSTableWQSQA <- DT::renderDataTable({
+    req(WQSreactive_objects$namesToSmash, WQSreactive_objects$sitesAdjusted)
+    filter(WQSs(), WQS_ID %in% filter(WQSreactive_objects$sitesAdjusted, StationID %in% WQSreactive_objects$namesToSmash)$WQS_ID) %>%
+      st_drop_geometry() %>%
+      dplyr::select(WQS_ID, everything()) %>%
+      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'))  })
+  
   
   #  ## Download WQS Information
   #  export_file=reactive(paste0('WQSlookupTable.csv'))#, region(), '_', basin(),'_',input$assessmentType, '_', Sys.Date(),'.csv'))

@@ -104,16 +104,19 @@ shinyUI(fluidPage(theme= "yeti.css",
                                                                       h5(strong('Spatially Joined WQS Information')),
                                                                       DT::dataTableOutput('associatedWQSTableWQS'),
                                                                       br(), br(), br()),
-                                                             tabPanel(strong('Updated Stations Data'),
+                                                             tabPanel(strong('Updated Stations Data and Manually QAed WQS'),
                                                                       br(),
                                                                       fluidRow(
                                                                         h5(strong('Adjusted Station Data')),
                                                                         div(DT::dataTableOutput("adjustedStationsTableWQS"), style = "font-size:80%")),
+                                                                      fluidRow(
+                                                                        h5(strong('Manually QAed WQS Information')),
+                                                                        div(DT::dataTableOutput("associatedWQSTableWQSQA"), style = "font-size:80%")),
+                                                                      
+                                                                      
                                                                       br(), br(), br() )
-                                                 ))
-                                                 
-                                        
-                                        ),
+                                                 )
+                                        )),
                              tabPanel("About",
                                       p('This app was created to help assessors attach correct AU and WQS information to 
                                               stations for each assessment cycle.'),

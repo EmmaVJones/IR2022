@@ -42,7 +42,7 @@ ui <- shinyUI(fluidPage(theme= "yeti.css",
                                                          actionButton("saveWQS", label = "Export reviews",style='color: #fff; background-color: #228b22; border-color: #134e13')        ),
                                                          #downloadButton('downloadWQS', label = "Export reviews",style='color: #fff; background-color: #228b22; border-color: #134e13')        ),
                                                        br(),
-                                                       #verbatimTextOutput('test'),
+                                                       verbatimTextOutput('test'),
                                                        tabsetPanel(tabPanel(strong('Stations Data and Spatially Joined WQS'),
                                                                              br(),
                                                                              h5(strong('Selected Station Information')),
@@ -85,10 +85,11 @@ server <- shinyServer(function(input, output, session) {
     typeName <- case_when(input$WQSwaterbodyType == 'Lacustrine' ~ 'lakes_reservoirs',
                           input$WQSwaterbodyType == 'Estuarine' ~ 'estuarinepolygons',
                           TRUE ~ as.character(input$WQSwaterbodyType))
-    #withProgress(message = 'Reading in Large Spatial File',
-     #            st_read('GIS/WQS_layers_05082020.gdb', layer = paste0(tolower(typeName),'_05082020') , fid_column_name = "OBJECTID") %>%
-    #               st_transform(4326) )})
-    withProgress(test3) }) # riverine test
+    withProgress(message = 'Reading in Large Spatial File',
+                 st_zm(
+                   st_read('GIS/WQS_layers_05082020.gdb', layer = paste0(tolower(typeName),'_05082020') , fid_column_name = "OBJECTID")) %>%
+                   st_transform(4326) )})
+    #withProgress(test3) }) # riverine test
   
   # Update map Subbasin based on user selection
   output$WQSDEQregionSelection_ <- renderUI({
@@ -232,7 +233,8 @@ server <- shinyServer(function(input, output, session) {
 #    cat(paste0('There are ', nrow(WQSreactive_objects$snap_input[['inputSites']]), ' stations in the selected Region/Basin.'))})
 # not sure I'm going to do that for WQS  
   
-  
+  output$test <- renderPrint({req(WQSs())
+    WQSs()})
   
   ### WQS REVIEW TAB ##################################################################################
   
@@ -275,7 +277,7 @@ server <- shinyServer(function(input, output, session) {
                        options=layersControlOptions(collapsed=T),
                        position='topleft') %>%
       hideGroup("Conventionals Stations in Basin")    
-    })
+  })
   
   WQSmap_proxy <- leafletProxy("WQSmap")
   
@@ -387,7 +389,7 @@ server <- shinyServer(function(input, output, session) {
                             StationID %in% siteid) %>%
         st_drop_geometry() %>%
         pull(StationID)
-
+      
       # and save all this info for later
       siteid_current <-  c(siteMatches)#, as.character(existingSiteMatches))
       
@@ -479,10 +481,6 @@ server <- shinyServer(function(input, output, session) {
     removeModal()
   })
   
-  output$test <- renderPrint({
-    WQSreactive_objects$tooMany_sites
-    WQSreactive_objects$tooMany_sf
-  })
   
   ## Manual WQS Adjustment Modal
   observeEvent(input$changeWQS, {
@@ -640,18 +638,18 @@ server <- shinyServer(function(input, output, session) {
       datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'))  })
   
   
-#  ## Download WQS Information
-#  export_file=reactive(paste0('WQSlookupTable.csv'))#, region(), '_', basin(),'_',input$assessmentType, '_', Sys.Date(),'.csv'))
-#  output$downloadWQS <- downloadHandler(
-#    filename=function(){export_file()},
-#    content = function(file) {
-#      write.csv(WQSreactive_objects$finalWQS %>%
-#                  # get rid of geometry if needed
-#                  {if('geometry' %in% names(WQSreactive_objects$finalWQS))
-#                    dplyr::select(., -geometry) 
-#                    else . } %>%
-#                  as.data.frame(), file, row.names = F) }) 
-
+  #  ## Download WQS Information
+  #  export_file=reactive(paste0('WQSlookupTable.csv'))#, region(), '_', basin(),'_',input$assessmentType, '_', Sys.Date(),'.csv'))
+  #  output$downloadWQS <- downloadHandler(
+  #    filename=function(){export_file()},
+  #    content = function(file) {
+  #      write.csv(WQSreactive_objects$finalWQS %>%
+  #                  # get rid of geometry if needed
+  #                  {if('geometry' %in% names(WQSreactive_objects$finalWQS))
+  #                    dplyr::select(., -geometry) 
+  #                    else . } %>%
+  #                  as.data.frame(), file, row.names = F) }) 
+  
   observeEvent(input$saveWQS, {
     saveData(WQSreactive_objects$finalWQS %>%
                # get rid of geometry if needed
@@ -660,6 +658,7 @@ server <- shinyServer(function(input, output, session) {
                  else . } %>%
                as.data.frame(), "WQSlookupTable")
   })  
+
   
 })
 
