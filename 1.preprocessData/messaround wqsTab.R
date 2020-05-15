@@ -23,7 +23,7 @@ test4 <- test3 %>%
 
 
 
-basinCodes <- filter(basinAssessmentRegion, BASIN %in% c('2C')) %>% #unique(WQSstatewide()$BASIN)) %>%
+basinCodes <- filter(basinAssessmentRegion, BASIN %in% c('2A','2B','2C','3','5A', '7A')) %>% #unique(WQSstatewide()$BASIN)) %>%
     filter(ASSESS_REG %in% 'PRO') %>% #input$WQSDEQregionSelection) %>%
     filter(Basin_Code %in% 'James-Lower') %>% #input$WQSsubbasinSelection) %>%
     distinct(BASIN_CODE) %>% 
