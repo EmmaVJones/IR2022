@@ -707,8 +707,9 @@ server <- shinyServer(function(input, output, session) {
       {if(input$WQSwaterbodyType == 'Estuarine')
         rbind(.,
               filter(WQSsEL(), WQS_ID %in%
-                       filter(WQSreactive_objects$snap_input, StationID %in% WQSreactive_objects$namesToSmash)$WQS_ID) ) } %>%
-      st_drop_geometry() %>%
+                       filter(WQSreactive_objects$snap_input, StationID %in% WQSreactive_objects$namesToSmash)$WQS_ID) )  
+        else . } %>%
+      #st_drop_geometry() %>%
       dplyr::select(WQS_ID, everything()) %>%
       datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'))  })
   
@@ -726,7 +727,8 @@ server <- shinyServer(function(input, output, session) {
       {if(input$WQSwaterbodyType == 'Estuarine')
         rbind(.,
               filter(WQSsEL() %>% st_drop_geometry(), WQS_ID %in% 
-                       filter(WQSreactive_objects$sitesAdjusted, StationID %in% WQSreactive_objects$namesToSmash)$WQS_ID) )  } %>%
+                       filter(WQSreactive_objects$sitesAdjusted, StationID %in% WQSreactive_objects$namesToSmash)$WQS_ID) ) 
+        else . } %>%
       #   st_drop_geometry() %>%
       dplyr::select(WQS_ID, everything()) %>%
       datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'))  })

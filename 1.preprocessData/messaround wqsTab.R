@@ -157,13 +157,23 @@ sitesAdjusted <- rbind(sitesAdjusted, sitesUpdated) # rbind works better for sf 
 
                       
 
-z <- filter(test4 %>% st_drop_geometry(), WQS_ID %in% filter(sitesAdjusted, StationID %in% namesToSmash)$WQS_ID) %>%
+z <- filter(test %>% st_drop_geometry(), WQS_ID %in% filter(sitesAdjusted, StationID %in% namesToSmash)$WQS_ID) %>%
   {if(WQSwaterbodyType == 'Estuarine')
     rbind(., 
       filter(WQSsEL %>% st_drop_geometry(), WQS_ID %in% filter(sitesAdjusted, StationID %in% namesToSmash)$WQS_ID))  } %>%
 #  st_drop_geometry() %>%
   dplyr::select(WQS_ID, everything())                      
 
+
+
+filter(test %>% st_drop_geometry(), WQS_ID %in% filter(sitesAdjusted, StationID %in% namesToSmash)$WQS_ID) %>%
+  {if(WQSwaterbodyType == 'Estuarine')
+    rbind(.,
+          filter(WQSsEL() %>% st_drop_geometry(), WQS_ID %in% 
+                   filter(sitesAdjusted, StationID %in% namesToSmash)$WQS_ID) ) 
+    else .} %>%
+  #   st_drop_geometry() %>%
+  dplyr::select(WQS_ID, everything()) 
 
 
 
