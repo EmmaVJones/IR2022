@@ -24,6 +24,17 @@ source('snappingFunctions/snapOrganizationFunctions_messAround.R') # turn this b
 
 #conventionals_D <- st_read(paste0('data/conventionals_D_James River Basin.shp')) 
 
+
+
+
+# WQS layer type to WQS_ID conversion
+#st_layers('GIS/WQS_layers_05082020.gdb')
+WQSlayerConversion <- tibble(waterbodyType = c('Riverine','Lacustrine','Estuarine','Estuarine'),
+                             WQS_ID = c('RL','LP','EP','EL')) 
+
+
+
+
 basinCodesConversion <- read_csv('data/basinCodeConversion.csv') %>%
   filter(BASIN != 7) %>%
   bind_rows(data.frame(BASIN = '7D', Basin_Code = 'Small Coastal'))
@@ -34,15 +45,14 @@ basinCodesConversion <- read_csv('data/basinCodeConversion.csv') %>%
 #  st_drop_geometry() %>%
 #  left_join(mutate(basinCodesConversion, BASIN_CODE = BASIN), by="BASIN_CODE")
 #write.csv(basinAssessmentRegion, 'data/basinAssessmentRegion.csv')
-basinAssessmentRegion <- read_csv('data/basinAssessmentReg_clb.csv') %>% # Cleo QAed verison
-  filter(VAHU6_NOTE !=  "NOT IN THIS REGION") %>%
-  left_join(mutate(basinCodesConversion, BASIN_CODE = BASIN), by="BASIN_CODE")
+#basinAssessmentRegion <- read_csv('data/basinAssessmentReg_clb.csv') %>% # Cleo QAed verison
+#  filter(VAHU6_NOTE !=  "NOT IN THIS REGION") %>%
+#  left_join(mutate(basinCodesConversion, BASIN_CODE = BASIN), by="BASIN_CODE")
 
+subbasinOptionsByWQStype <- read_csv('data/subbasinOptionsByWQStype&Region.csv') %>%
+#  left_join(WQSlayerConversion, by = c('WQS_ID_Prefix' = 'WQS_ID', 'waterbodyType')) %>%
+  left_join(basinCodesConversion, by = c('SubbasinOptions' = 'BASIN'))
 
-# WQS layer type to WQS_ID conversion
-#st_layers('GIS/WQS_layers_05082020.gdb')
-WQSlayerConversion <- tibble(waterbodyType = c('Riverine','Lacustrine','Estuarine','Estuarine'),
-                             WQS_ID = c('RL','LP','EL','EP')) 
 
 
 

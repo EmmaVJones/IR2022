@@ -1,7 +1,7 @@
 source('global.R')
 
 ### All conventionals sites
-#conventionals_D <- st_read('GIS/conventionals_D.shp') %>%
+####conventionals_D <- st_read('GIS/conventionals_D.shp') %>%
 conventionals_DWQS <- readRDS('data/conventionals_D.RDS') %>%
   st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
            remove = F, # don't remove these lat/lon cols from df
@@ -12,24 +12,15 @@ conventionals_DWQS <- readRDS('data/conventionals_D.RDS') %>%
 assessmentRegions <- st_read( 'GIS/AssessmentRegions_simple.shp')
 assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
   st_transform( st_crs(4326)) 
-basin7 <- st_read('GIS/deq_basins07.shp') %>%
-  st_transform(4326) %>%
-  mutate(BASIN_CODE = case_when(BASIN_CODE == '3-' ~ '3',
-                                BASIN_CODE == '8-' ~ '8',
-                                BASIN_CODE == '9-' ~ '9',
-                                TRUE ~ as.character(BASIN_CODE)))
+subbasins <- st_read('GIS/DEQ_VAHUSB_subbasins_EVJ.shp') %>%
+  rename('SUBBASIN' = 'SUBBASIN_1')
+#basin7 <- st_read('GIS/deq_basins07.shp') %>%
+#  st_transform(4326) %>%
+#  mutate(BASIN_CODE = case_when(BASIN_CODE == '3-' ~ '3',
+#                                BASIN_CODE == '8-' ~ '8',
+#                                BASIN_CODE == '9-' ~ '9',
+#                                TRUE ~ as.character(BASIN_CODE)))
 
-
-# Existing WQS lookup table, substitute newest one when available
-#WQSlookup <- tibble(StationID = as.character(), WQS_ID = as.character(), 
-#                    `Buffer Distance` = as.character(), Comments = as.character())
-
-
-# Attach SUBBASIN info to appropriate assessment Region
-#basinAssessmentRegion <- st_intersection(basin7, assessmentRegions) %>%
-#  st_drop_geometry() %>%
-#  left_join(mutate(basinCodesConversion, BASIN_CODE = BASIN), by="BASIN_CODE")
-#write.csv(basinAssessmentRegion, 'data/basinAssessmentRegion.csv')
 
 
 shinyServer(function(input, output, session) {
@@ -62,14 +53,14 @@ shinyServer(function(input, output, session) {
     unique(basin_filter()$Basin)})
   
   
-  ################## FOR TESTING ###########################################################
+  # FOR TESTING ############################################################################
 #  assessmentType_sf <- eventReactive(input$begin, {
 #    req(basin_filter(), input$assessmentType)
 #    AUs1}) # for speed #riverineAUs})
 #  AUs <- eventReactive(input$begin, { AUs1 })
   
   
-  ####### FOR REAL ##########################################################################
+  # FOR REAL ################################################################################
 #  assessmentType_sf <- eventReactive(input$begin, {
 #    req(basin_filter(), input$assessmentType)
 #    typeName <- ifelse(input$assessmentType != 'Lacustrine', input$assessmentType, 'Reservoir_Basins')
@@ -736,70 +727,65 @@ shinyServer(function(input, output, session) {
   
   ## Watershed Selection Tab WQS
   
-  # Bring in WQS layer statewide
-  WQSstatewide <- eventReactive(input$WQSstart, {
-    typeName <- case_when(input$WQSwaterbodyType == 'Lacustrine' ~ 'lakes_reservoirs',
-                          input$WQSwaterbodyType == 'Estuarine' ~ 'estuarinepolygons',
-                          TRUE ~ as.character(input$WQSwaterbodyType))
-    withProgress(message = 'Reading in Large Spatial File',
-                 st_zm(
-                   st_read('GIS/WQS_layers_05082020.gdb', layer = paste0(tolower(typeName),'_05082020') , fid_column_name = "OBJECTID")) %>%
-                   st_transform(4326) )})
-  #withProgress(test) }) # for testing
-  
-  WQSstatewideEL <- eventReactive(input$WQSstart, {
-    req(input$WQSwaterbodyType == "Estuarine")
-    withProgress(message = 'Reading in Additional Estuarine Spatial File',
-                 
-                 #              WQSsELtest  # for testing
-                 st_zm(
-                   st_read('GIS/WQS_layers_05082020.gdb', layer = 'estuarinelines_05082020' , fid_column_name = "OBJECTID")) %>%
-                   st_transform(4326) %>%
-                   # match polygon structure
-                   rename('WQS_COMMEN' = 'WQS_COMMENT') %>% # match polygon structure
-                   mutate(Shape_Area = NA) %>%
-                   dplyr::select(names(WQSs())) 
-    ) }) # technically makes this dependent on input$WQSbegin
+  ################################# PRE-SPLIT WQS LAYER METHOD, FASTER FOR APP RENDERING ######################################
   
   # Update map Subbasin based on user selection
   output$WQSDEQregionSelection_ <- renderUI({
-    req(WQSstatewide())
-    op <- filter(basinAssessmentRegion, BASIN %in% unique(WQSstatewide()$BASIN)) %>%
-      distinct(ASSESS_REG) %>% 
+    req(input$WQSwaterbodyType)
+    op <- filter(subbasinOptionsByWQStype, waterbodyType %in% input$WQSwaterbodyType) %>%
+      distinct(AssessmentRegion) %>% 
       pull()
     selectInput("WQSDEQregionSelection", "Select DEQ Assessment Region", multiple = FALSE,
-                choices= op)  })
+                choices= sort(op))  })
   
   output$WQSsubbasinSelection_ <- renderUI({
-    req(WQSstatewide(), input$WQSDEQregionSelection)
-    op <- filter(basinAssessmentRegion, BASIN %in% unique(WQSstatewide()$BASIN)) %>%
-      filter(ASSESS_REG %in% input$WQSDEQregionSelection) %>%
+    req(input$WQSwaterbodyType, input$WQSDEQregionSelection)
+    op <- filter(subbasinOptionsByWQStype, waterbodyType %in% input$WQSwaterbodyType) %>%
+      filter(AssessmentRegion %in% input$WQSDEQregionSelection) %>%
       distinct(Basin_Code) %>% 
-      pull()
+      pull() 
     selectInput("WQSsubbasinSelection", "Select Subbasin", multiple = FALSE,
-                choices= op)  })
+                choices= sort(op))  })
+  
   output$WQSbegin_ <- renderUI({
-    req(WQSstatewide(), input$WQSDEQregionSelection, input$WQSsubbasinSelection)
+    req(input$WQSwaterbodyType, input$WQSDEQregionSelection, input$WQSsubbasinSelection)
     actionButton('WQSbegin', HTML("Begin Review With Subbasin Selection <br/>(Retrieves Last Saved Result)"),
                  class='btn-block')  })
   
   basinCodes <- reactive({
-    req(WQSstatewide(), input$WQSDEQregionSelection, input$WQSsubbasinSelection)
-    filter(basinAssessmentRegion, BASIN %in% unique(WQSstatewide()$BASIN)) %>%
-      filter(ASSESS_REG %in% input$WQSDEQregionSelection) %>%
+    req(input$WQSwaterbodyType, input$WQSDEQregionSelection, input$WQSsubbasinSelection)
+    filter(subbasinOptionsByWQStype, waterbodyType %in% input$WQSwaterbodyType) %>%
+      filter(AssessmentRegion %in% input$WQSDEQregionSelection) %>%
       filter(Basin_Code %in% input$WQSsubbasinSelection) %>%
-      distinct(BASIN_CODE) %>% 
+      distinct(SubbasinOptions) %>% 
       pull() })
   
   WQSs <- eventReactive(input$WQSbegin, {
-    req(WQSstatewide(), input$WQSDEQregionSelection, input$WQSsubbasinSelection)
-    WQSstatewide() %>%
-      # limit to just selected filters
-      filter(BASIN %in% as.character(basinCodes()))      })
+    req(input$WQSwaterbodyType, input$WQSDEQregionSelection, input$WQSsubbasinSelection)
+    
+    typeName <- filter(WQSlayerConversion, waterbodyType %in% input$WQSwaterbodyType) %>%
+      distinct(WQS_ID) %>% 
+      pull() 
+    
+    withProgress(message = 'Reading in Large Spatial File',
+                 st_zm(
+                   st_read(paste0('GIS/processedWQS/',typeName[1],'_', basinCodes(), '.shp') , fid_column_name = "OBJECTID")) ) %>%
+                   st_transform(4326)  })
   
   WQSsEL <- reactive({
-    req(WQSstatewideEL(), input$WQSwaterbodyType == "Estuarine")
-    filter(WQSstatewideEL(), BASIN %in% as.character(basinCodes())) })
+    req(WQSs(), input$WQSwaterbodyType == "Estuarine")
+    typeName <- filter(WQSlayerConversion, waterbodyType %in% input$WQSwaterbodyType) %>%
+      distinct(WQS_ID) %>% 
+      pull() 
+    
+    withProgress(message = 'Reading in Additional Estuarine Spatial File',
+                 st_zm(
+                   st_read(paste0('GIS/processedWQS/',typeName[2],'_', basinCodes(), '.shp') , fid_column_name = "OBJECTID")) ) %>%
+      st_transform(4326) %>%
+      # match polygon structure
+      rename('WQS_COMMEN' = 'WQS_COMMENT') %>% # match polygon structure
+      mutate(Shape_Area = NA) %>%
+      dplyr::select(names(WQSs()))  })
   
   
   # Make an object (once per Subbasin filter) that encompasses all WQS_ID options for said subbasin for manual WQS_ID adjustment modal, speeds rendering
@@ -811,13 +797,13 @@ shinyServer(function(input, output, session) {
   
   ## Map output of selected subbasin
   output$WQSVAmap <- renderLeaflet({
-    req(input$WQSbegin, WQSstatewide(), input$WQSDEQregionSelection, input$WQSsubbasinSelection)
-    subbasins <- filter(basin7, BASIN_CODE %in% as.character(basinCodes()))
+    req(input$WQSbegin, WQSs(), input$WQSDEQregionSelection, input$WQSsubbasinSelection)
+    subbasins <- filter(subbasins, BASIN_CODE %in% as.character(basinCodes())) %>%
+      filter(ASSESS_REG %in% input$WQSDEQregionSelection)
     
     m <- mapview( subbasins, label= subbasins$SUBBASIN, layer.name = 'Selected Subbasin',
-                  popup= leafpop::popupTable(subbasins, zcol=c('BASIN_NAME', 'BASIN_CODE', 'SUBBASIN')))
+                  popup= leafpop::popupTable(subbasins, zcol=c('BASIN_NAME', 'BASIN_CODE', 'SUBBASIN', 'ASSESS_REG', 'VAHU6_NOTE')))
     m@map %>% setView(st_bbox(subbasins)$xmax[[1]],st_bbox(subbasins)$ymax[[1]],zoom = 7)  })
-  
   
   ### WQS reactive 
   observeEvent(input$WQSbegin, {
@@ -825,13 +811,12 @@ shinyServer(function(input, output, session) {
     WQSreactive_objects$WQSlookup <- loadData("WQSlookupTable")
     # limit conventionals_DWQS to just chosen subbasin
     WQSreactive_objects$conventionals_DWQS_Region <- st_intersection(conventionals_DWQS, 
-                                                                     filter(basin7, BASIN_CODE %in% basinCodes()))
-    
+                                                                     filter(subbasins, BASIN_CODE %in% basinCodes()))
     # All sites limited to waterbody type and subbasin
     WQSreactive_objects$snap_input <- readRDS('data/processedWQS/WQStable.RDS') %>%
       filter(str_extract(WQS_ID, "^.{2}") %in% filter(WQSlayerConversion, waterbodyType %in% input$WQSwaterbodyType)$WQS_ID) %>%
       filter(gsub("_","",str_extract(WQS_ID, ".{3}_")) %in% 
-               str_pad(unique(filter(basinAssessmentRegion, BASIN_CODE %in% basinCodes())$BASIN_CODE), 
+               str_pad(unique(filter(subbasinOptionsByWQStype, SubbasinOptions %in% basinCodes())$SubbasinOptions), 
                        width = 2, side = 'left', pad = '0')) %>%
       # filter out any sites that happen to have existing WQS_ID
       filter(! StationID %in% WQSreactive_objects$WQSlookup$StationID) %>%
@@ -840,6 +825,7 @@ shinyServer(function(input, output, session) {
     # Sites limited to just region of interest
     WQSreactive_objects$snap_input_Region <- WQSreactive_objects$snap_input %>%
       left_join(WQSreactive_objects$conventionals_DWQS_Region, by = 'StationID') %>%
+      filter(!is.na(Latitude) | !is.na(Longitude)) %>%
       st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
                remove = T, # don't remove these lat/lon cols from df
                crs = 4326) %>%
@@ -850,11 +836,10 @@ shinyServer(function(input, output, session) {
     # Make dataset of all sites for highlighting purposes, preliminary list
     WQSreactive_objects$sitesUnique <- WQSreactive_objects$snap_input %>%
       full_join(WQSreactive_objects$conventionals_DWQS_Region, by = 'StationID') %>%
+      filter(!is.na(Latitude) | !is.na(Longitude)) %>%
       st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
                remove = F, # don't remove these lat/lon cols from df
                crs = 4326)
-    ## Make dataset of all WQS_IDs available for table purposes, this will hold corrected WQS_ID information after user review
-    #WQSreactive_objects$WQS_IDs <- WQSreactive_objects$snap_input 
     # Make dataset of multiple segments snapped to single site IN REGION
     WQSreactive_objects$tooMany <- filter(WQSreactive_objects$snap_input_Region, n > 1) %>%
       group_by(StationID) %>% mutate(colorFac = row_number()) %>% ungroup() 
@@ -899,6 +884,7 @@ shinyServer(function(input, output, session) {
     WQSreactive_objects$finalWQS <- WQSreactive_objects$WQSlookup
     # Make dataset of all selectable sites on map
     #WQSreactive_objects$sitesUniqueFin <- WQSreactive_objects$conventionals_DWQS_Region 
+
   })
   
   #  # Make dataset of all selectable sites on map
@@ -907,6 +893,7 @@ shinyServer(function(input, output, session) {
   #    WQSreactive_objects$sitesUniqueFin <- WQSreactive_objects$conventionals_DWQS_Region })
   #    # for now, all sites are in conventionals pull, but this may not always be true
   #      #rbind(WQSreactive_objects$sitesUnique, mutate(WQSreactive_objects$conventionals_DWQS_Region, WQS_ID = NA, `Buffer Distance` = NA, n = NA) %>% dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, FDT_STA_ID, everything()))  })
+  
   
   # UI summaries of data pulled in to app, first and second tab
   output$singleSnapSummary1WQS <- renderPrint({ req(WQSreactive_objects$snap_input)
@@ -921,7 +908,8 @@ shinyServer(function(input, output, session) {
     cat(paste0('There are ', nrow(WQSreactive_objects$snapNone), ' stations that snapped to 0 AU segments in preprocessing.'))})
   output$noSnapSummary2WQS <- renderPrint({ req(WQSreactive_objects$snap_input)
     cat(paste0('There are ', nrow(WQSreactive_objects$snapNone), ' stations that snapped to 0 AU segments in preprocessing.'))})
- 
+  
+  
   
   ### WQS REVIEW TAB ##################################################################################
   

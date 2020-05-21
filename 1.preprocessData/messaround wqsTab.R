@@ -1,7 +1,7 @@
 
 st_layers('GIS/WQS_layers_05082020.gdb')
 
-WQSwaterbodyType <- 'Estuarine'
+
 
 test <- st_zm(st_read('GIS/WQS_layers_05082020.gdb', layer = 'riverine_05082020' , fid_column_name = "OBJECTID") %>%
                 st_transform(4326) )
@@ -30,13 +30,23 @@ test4 <- test3 %>%
   filter(BASIN %in% filter(basinCodesConversion, Basin_Code %in% c('James-Lower'))$BASIN)
 
 
+WQSwaterbodyType <- 'Riverine'
 
-basinCodes <- filter(basinAssessmentRegion, BASIN %in% c('2A','2B','2C','3','5A', '7A')) %>% #unique(WQSstatewide()$BASIN)) %>%
-    filter(ASSESS_REG %in% 'PRO') %>% #input$WQSDEQregionSelection) %>%
-    filter(Basin_Code %in% 'James-Lower') %>% #input$WQSsubbasinSelection) %>%
-    distinct(BASIN_CODE) %>% 
-    pull() 
+DEQregion <- 'NRO'
 
+WQSs <-   st_zm(st_read('GIS/processedWQS/RL_1A.shp') , fid_column_name = "OBJECTID")
+
+#basinCodes <- filter(basinAssessmentRegion, BASIN %in% c('2A','2B','2C','3','5A', '7A')) %>% #unique(WQSstatewide()$BASIN)) %>%
+#    filter(ASSESS_REG %in% 'PRO') %>% #input$WQSDEQregionSelection) %>%
+#    filter(Basin_Code %in% 'James-Lower') %>% #input$WQSsubbasinSelection) %>%
+#    distinct(BASIN_CODE) %>% 
+#    pull() 
+
+basinCodes <- filter(subbasinOptionsByWQStype, waterbodyType %in% WQSwaterbodyType ) %>%
+  filter(AssessmentRegion %in% DEQregion) %>%
+  filter(Basin_Code %in% c( "Potomac-Lower")) %>%
+  distinct(SubbasinOptions) %>% 
+  pull() 
 
 WQSlookup <- loadData("WQSlookupTable")
 conventionals_DWQS_Region <- st_intersection(conventionals_DWQS, 
@@ -44,11 +54,9 @@ conventionals_DWQS_Region <- st_intersection(conventionals_DWQS,
 
 # this is all sites limited to waterbody type and subbasin
 snap_input <- readRDS('data/processedWQS/WQStable.RDS') %>%
-  filter(str_extract(WQS_ID, "^.{2}") %in% filter(WQSlayerConversion, waterbodyType %in% 'Estuarine')$WQS_ID) %>%  ######### Estuarine
-  #filter(str_extract(WQS_ID, "^.{2}") %in% filter(WQSlayerConversion, waterbodyType %in% 'Lacustrine')$WQS_ID) %>%  ######### Lacustrine
-  #filter(str_extract(WQS_ID, "^.{2}") %in% filter(WQSlayerConversion, waterbodyType %in% 'Riverine')$WQS_ID) %>%   ####### Riverine
+  filter(str_extract(WQS_ID, "^.{2}") %in% filter(WQSlayerConversion, waterbodyType %in% WQSwaterbodyType)$WQS_ID) %>%   
   filter(gsub("_","",str_extract(WQS_ID, ".{3}_")) %in% 
-           str_pad(unique(filter(basinAssessmentRegion, BASIN_CODE %in% basinCodes)$BASIN_CODE), 
+           str_pad(unique(filter(subbasinOptionsByWQStype, SubbasinOptions %in% basinCodes)$SubbasinOptions), 
                    width = 2, side = 'left', pad = '0')) %>%
   # filter out any sites that happen to have existing WQS_ID
   filter(! StationID %in% WQSlookup$StationID) %>%
@@ -57,10 +65,11 @@ snap_input <- readRDS('data/processedWQS/WQStable.RDS') %>%
 snap_input_Region <- snap_input %>%
   # limit to just region of interest
   left_join(conventionals_DWQS_Region, by = 'StationID') %>%
+  filter(!is.na(Latitude) | !is.na(Longitude)) %>%
   st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
            remove = T, # don't remove these lat/lon cols from df
            crs = 4326) %>%
-  st_intersection(filter(assessmentRegions, ASSESS_REG %in% 'PRO')) %>%#input$WQSDEQregionSelection) %>%
+  st_intersection(filter(assessmentRegions, ASSESS_REG %in% DEQregion)) %>%#input$WQSDEQregionSelection) %>%
   st_drop_geometry() %>% # back to tibble
   rename('Buffer Distance' = 'Buffer.Distance') %>%
   dplyr::select(StationID, WQS_ID, `Buffer Distance`, n)
@@ -69,6 +78,7 @@ snap_input_Region <- snap_input %>%
 # Make dataset of all sites in subbasin for highlighting purposes, preliminary list, left at subbasin in case regional swapping occurs or outside state boundary
 sitesUnique <- snap_input %>%
   full_join(conventionals_DWQS_Region, by = 'StationID') %>%
+  filter(!is.na(Latitude) | !is.na(Longitude)) %>%
   st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
            remove = F, # don't remove these lat/lon cols from df
            crs = 4326) 
@@ -78,7 +88,7 @@ sitesUnique <- snap_input %>%
 tooMany <- filter(snap_input_Region, n > 1) %>%
   group_by(StationID) %>% mutate(colorFac = row_number()) %>% ungroup() 
 
-tooMany_sf <- filter(test4, WQS_ID %in% tooMany$WQS_ID) %>%              # defaults to polygon for Estuarine
+tooMany_sf <- filter(WQSs, WQS_ID %in% tooMany$WQS_ID) %>%              # defaults to polygon for Estuarine
   left_join(tooMany, by = 'WQS_ID') %>%
   dplyr::select(StationID, WQS_ID, `Buffer Distance`, n, everything())
 if(WQSwaterbodyType == 'Estuarine'){
@@ -88,7 +98,7 @@ if(WQSwaterbodyType == 'Estuarine'){
 }
 # Make dataset of sites associated with too many segments
 tooMany_sites <- filter(sitesUnique, StationID %in% tooMany$StationID) %>%
-  left_join(test4 %>% st_drop_geometry(), by = 'WQS_ID') %>% #left_join(WQSs() %>% st_drop_geometry(), by = 'WQS_ID')
+  left_join(WQSs %>% st_drop_geometry(), by = 'WQS_ID') %>% #left_join(WQSs() %>% st_drop_geometry(), by = 'WQS_ID')
   {if(WQSwaterbodyType == 'Estuarine')
     rbind(left_join(filter(sitesUnique, StationID %in% tooMany$StationID), WQSsEL %>% st_drop_geometry(), by = 'WQS_ID'))
   else . } %>%
@@ -97,7 +107,7 @@ tooMany_sites <- filter(sitesUnique, StationID %in% tooMany$StationID) %>%
 # Make dataset of sites that snapped to a single WQS and join WQS info  
 snapSingle <- filter(sitesUnique, n == 1) %>%
   filter(StationID %in% snap_input_Region$StationID) %>% # limit assignment to just what falls in a region
-  left_join(test4 %>% st_drop_geometry(), by = 'WQS_ID') %>%#left_join(WQSs() %>% st_drop_geometry(), by = 'WQS_ID')
+  left_join(WQSs %>% st_drop_geometry(), by = 'WQS_ID') %>%#left_join(WQSs() %>% st_drop_geometry(), by = 'WQS_ID')
   {if(WQSwaterbodyType == 'Estuarine')
     filter(., str_extract(WQS_ID, "^.{2}") == 'EP') %>% # keep just polygon result from above
       rbind(filter(sitesUnique, n == 1) %>%
@@ -108,7 +118,7 @@ snapSingle <- filter(sitesUnique, n == 1) %>%
 # Make dataset of sites associated with no segments
 snapNone <- filter(sitesUnique, is.na(WQS_ID)) %>%
   filter(StationID %in% snap_input_Region$StationID) %>% # limit assignment to just what falls in a region
-  left_join(test4 %>% st_drop_geometry(), by = 'WQS_ID')#left_join(WQSs() %>% st_drop_geometry(), by = 'WQS_ID')
+  left_join(WQSs %>% st_drop_geometry(), by = 'WQS_ID')#left_join(WQSs() %>% st_drop_geometry(), by = 'WQS_ID')
 # Make empty dataset of sites that assessors touched
 sitesAdjusted <-  sitesUnique[0,] %>%
   dplyr::select(StationID, WQS_ID, `Buffer Distance`) %>%
@@ -149,7 +159,7 @@ sitesAdjusted <- rbind(sitesAdjusted, sitesUpdated) # rbind works better for sf 
 
 
 
-#filter(test4, WQS_ID %in% filter(snap_input, StationID %in% namesToSmash)$WQS_ID) %>%
+#filter(WQSs, WQS_ID %in% filter(snap_input, StationID %in% namesToSmash)$WQS_ID) %>%
 #  st_drop_geometry() %>%
 #  {if(WQSwaterbodyType == 'Estuarine')
 #    filter(WQSsEL, WQS_ID %in% filter(snap_input, StationID %in% namesToSmash)$WQS_ID)  } %>%
@@ -206,8 +216,8 @@ CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE,
   addCircleMarkers(data = conventionals_DWQS_Region, color='blue', fillColor='yellow', radius = 4,
                    fillOpacity = 0.5,opacity=0.8,weight = 1,stroke=T, group="Conventionals Stations in Basin",
                    label = ~FDT_STA_ID, layerId = ~FDT_STA_ID) %>% 
-  {if("sfc_MULTIPOLYGON" %in% class(st_geometry(test4)))#WQSs()))) 
-    addPolygons(., data = test4,#WQSs(),
+  {if("sfc_MULTIPOLYGON" %in% class(st_geometry(WQSs)))#WQSs()))) 
+    addPolygons(., data = WQSs,#WQSs(),
                 layerId = ~WQS_ID,
                 label=~WQS_ID, group="All WQS in selected Region/Basin", 
                 color = 'blue', 
@@ -215,12 +225,12 @@ CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE,
                 popup=leafpop::popupTable(test2),#WQSs()),
                 popupOptions = popupOptions( maxHeight = 100 )) %>% 
       hideGroup("All WQS in selected Region/Basin") 
-    else addPolylines(., data =test4, # WQSs(),
+    else addPolylines(., data =WQSs, # WQSs(),
               layerId = ~WQS_ID,
               label=~WQS_ID, group="All WQS in selected Region/Basin", 
               color = 'blue',
               weight = 3,stroke=T,
-              popup=leafpop::popupTable(test4),#WQSs()),
+              popup=leafpop::popupTable(WQSs),#WQSs()),
               popupOptions = popupOptions( maxHeight = 100 )) %>% 
   hideGroup("All WQS in selected Region/Basin")  } %>%
   addPolygons(data= assessmentRegions,  color = 'black', weight = 1,

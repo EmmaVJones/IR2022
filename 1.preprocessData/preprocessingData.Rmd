@@ -18,6 +18,27 @@ This project is a outlines how to rebuild the automated preprocessing steps comp
 
 Each step will be written as individual modules where lengthy code to complete each step is stored elsewhere and sourced for use. This method of organizing the project helps with project maintenance and troubleshooting specific problem areas when they occur.
 
+## WQS Split up
+
+After each update of WQS layers, it is important to split these layers into bite size consumption for the review app such that we don't send unnecessary data to/from servers and speed up rending time. All snapping will be completed against the official WQS layers, but for app purposes, we will only bring in WQS in a selected subbasin.
+
+Because most (all) DEQ subbasin layers incorrectly attribute the upper Potomac basin inside the Shenandoah in VRO, we will create our own layer to work from that fixes this error. 
+
+```{r fix subbasin layer}
+source('newDEQsubbasinLayerCreation.R')
+```
+
+That really only needs to be done once such that 'GIS/DEQsubbasins_EVJ.shp' is created. This is the layer the splitWQSbySubbasin will use.
+
+Now we take that newly created layer and use it to split up each of the riverine, lakes, and both types of estuary layers appropriately.
+
+```{r splitWQS by subbasin for app}
+source('splitWQSbySubbasin.R')
+```
+
+Now we can move on to actual data processing.
+
+
 ## Data Organization
 
 The key data needed for these analyses is the conventionals dataset that Roger Stewart pulls every two years for each IR window. This method is built such that additional stations that need WQS data attached (for EDAS/CEDS Stations Table update project) can be run through just that portion of the methodology.
