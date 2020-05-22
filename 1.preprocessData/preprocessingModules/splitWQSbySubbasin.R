@@ -9,6 +9,10 @@ subbasinOptionsByWQStype <- tibble(waterbodyType = as.character(),
                                    AssessmentRegion = as.character(),
                                    WQS_ID_Prefix = as.character())
 
+basinCodesConversion <- read_csv('data/basinCodeConversion.csv') %>%
+  filter(BASIN != 7) %>%
+  bind_rows(data.frame(BASIN = '7D', Basin_Code = 'Small Coastal'))
+
 # Bring in subbasin options
 subbasins <- st_read('GIS/DEQ_VAHUSB_subbasins_EVJ.shp') %>%
   rename('SUBBASIN' = 'SUBBASIN_1')
@@ -37,6 +41,8 @@ for(i in 1:length(unique(riverineLB$BASIN_CODE))){
                                       AssessmentRegion = as.character(unique(z$ASSESS_REG)),
                                       WQS_ID_Prefix = as.character('RL'))
   subbasinOptionsByWQStype <- bind_rows(subbasinOptionsByWQStype, subbasinAssessmentOptions)
+  # in case segment split between two regions, just keep one, we already have waht we need from regional data
+  z <- z %>% distinct(WQS_ID, .keep_all = T)
   st_write(z, paste0('GIS/processedWQS/RL_', 
                      unique(z$BASIN_CODE), '.shp'))
 }
@@ -59,10 +65,23 @@ lakesLB <- st_join(st_zm(lakesL), dplyr::select(subbasins, BASIN_CODE, ASSESS_RE
   rename('Subbasin' = 'Basin_Code.y',
          'Basin_Code' = 'Basin_Code.x')
 
-View(filter(lakesLB, is.na(Subbasin)))
-View(filter(lakesLB, is.na(BASIN_CODE)))
-View(filter(lakesLB, is.na(ASSESS_REG)))
+#View(filter(lakesLB, is.na(Subbasin)))
+#View(filter(lakesLB, is.na(BASIN_CODE)))
+#View(filter(lakesLB, is.na(ASSESS_REG)))
 
+# make sure extra lines don't cause extra segments
+#tooMany <- lakesLB %>%
+#  group_by(WQS_ID) %>%
+#  mutate(n = n()) %>% ungroup() %>%
+#  filter(n>1)
+#if(nrow(tooMany) > 1){
+#  assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
+#    st_transform( st_crs(4326)) 
+#  for(i in 1:length(unique(tooMany$WQS_ID))){
+#    z <- filter(tooMany, WQS_ID %in% unique(tooMany$WQS_ID)[i]) %>%
+#      st_intersection(assessmentLayer)
+#  }
+#}
 
 for(i in 1:length(unique(lakesLB$BASIN_CODE))){
   z <- filter(lakesLB, BASIN_CODE == as.character(unique(lakesLB$BASIN_CODE)[i]))
@@ -74,6 +93,8 @@ for(i in 1:length(unique(lakesLB$BASIN_CODE))){
                                       AssessmentRegion = as.character(unique(z$ASSESS_REG)),
                                       WQS_ID_Prefix = as.character('LP'))
   subbasinOptionsByWQStype <- bind_rows(subbasinOptionsByWQStype, subbasinAssessmentOptions)
+  # in case segment split between two regions, just keep one, we already have waht we need from regional data
+  z <- z %>% distinct(WQS_ID, .keep_all = T)
   st_write(z, paste0('GIS/processedWQS/LP_', 
                      unique(z$BASIN_CODE), '.shp'))
 }
@@ -100,9 +121,9 @@ estuaryLB <- st_join(st_zm(estuaryL), dplyr::select(subbasins, BASIN_CODE, ASSES
          'Basin_Code' = 'Basin_Code.x')
 
 
-View(filter(estuaryLB, is.na(Subbasin)))
-View(filter(estuaryLB, is.na(BASIN_CODE)))
-View(filter(estuaryLB, is.na(ASSESS_REG)))
+#View(filter(estuaryLB, is.na(Subbasin)))
+#View(filter(estuaryLB, is.na(BASIN_CODE)))
+#View(filter(estuaryLB, is.na(ASSESS_REG)))
 
 
 for(i in 1:length(unique(estuaryLB$BASIN_CODE))){
@@ -115,6 +136,8 @@ for(i in 1:length(unique(estuaryLB$BASIN_CODE))){
                                       AssessmentRegion = as.character(unique(z$ASSESS_REG)),
                                       WQS_ID_Prefix = as.character('EL'))
   subbasinOptionsByWQStype <- bind_rows(subbasinOptionsByWQStype, subbasinAssessmentOptions)
+  # in case segment split between two regions, just keep one, we already have waht we need from regional data
+  z <- z %>% distinct(WQS_ID, .keep_all = T)
   st_write(z, paste0('GIS/processedWQS/EL_', 
                       unique(z$BASIN_CODE), '.shp'))
 }
@@ -141,9 +164,9 @@ estuaryPB <- st_join(st_zm(estuaryP), dplyr::select(subbasins, BASIN_CODE, ASSES
          'Basin_Code' = 'Basin_Code.x')
 
 
-View(filter(estuaryPB, is.na(Subbasin)))
-View(filter(estuaryPB, is.na(BASIN_CODE)))
-View(filter(estuaryPB, is.na(ASSESS_REG)))
+#View(filter(estuaryPB, is.na(Subbasin)))
+#View(filter(estuaryPB, is.na(BASIN_CODE)))
+#View(filter(estuaryPB, is.na(ASSESS_REG)))
 
 
 for(i in 1:length(unique(estuaryPB$BASIN_CODE))){
@@ -156,6 +179,8 @@ for(i in 1:length(unique(estuaryPB$BASIN_CODE))){
                                       AssessmentRegion = as.character(unique(z$ASSESS_REG)),
                                       WQS_ID_Prefix = as.character('EP'))
   subbasinOptionsByWQStype <- bind_rows(subbasinOptionsByWQStype, subbasinAssessmentOptions)
+  # in case segment split between two regions, just keep one, we already have waht we need from regional data
+  z <- z %>% distinct(WQS_ID, .keep_all = T)
   st_write(z, paste0('GIS/processedWQS/EP_', 
                      unique(z$BASIN_CODE), '.shp'))
 }

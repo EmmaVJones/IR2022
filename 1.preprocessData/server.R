@@ -770,7 +770,22 @@ shinyServer(function(input, output, session) {
     withProgress(message = 'Reading in Large Spatial File',
                  st_zm(
                    st_read(paste0('GIS/processedWQS/',typeName[1],'_', basinCodes(), '.shp') , fid_column_name = "OBJECTID")) ) %>%
-                   st_transform(4326)  })
+                   st_transform(4326) %>%
+      rename("GNIS_Name" = "GNIS_Nm",
+                "WATER_NAME" = "WATER_N" ,
+                "WQS_COMMENT" = "WQS_COM" ,
+                "Basin_Code" = "Basn_Cd",
+                "Edit_Date"  = "Edit_Dt",
+                "Tier_III" = "Tir_III" ,
+                "SECTION_DESCRIPTION" = 'SECTION',
+                "created_user" = "crtd_sr",      
+                "created_date" ="crtd_dt",
+                "last_edited_user" = "lst_dtd_s",
+                "last_edited_date" = "lst_dtd_d", "Shape_Length" = "Shp_Lng", 
+                "BASIN_CODE" = "BASIN_C", "ASSESS_REG"="ASSESS_" , "Subbasin" = "Subbasn") %>%
+      {if(input$WQSwaterbodyType %in% c('Lacustrine', 'Estuarine'))
+        rename(., "Shape_Area" = "Shap_Ar")
+        else .}  })
   
   WQSsEL <- reactive({
     req(WQSs(), input$WQSwaterbodyType == "Estuarine")
@@ -783,17 +798,21 @@ shinyServer(function(input, output, session) {
                    st_read(paste0('GIS/processedWQS/',typeName[2],'_', basinCodes(), '.shp') , fid_column_name = "OBJECTID")) ) %>%
       st_transform(4326) %>%
       # match polygon structure
-      rename('WQS_COMMEN' = 'WQS_COMMENT') %>% # match polygon structure
+      rename("GNIS_Name" = "GNIS_Nm",
+             "WATER_NAME" = "WATER_N" ,
+             #"WQS_COMMENT" = "WQS_COMMEN" , 
+             "WQS_COMMENT" = "WQS_COM" ,
+             "Basin_Code" = "Basn_Cd",
+             "Edit_Date"  = "Edit_Dt",
+             "Tier_III" = "Tir_III" ,
+             "SECTION_DESCRIPTION" = 'SECTION',
+             "created_user" = "crtd_sr",      
+             "created_date" ="crtd_dt",
+             "last_edited_user" = "lst_dtd_s",
+             "last_edited_date" = "lst_dtd_d", "Shape_Length" = "Shp_Lng", 
+             "BASIN_CODE" = "BASIN_C", "ASSESS_REG"="ASSESS_" , "Subbasin" = "Subbasn") %>%  # match polygon structure
       mutate(Shape_Area = NA) %>%
       dplyr::select(names(WQSs()))  })
-  
-  
-  # Make an object (once per Subbasin filter) that encompasses all WQS_ID options for said subbasin for manual WQS_ID adjustment modal, speeds rendering
-  WQS_ID_subbasinOptions <- reactive({req(WQSs())
-    if(input$WQSwaterbodyType != "Estuarine"){
-      as.character(WQSs()$WQS_ID)
-    } else {  c(as.character(WQSs()$WQS_ID), as.character(WQSsEL()$WQS_ID))   }      })
-  
   
   ## Map output of selected subbasin
   output$WQSVAmap <- renderLeaflet({
@@ -804,6 +823,15 @@ shinyServer(function(input, output, session) {
     m <- mapview( subbasins, label= subbasins$SUBBASIN, layer.name = 'Selected Subbasin',
                   popup= leafpop::popupTable(subbasins, zcol=c('BASIN_NAME', 'BASIN_CODE', 'SUBBASIN', 'ASSESS_REG', 'VAHU6_NOTE')))
     m@map %>% setView(st_bbox(subbasins)$xmax[[1]],st_bbox(subbasins)$ymax[[1]],zoom = 7)  })
+
+  
+  # Make an object (once per Subbasin filter) that encompasses all WQS_ID options for said subbasin for manual WQS_ID adjustment modal, speeds rendering
+  WQS_ID_subbasinOptions <- reactive({req(WQSs())
+    if(input$WQSwaterbodyType != "Estuarine"){
+      as.character(WQSs()$WQS_ID)
+    } else {  c(as.character(WQSs()$WQS_ID), as.character(WQSsEL()$WQS_ID))   }      })
+  
+  
   
   ### WQS reactive 
   observeEvent(input$WQSbegin, {
@@ -884,7 +912,7 @@ shinyServer(function(input, output, session) {
     WQSreactive_objects$finalWQS <- WQSreactive_objects$WQSlookup
     # Make dataset of all selectable sites on map
     #WQSreactive_objects$sitesUniqueFin <- WQSreactive_objects$conventionals_DWQS_Region 
-
+    
   })
   
   #  # Make dataset of all selectable sites on map
@@ -1342,7 +1370,7 @@ shinyServer(function(input, output, session) {
               filter(WQSsEL(), WQS_ID %in%
                        filter(WQSreactive_objects$snap_input, StationID %in% WQSreactive_objects$namesToSmash)$WQS_ID) ) 
         else . } %>%
-      #st_drop_geometry() %>%
+      st_drop_geometry() %>%
       dplyr::select(WQS_ID, everything()) %>%
       datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'))  })
   
@@ -1386,8 +1414,5 @@ shinyServer(function(input, output, session) {
                  else . } %>%
                as.data.frame(), "WQSlookupTable")
   })  
-  
-  
-  
   
 })

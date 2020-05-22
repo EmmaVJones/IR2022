@@ -28,29 +28,69 @@ test3 <- st_zm(st_read('GIS/WQS_layers_05082020.gdb', layer = 'estuarinepolygons
 
 test4 <- test3 %>%
   filter(BASIN %in% filter(basinCodesConversion, Basin_Code %in% c('James-Lower'))$BASIN)
-
-
-WQSwaterbodyType <- 'Riverine'
-
-DEQregion <- 'NRO'
-
-WQSs <-   st_zm(st_read('GIS/processedWQS/RL_1A.shp') , fid_column_name = "OBJECTID")
-
 #basinCodes <- filter(basinAssessmentRegion, BASIN %in% c('2A','2B','2C','3','5A', '7A')) %>% #unique(WQSstatewide()$BASIN)) %>%
 #    filter(ASSESS_REG %in% 'PRO') %>% #input$WQSDEQregionSelection) %>%
 #    filter(Basin_Code %in% 'James-Lower') %>% #input$WQSsubbasinSelection) %>%
 #    distinct(BASIN_CODE) %>% 
 #    pull() 
 
+
+
+
+
+
+WQSwaterbodyType <- 'Estuarine' #"Riverine"   "Lacustrine" "Estuarine" 
+
+DEQregion <- 'PRO'
+
+subbasinSelection <- c( "Appomattox")
+
+WQSs <-   st_zm(st_read('GIS/processedWQS/EP_1A.shp') , fid_column_name = "OBJECTID") %>%
+  st_transform(4326) %>%
+  rename("GNIS_Name" = "GNIS_Nm",
+         "WATER_NAME" = "WATER_N" ,
+         "WQS_COMMENT" = "WQS_COM" ,
+         "Basin_Code" = "Basn_Cd",
+         "Edit_Date"  = "Edit_Dt",
+         "Tier_III" = "Tir_III" ,
+         "SECTION_DESCRIPTION" = 'SECTION',
+         "created_user" = "crtd_sr",      
+         "created_date" ="crtd_dt",
+         "last_edited_user" = "lst_dtd_s",
+         "last_edited_date" = "lst_dtd_d", "Shape_Length" = "Shp_Lng", 
+         "BASIN_CODE" = "BASIN_C", "ASSESS_REG"="ASSESS_" , "Subbasin" = "Subbasn") %>%
+  {if(WQSwaterbodyType %in% c('Lacustrine', 'Estuarine'))
+    rename(., "Shape_Area" = "Shap_Ar")
+    else .}
+
+WQSsEL <- st_zm(st_read('GIS/processedWQS/EL_1A.shp', fid_column_name = "OBJECTID"))%>%
+    st_transform(4326) %>%
+    # match polygon structure
+    rename("GNIS_Name" = "GNIS_Nm",
+           "WATER_NAME" = "WATER_N" ,
+           #"WQS_COMMENT" = "WQS_COMMEN" , 
+           "WQS_COMMENT" = "WQS_COM" ,
+           "Basin_Code" = "Basn_Cd",
+           "Edit_Date"  = "Edit_Dt",
+           "Tier_III" = "Tir_III" ,
+           "SECTION_DESCRIPTION" = 'SECTION',
+           "created_user" = "crtd_sr",      
+           "created_date" ="crtd_dt",
+           "last_edited_user" = "lst_dtd_s",
+           "last_edited_date" = "lst_dtd_d", "Shape_Length" = "Shp_Lng", 
+           "BASIN_CODE" = "BASIN_C", "ASSESS_REG"="ASSESS_" , "Subbasin" = "Subbasn") %>%  # match polygon structure
+    mutate(Shape_Area = NA) %>%
+    dplyr::select(names(WQSs)) 
+
 basinCodes <- filter(subbasinOptionsByWQStype, waterbodyType %in% WQSwaterbodyType ) %>%
   filter(AssessmentRegion %in% DEQregion) %>%
-  filter(Basin_Code %in% c( "Potomac-Lower")) %>%
+  filter(Basin_Code %in% subbasinSelection) %>%
   distinct(SubbasinOptions) %>% 
   pull() 
 
 WQSlookup <- loadData("WQSlookupTable")
 conventionals_DWQS_Region <- st_intersection(conventionals_DWQS, 
-                                             filter(basin7, BASIN_CODE %in% basinCodes))
+                                             filter(subbasins, BASIN_CODE %in% basinCodes))
 
 # this is all sites limited to waterbody type and subbasin
 snap_input <- readRDS('data/processedWQS/WQStable.RDS') %>%
