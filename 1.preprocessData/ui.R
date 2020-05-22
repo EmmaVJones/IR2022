@@ -72,7 +72,7 @@ shinyUI(fluidPage(theme= "yeti.css",
                                                             column(3, textOutput('snapTooManySummary1WQS')),
                                                             column(3, textOutput('noSnapSummary1WQS')),
                                                             column(3, textOutput('regionalSitesSummary1WQS'))),
-                                                   #verbatimTextOutput('test'),
+                                                   verbatimTextOutput('test'),
                                                    
                                                    br()) ),
                                         tabPanel('Manual Review',

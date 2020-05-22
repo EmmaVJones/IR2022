@@ -39,13 +39,13 @@ test4 <- test3 %>%
 
 
 
-WQSwaterbodyType <- 'Estuarine' #"Riverine"   "Lacustrine" "Estuarine" 
+WQSwaterbodyType <- 'Riverine' #"Riverine"   "Lacustrine" "Estuarine" 
 
-DEQregion <- 'PRO'
+DEQregion <- 'BRRO'
 
-subbasinSelection <- c( "Appomattox")
+subbasinSelection <- c( "James-Middle")
 
-WQSs <-   st_zm(st_read('GIS/processedWQS/EP_1A.shp') , fid_column_name = "OBJECTID") %>%
+WQSs <-   st_zm(st_read('GIS/processedWQS/RL_2B.shp') , fid_column_name = "OBJECTID") %>%
   st_transform(4326) %>%
   rename("GNIS_Name" = "GNIS_Nm",
          "WATER_NAME" = "WATER_N" ,
@@ -304,6 +304,82 @@ CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE,
 palTooMany <- colorNumeric(c('green','yellow', 'blue','red', 'pink','purple'), domain =tooMany$colorFac)
 
 
+
+CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE, 
+             options= leafletOptions(zoomControl = TRUE,minZoom = 3, maxZoom = 20)) %>%
+  setView(-78, 37.5, zoom=7)  %>% 
+  {if("sfc_MULTIPOLYGON" %in% class(st_geometry(WQSs))) 
+    addPolygons(., data = WQSs(),
+                layerId = ~WQS_ID,
+                label=~WQS_ID, group="All WQS in selected Region/Basin", 
+                color = 'blue', #color = ~palTooMany(reactive_objects$tooMany$colorFac),
+                weight = 3,stroke=T,
+                popup=leafpop::popupTable(WQSs),
+                popupOptions = popupOptions( maxHeight = 100 )) %>% 
+      hideGroup("All WQS in selected Region/Basin") 
+    else addPolylines(., data = WQSs,
+                      layerId = ~WQS_ID,
+                      label=~WQS_ID, group="All WQS in selected Region/Basin", 
+                      color = 'blue', 
+                      weight = 3,stroke=T,
+                      popup=leafpop::popupTable(WQSs()),
+                      popupOptions = popupOptions( maxHeight = 100 )) %>% 
+      hideGroup("All WQS in selected Region/Basin")  } %>%
+  addPolygons(data= assessmentRegions,  color = 'black', weight = 1,
+              fillColor= ~pal(assessmentRegions$ASSESS_REG), fillOpacity = 0.5,stroke=0.1,
+              group="Assessment Regions",
+              popup=leafpop::popupTable(assessmentRegions, zcol=c('ASSESS_REG'))) %>% hideGroup('Assessment Regions') %>% #,'VAHU6','FedName'))) %>% hideGroup('Assessment Regions') %>%
+  addCircleMarkers(data=tooMany_sites,
+                   layerId = ~paste0(StationID,'_tooMany'),  # need unique layerID 
+                   label=~StationID, group="Stations Snapped to > 1 WQS Segment", 
+                   color='black', fillColor='red', radius = 5,
+                   fillOpacity = 0.8,opacity=0.5,weight = 2,stroke=T) %>%
+  {if(nrow(tooMany_sf) > 0 & "sfc_MULTIPOLYGON" %in% class(st_geometry(tooMany_sf))) 
+    addPolygons(., data=tooMany_sf,
+                layerId = ~paste0(WQS_ID,'_tooMany'),  # need unique layerID 
+                label=~WQS_ID, group="WQS Segments of Stations Snapped to > 1 Segment", 
+                color = ~palTooMany(tooMany_sf$colorFac),weight = 3,stroke=T,
+                popup=leafpop::popupTable(tooMany_sf),
+                popupOptions = popupOptions( maxHeight = 100 )) %>% 
+      hideGroup("All WQS in selected Region/Basin")
+    else . } %>%
+  {if(nrow(tooMany_sf) > 0 & c("sfc_LINESTRING") %in% class(st_geometry(tooMany_sf)))
+    addPolylines(., data=tooMany_sf,
+                 layerId = ~paste0(WQS_ID,'_tooMany'),  # need unique layerID 
+                 label=~WQS_ID, group="WQS Segments of Stations Snapped to > 1 Segment", 
+                 color = ~palTooMany(tooMany_sf$colorFac),weight = 3,stroke=T,
+                 popup=leafpop::popupTable(tooMany_sf),
+                 popupOptions = popupOptions( maxHeight = 100 )) %>%
+      hideGroup("WQS Segments of Stations Snapped to > 1 Segment")
+    else . } %>%
+  {if(nrow(tooMany_sf_EL) > 0)
+    addPolylines(., data=tooMany_sf_EL,
+                 layerId = ~paste0(WQS_ID,'_tooMany'),  # need unique layerID 
+                 label=~WQS_ID, group="WQS Segments of Stations Snapped to > 1 Segment", 
+                 color = ~palTooMany(tooMany_sf_EL$colorFac),weight = 3,stroke=T,
+                 popup=leafpop::popupTable(tooMany_sf_EL),
+                 popupOptions = popupOptions( maxHeight = 100 )) %>%
+      hideGroup("WQS Segments of Stations Snapped to > 1 Segment")  
+    else . } %>%
+  addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                   overlayGroups = c("Adjusted Sites",
+                                     "Stations Snapped to 1 WQS Segment",
+                                     "Stations Snapped to > 1 WQS Segment",
+                                     "WQS Segments of Stations Snapped to > 1 Segment",
+                                     "Stations Snapped to 0 WQS Segments",
+                                     'Conventionals Stations in Basin',
+                                     "All WQS in selected Region/Basin",'Assessment Regions'),
+                   options=layersControlOptions(collapsed=T),
+                   position='topleft') %>%
+  addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                   overlayGroups = c('Conventionals Stations in Basin',"All WQS in selected Region/Basin",'Assessment Regions'),
+                   options=layersControlOptions(collapsed=T),
+                   position='topleft')
+
+
+
+
+
 CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE, 
              options= leafletOptions(zoomControl = TRUE,minZoom = 3, maxZoom = 20)) %>%
   setView(-78, 37.5, zoom=7)  %>% 
@@ -330,15 +406,15 @@ CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE,
                    popupOptions = popupOptions( maxHeight = 100 )) %>%
       hideGroup("WQS Segments of Stations Snapped to > 1 Segment")}
     else . } %>%
-  {if(nrow(tooMany_sf_EL) > 0)
-    addPolylines(., data=tooMany_sf_EL,
-                 layerId = ~paste0(WQS_ID,'_tooMany'),  # need unique layerID 
-                 label=~WQS_ID, group="WQS Segments of Stations Snapped to > 1 Segment", 
-                 color = ~palTooMany(tooMany_sf_EL$colorFac),weight = 3,stroke=T,
-                 popup=leafpop::popupTable(tooMany_sf_EL),
-                 popupOptions = popupOptions( maxHeight = 100 )) %>%
-      hideGroup("WQS Segments of Stations Snapped to > 1 Segment")  
-    else . } %>%
+#  {if(nrow(tooMany_sf_EL) > 0)
+#    addPolylines(., data=tooMany_sf_EL,
+#                layerId = ~paste0(WQS_ID,'_tooMany'),  # need unique layerID 
+#                 label=~WQS_ID, group="WQS Segments of Stations Snapped to > 1 Segment", 
+#                 color = ~palTooMany(tooMany_sf_EL$colorFac),weight = 3,stroke=T,
+#                 popup=leafpop::popupTable(tooMany_sf_EL),
+#                 popupOptions = popupOptions( maxHeight = 100 )) %>%
+#      hideGroup("WQS Segments of Stations Snapped to > 1 Segment")  
+#    else . } %>%
   addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                    overlayGroups = c("Adjusted Sites",
                                      "Stations Snapped to 1 WQS Segment",

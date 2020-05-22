@@ -14,12 +14,6 @@ assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
   st_transform( st_crs(4326)) 
 subbasins <- st_read('GIS/DEQ_VAHUSB_subbasins_EVJ.shp') %>%
   rename('SUBBASIN' = 'SUBBASIN_1')
-#basin7 <- st_read('GIS/deq_basins07.shp') %>%
-#  st_transform(4326) %>%
-#  mutate(BASIN_CODE = case_when(BASIN_CODE == '3-' ~ '3',
-#                                BASIN_CODE == '8-' ~ '8',
-#                                BASIN_CODE == '9-' ~ '9',
-#                                TRUE ~ as.character(BASIN_CODE)))
 
 
 
@@ -942,7 +936,16 @@ shinyServer(function(input, output, session) {
   ### WQS REVIEW TAB ##################################################################################
   
   output$test <- renderPrint({req(WQSs())
-    class(st_geometry(WQSs()))})
+    #paste(
+    #paste('WQSreactive_objects$tooMany_sites', WQSreactive_objects$tooMany_sites),
+    #paste('nrow', nrow(WQSreactive_objects$tooMany_sf) ),
+    #paste("sfc_MULTILINESTRING" %in% class(st_geometry(WQSreactive_objects$tooMany_sf))), sep ='<br>')
+    #  if(#nrow(WQSreactive_objects$tooMany_sf) > 0 & 
+    #    "sfc_MULTILINESTRING" %in% class(st_geometry(WQSreactive_objects$tooMany_sf)) 
+    #     ){
+    #    print('yes')}
+    class(st_geometry(WQSreactive_objects$tooMany_sf))
+    })
   
   
   # WQS Map
@@ -1044,7 +1047,7 @@ shinyServer(function(input, output, session) {
                       popupOptions = popupOptions( maxHeight = 100 )) %>% 
             hideGroup("All WQS in selected Region/Basin")
           else . } %>%
-        {if(nrow(WQSreactive_objects$tooMany_sf) > 0 & "sfc_MULTILINESTRING" %in% class(st_geometry(WQSreactive_objects$tooMany_sf)))
+        {if(nrow(WQSreactive_objects$tooMany_sf) > 0 & "sfc_LINESTRING" %in% class(st_geometry(WQSreactive_objects$tooMany_sf)))
           addPolylines(., data=WQSreactive_objects$tooMany_sf,
                        layerId = ~paste0(WQS_ID,'_tooMany'),  # need unique layerID 
                        label=~WQS_ID, group="WQS Segments of Stations Snapped to > 1 Segment", 
