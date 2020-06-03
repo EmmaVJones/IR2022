@@ -2,16 +2,8 @@
 assessmentLayer <- st_read('GIS/AssessmentRegions_VA84_basins.shp') %>%
   st_transform( st_crs(4326)) # transform to WQS84 for spatial intersection
 
-subbasinLayer <- st_read('GIS/deq_basins07.shp') %>%
-  mutate(BASIN_CODE = case_when(BASIN_CODE == '3-' ~ '3',
-                                BASIN_CODE == '8-' ~ '8',
-                                BASIN_CODE == '9-' ~ '9',
-                                TRUE ~ as.character(BASIN_CODE)),
-         SUBBASIN = case_when(BASIN_CODE == '3' ~ 'Rappahannock River',
-                              BASIN_CODE == '8-' ~ 'York River',
-                              BASIN_CODE == '9' ~ 'New River', 
-                              TRUE ~ as.character(SUBBASIN))) %>%
-  st_transform( st_crs(4326)) # transform to WQS84 for spatial intersection
+subbasinLayer <- st_read('GIS/DEQ_VAHUSB_subbasins_EVJ.shp')  %>%
+  rename('SUBBASIN' = 'SUBBASIN_1')
 
 
 
@@ -62,4 +54,4 @@ if(nrow(distinctSites_sf) < nrow(distinctSites)){
   
 }
 
-rm(closest)
+rm(closest); rm(missingSites); rm(i)

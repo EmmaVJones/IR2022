@@ -46,6 +46,9 @@ vignettes/*.pdf
 0.CitmonDataOrganization/rsconnect/
 1.preprocessData/GIS/
 1.preprocessData/data/
+1.preprocessData/data_old/
+1.preprocessData/WQSlookupTable/
+1.preprocessData/appTesting/
 1.preprocessData/www/
 1.preprocessData/rsconnect/
 1.preprocessData/WQSlookupTable/

@@ -17,6 +17,13 @@ basinCodesConversion <- read_csv('data/basinCodeConversion.csv') %>%
 subbasins <- st_read('GIS/DEQ_VAHUSB_subbasins_EVJ.shp') %>%
   rename('SUBBASIN' = 'SUBBASIN_1')
 
+
+assessmentLayer <- st_read('data/GIS/AssessmentRegions_VA84_basins.shp') %>%
+  st_transform( st_crs(4326)) %>%
+  group_by(VAHUSB, ASSESS_REG) %>%
+  summarise() %>% ungroup()
+
+
 # Riverine split up
 riverineL <- st_read('GIS/WQS_layers_05082020.gdb', layer = 'riverine_05082020' , fid_column_name = "OBJECTID") %>%
   st_transform(4326)   # transform to WQS84 for spatial intersection 
@@ -32,19 +39,33 @@ riverineLB <- st_join(st_zm(riverineL), dplyr::select(subbasins, BASIN_CODE, ASS
 
 
 for(i in 1:length(unique(riverineLB$BASIN_CODE))){
-  z <- filter(riverineLB, BASIN_CODE == as.character(unique(riverineLB$BASIN_CODE)[i]))
+  z <- filter(riverineLB, BASIN_CODE == as.character(unique(riverineLB$BASIN_CODE)[i])) %>%
+    select(-ASSESS_REG)
   # identify which assessment regions have data for app, only way to verify that a given waterbody belongs to a region
   #z1 <- st_intersection(filter(subbasins, BASIN_CODE == unique(riverineLB$BASIN_CODE)[i] ),
   #                      assessmentRegions)
+  z1 <- st_join(z, assessmentLayer, join = st_intersects)
+  
+  for(k in 1:length(unique(z1$VAHUSB))){
+    z2 <- filter(z1, VAHUSB == as.character(unique(z1$VAHUSB)[k])) %>%
+      # in case segment split between two regions, just keep one, we already have waht we need from regional data
+      distinct(WQS_ID, .keep_all = T)
+    if(nrow(z2) > 0){
+      st_write(z2, paste0('processedWQS_fin3/RL_', 
+                          as.character(unique(z2$BASIN_CODE)),'_',
+                          as.character(unique(z2$VAHUSB)), '.shp'), driver = "ESRI Shapefile")
+    }
+  }
+  
   subbasinAssessmentOptions <- tibble(waterbodyType = as.character('Riverine'),
                                       SubbasinOptions = as.character(unique(z$BASIN_CODE)),
                                       AssessmentRegion = as.character(unique(z$ASSESS_REG)),
                                       WQS_ID_Prefix = as.character('RL'))
   subbasinOptionsByWQStype <- bind_rows(subbasinOptionsByWQStype, subbasinAssessmentOptions)
-  # in case segment split between two regions, just keep one, we already have waht we need from regional data
-  z <- z %>% distinct(WQS_ID, .keep_all = T)
-  st_write(z, paste0('GIS/processedWQS/RL_', 
-                     unique(z$BASIN_CODE), '.shp'))
+  ## in case segment split between two regions, just keep one, we already have waht we need from regional data
+  #z <- z %>% distinct(WQS_ID, .keep_all = T)
+  #st_write(z, paste0('GIS/processedWQS/RL_', 
+  #                   unique(z$BASIN_CODE), '.shp'))
 }
 
 rm(riverineLB);rm(riverineL)

@@ -9,6 +9,7 @@ library(inlmisc)
 library(DT)
 library(writexl)
 library(shinycssloaders)
+#library(testthat)
 
 source('appModules/multipleDependentSelectizeArguments.R')
 source('snappingFunctions/snapOrganizationFunctions_messAround.R') # turn this back on when messing with AU side of things again

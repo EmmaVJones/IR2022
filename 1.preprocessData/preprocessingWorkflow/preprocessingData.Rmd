@@ -14,9 +14,11 @@ library(readxl)
 
 ```
 
-This project is a outlines how to rebuild the automated preprocessing steps completed by assessment staff for 2020IR for the 2022IR with adjustments to incorporate updates to the WQS layer and attribution process.
+This project is a outlines how to rebuild the automated preprocessing steps completed by assessment staff for 2020IR for the 2022IR with adjustments to incorporate updates to the WQS layer and WQS and AU attribution process.
 
 Each step will be written as individual modules where lengthy code to complete each step is stored elsewhere and sourced for use. This method of organizing the project helps with project maintenance and troubleshooting specific problem areas when they occur.
+
+# Water Quality Standards
 
 ## WQS Split up
 
@@ -25,7 +27,7 @@ After each update of WQS layers, it is important to split these layers into bite
 Because most (all) DEQ subbasin layers incorrectly attribute the upper Potomac basin inside the Shenandoah in VRO, we will create our own layer to work from that fixes this error. 
 
 ```{r fix subbasin layer}
-source('newDEQsubbasinLayerCreation.R')
+#source('./preprocessingModules/newDEQsubbasinLayerCreation.R') # only run once as needed
 ```
 
 That really only needs to be done once such that 'GIS/DEQsubbasins_EVJ.shp' is created. This is the layer the splitWQSbySubbasin will use.
@@ -33,7 +35,7 @@ That really only needs to be done once such that 'GIS/DEQsubbasins_EVJ.shp' is c
 Now we take that newly created layer and use it to split up each of the riverine, lakes, and both types of estuary layers appropriately.
 
 ```{r splitWQS by subbasin for app}
-source('splitWQSbySubbasin.R')
+#source('./preprocessingModules/splitWQSbySubbasin.R') # only run once as needed
 ```
 
 Now we can move on to actual data processing.
@@ -51,7 +53,7 @@ This version of the method smashed together a fully QAed version of the conventi
 #### Conventionals data smashing 2013-2018 + 2019
 
 ```{r conventionals smash}
-#source('preprocessingModules/conventionalsSmashing2013-2019.R')
+#source('./preprocessingModules/conventionalsSmashing2013-2019.R')
 ```
 
 So we will use this as a pretend dataset to simuate what one could expect from 2022 IR, e.g. some attributed (AU and WQS) stations as well as some new stuff. This exercise will be conducted for BRRO, but the methods will apply statewide.
@@ -72,7 +74,7 @@ No matter where you are pulling data in from, you need to limit these computatio
 #  select(FDT_STA_ID:FDT_SPG_CODE, Latitude:STA_CBP_NAME, -FDT_DATE_TIME) # drop data to avoid any confusion 
 #rm(conventionals) # remove full conventionals dataset to save memory
 
-distinctSites <- readRDS('data/conventionals_D.RDS')
+distinctSites <- readRDS('./data/conventionals_D.RDS') # for some reason doesn't work in chunk but does in console
 ```
 
 ### Attach assessment region and subbasin information
@@ -295,4 +297,109 @@ write.csv(WQStable, 'data/processedWQS/WQStable.csv', row.names = F)
 ```
 
 
+
+# Assessment Unit
+
+## Assessment Unit Info from Last Cycle
+
+The logical starting point is to take all the unique stations that need to be assessed (distinctSites_sf from above) and join AU information by StationID where possible before going to more computationally intensive methods. 
+
+Bring in Cleo's final stations data from 2020 cycle.
+
+```{r cleo 2020 final stations}
+final2020 <- st_read('GIS/2020_wqms.shp') %>%
+  st_transform(4326)
+```
+
+Join distinct sites to AU information to get all available free data.
+
+```{r AU join}
+distinctSites_AU <- left_join(distinctSites_sf %>% st_drop_geometry(), 
+                              final2020 %>% st_drop_geometry(), # bc two spatial objects need to drop geometry to join on tabular data
+                              by = c('FDT_STA_ID' = 'STATION_ID')) %>%
+  group_by(FDT_STA_ID) %>%
+  mutate(n = n())
+
+# Find any duplicates
+View(filter(distinctSites_AU, n >1)) # makes sense, these sites are being used for riverine and lacustrine assessment
+```
+
+Organize stations by whether or not they have AU data.
+
+```{r AU haves and have nots}
+# Needs Work
+distinctSites_AUtoDo <- filter(distinctSites_AU, is.na(ID305B_1)) %>%
+  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+           remove = T, # don't remove these lat/lon cols from df
+           crs = 4326)
+
+# All good for assessment app (once we join WQS info from lookup table)
+distinctSites_AU <- filter(distinctSites_AU, !is.na(ID305B_1)) %>%
+  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+           remove = T, # don't remove these lat/lon cols from df
+           crs = 4326)
+```
+
+## Spatially Join AU information
+
+Since it is much faster to look for spatial joins by polygons compared to snapping to lines, we will run spatial joins by estuarine polys and reservoir layers first.
+
+##### Estuarine Polygons AU
+
+Find any sites that fall into an estuary AU polygon. This method is only applied to subbasins that intersect estuarine areas.
+Removes any estuarine sites from the data frame of unique sites that need AU information.
+
+```{r estuary methods AU}
+source('preprocessingModules/AU_Poly.R')
+
+# Bring in estuary layer
+estuaryPolysAU <- st_read('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_estuarine.shp') %>%
+   st_transform( 4326 )
+  
+estuaryPolysAUjoin <- polygonJoinAU(estuaryPolysAU, distinctSites_AUtoDo, estuaryTorF = T)
+
+rm(estuaryPolysAU) # clean up workspace
+```
+
+Remove stations that fell inside estuarine polygons from the 'to do' list.
+
+```{r remove estuary poly sites}
+distinctSitesToDo <- filter(distinctSitesToDo, ! FDT_STA_ID %in% WQStable$StationID)
+```
+
+
+##### Lake Polygons
+
+Find any sites that fall into a lake WQS polygon. This method is applied to all subbasins.
+Removes any lake sites from the data frame of unique sites that need WQS information.
+
+
+```{r lake methods}
+source('preprocessingModules/WQS_lakePoly.R')
+
+lakesPoly <- st_read('GIS/WQS_layers_05082020.gdb', layer = 'lakes_reservoirs_05082020' , fid_column_name = "OBJECTID") %>%
+  st_transform(4326)
+
+WQStable <- lakePolygonJoin(lakesPoly, distinctSitesToDo, WQStable)
+
+rm(lakesPoly) # clean up workspace
+```
+
+Remove stations that fell inside lake polygons from the 'to do' list.
+
+```{r remove estuary poly sites}
+distinctSitesToDo <- filter(distinctSitesToDo, ! FDT_STA_ID %in% WQStable$StationID)
+```
+
+
+
+### Spatially Join WQS Lines
+
+Now on to the more computationally heavy WQS line snapping methods. First we will try to attach riverine WQS, and where stations remain we will try the estuarine WQS snap.
+
+##### Riverine Lines
+
+Buffer all sites that don't fall into a polygon layer. The output will add a field called `Buffer Distance` to the WQStable to indicate distance required for snapping. This does not get transported to the data of record, but it is useful to keep for now for QA purposes. If more than one segment is found within a set buffer distance, that many rows will be attached to the WQStable with the identifying station name. It is up to the QA tool to help the user determine which of these UID's are correct and drop the other records.
+
+Removes any riverine sites from the data frame of unique sites that need WQS information.
 

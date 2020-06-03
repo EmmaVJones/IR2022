@@ -25,13 +25,13 @@ subbasins <- mutate(assessmentLayer, subbasin = str_extract(VAHU6, ".{2}")) %>%
   
 
 # check against Cleo/Emma version
-cleo <- read_csv('data/basinAssessmentReg_clb_EVJ.csv') %>%
+cleo <- read_csv('./data_old/basinAssessmentReg_clb_EVJ.csv') %>%
   filter(VAHU6_NOTE != 'NOT IN THIS REGION')
 
 subbasins2 <- left_join(subbasins, cleo, by = c("subbasin" = "SubbasinVAHU6code", "ASSESS_REG"))
 
 
-st_write(subbasins2, 'GIS/DEQ_VAHU_subbasins_EVJ.shp')
+#st_write(subbasins2, 'GIS/DEQ_VAHU_subbasins_EVJ.shp')
 
 rm(basin7); rm(assessmentLayer); rm(subbasins); rm(subbasins2); rm(cleo)
 
@@ -60,15 +60,15 @@ x7C <- filter(subbasins, BASIN_CODE == '7C')
 x7CNew <- st_difference(x7C, x7D) %>%
   dplyr::select(names(subbasins))
 
-mapview(x7CNew)+mapview(x7D) # perfect!
+#mapview(x7CNew)+mapview(x7D) # perfect!
 
 subbasinsNew <- filter(subbasins, ! BASIN_CODE %in% c('7C','7D')) %>% # get rid of old
   ## add back in new
   rbind(x7CNew) %>%
   rbind(x7D)
 
-mapview(subbasinsNew)
+#mapview(subbasinsNew)
 
-st_write(subbasinsNew,'GIS/DEQ_VAHUSB_subbasins_EVJ.shp')
+#st_write(subbasinsNew,'GIS/DEQ_VAHUSB_subbasins_EVJ.shp')
 
 rm(subbasinsNew); rm(x7D);rm(x7C);rm(x7CNew)

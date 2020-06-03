@@ -1,4 +1,4 @@
-cit <- read_csv('James Beckley/csv/RCABenthicMetricsBySample2019_benthicScores.csv')
+cit <- read_csv('James Beckley/csv/2019VASOS_Data for DEQ_approvedMuddy.csv')
 
 ui <- fluidPage(
   headerPanel(
@@ -90,7 +90,7 @@ server <- function(input, output, session){
   
   # Renamed columns into reproducible format for app, this is also the original raw data holder
   observeEvent(input$adjustInput, {
-    reactive_objects$sites_Adjusted <- reassignColumns(reactive_objects$sites_input, RCAStationID, LAT, LON) %>%#`Station Name`, `Latitude DD`, `Longitude DD`) %>%#Group_Station_ID, Latitude, Longitude)%>%
+    reactive_objects$sites_Adjusted <- reassignColumns(reactive_objects$sites_input, `Station ID`, Latitude, Longitude) %>%#`Station Name`, `Latitude DD`, `Longitude DD`) %>%#Group_Station_ID, Latitude, Longitude)%>%
     # add UID now so it trickles through continuously to all other variables
     group_by(originalStationID, Latitude, Longitude) %>%
       mutate(UID = group_indices()) %>%#row_number()) %>%
@@ -309,28 +309,7 @@ server <- function(input, output, session){
                           actionButton('accept_cancel', 'Cancel', 
                                        style='color: #fff; background-color: #337ab7; border-color: #2e6da4;font-size:120%', 
                                        icon=icon('window-close'))    ))  })
-  #  forAcceptModalTable <- reactive({
-  #    req(userEnteredStationDataTable())
-  #    userEnteredStationDataTable() %>% st_drop_geometry() %>% as.data.frame()})
-  
-  # Accept Modal table
-  #  output$acceptTable_editable <- DT::renderDataTable({
-  #    datatable(forAcceptModalTable(), 
-  #              selection='none', rownames=FALSE, editable = T, 
-  #              options = list(scrollY = '125px', paging = FALSE, scrollX=TRUE, dom="t"))})
-  
-  #  # Observe User changes to modal table 
-  #  observeEvent(input$acceptTable_editable_cell_edit, {
-  #    #dat = userEnteredStationDataTable() %>% st_drop_geometry() %>% as.data.frame()
-  #    info = input$acceptTable_editable_cell_edit
-  #    str(info)
-  #    i = info$row
-  #    j = info$col + 1  # column index offset by 1
-  #    v = info$value
-  #    forAcceptModalTable()[i, j] <<- DT::coerceValue(v, forAcceptModalTable()[i, j])
-  #    replaceData(dataTableProxy('acceptTable_editable_cell_edit'), forAcceptModalTable(), resetPaging = FALSE, rownames = FALSE)
-  #  })
-  
+ 
   # Do something with Accepted Site(s)
   observeEvent(input$accept_cancel, {removeModal()})
   observeEvent(input$accept_ok, {
@@ -348,7 +327,11 @@ server <- function(input, output, session){
     
     ## Remove Site from "to do' list
     reactive_objects$sitesUnique <- filter(reactive_objects$sitesUnique, !(originalStationID %in% reactive_objects$sites_Accepted))
-    
+    print(reactive_objects$sites_Accepted)
+    print('br')
+    print(reactive_objects$sitesUnique)
+    print('br')
+    print(filter(reactive_objects$sitesUnique, !(originalStationID %in% reactive_objects$sites_Accepted)))
     # Empty map selection
     reactive_objects$namesToSmash <- NULL
     
@@ -651,6 +634,7 @@ server <- function(input, output, session){
            inputData = as.data.frame(reactive_objects$sites_input)),
       path = file, format_headers=F, col_names=T) }) 
   
+
   
 }
 

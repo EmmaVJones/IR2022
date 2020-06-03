@@ -1,0 +1,10 @@
+sudo ls /var/lib/rstudio-connect/apps/43/126/WQSlookupTable
+
+
+# remove file
+ sudo rm /var/lib/rstudio-connect/apps/43/126/WQSlookupTable/20200528_134555_WQSlookup.csv
+
+# Copy file for download (and send to Rex)
+ sudo cp /var/lib/rstudio-connect/apps/43/126/WQSlookupTable/20200528_080638_WQSlookup.csv /home/aaejones/temp
+ sudo chmod 755 /home/aaejones/temp/20200528_080638_WQSlookup.csv
+# Then download with putty
