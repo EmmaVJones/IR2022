@@ -82,3 +82,9 @@ loadData <- function(outputDir) {
     distinct(StationID, WQS_ID, .keep_all = T)
   data
 }
+
+
+# Weblink to internal DEQ app constants
+webLinkpart1 <- "<b><a href='https://gis.deq.virginia.gov/GISStaffApplication/?query=WQM%20Stations%20(All%20stations%20with%20full%20attributes),STATION_ID,"
+webLinkpart2 <- "&showLayers=DEQInternalDataViewer_1723;WATER%20LAYERS;WQM%20Stations%20(All%20stations%20with%20full%20attributes);"
+webLinkpart3 <- "&level=14' target='_blank'>Open Link In New Tab</a></b>" 

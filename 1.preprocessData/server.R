@@ -830,11 +830,21 @@ shinyServer(function(input, output, session) {
   
   ### WQS reactive 
   observeEvent(input$WQSbegin, {
+    
+    # Weblink component based on input$WQSwaterbodyType
+    if(input$WQSwaterbodyType == 'Riverine'){WQSreactive_objects$otherLayers <- "Streams/Rivers%20WQS;Public%20water%20supply;Trout;All%20other%20streams/rivers"}
+    if(input$WQSwaterbodyType == 'Lacustrine'){WQSreactive_objects$otherLayers <- "Lakes/Reservoirs%20WQS;Public%20Water%20Supply;Trout;All%20other%20lakes/reservoirs"}
+    if(input$WQSwaterbodyType == 'Estuarine'){WQSreactive_objects$otherLayers <- "Estuaries%20WQS;Estuarine%20waters;Tidal%20flow%20paths"}
+    
+    
     # Bring in existing WQS information
     WQSreactive_objects$WQSlookup <- loadData("WQSlookupTable")
     # limit conventionals_DWQS to just chosen subbasin
     WQSreactive_objects$conventionals_DWQS_Region <- st_intersection(conventionals_DWQS, 
-                                                                     filter(subbasins, BASIN_CODE %in% basinCodes()))
+                                                                     filter(subbasins, BASIN_CODE %in% basinCodes())) %>%
+      mutate(`DEQ GIS Web App Link` =  paste0(webLinkpart1, StationID, webLinkpart2, WQSreactive_objects$otherLayers, webLinkpart3)) %>%
+      dplyr::select(`DEQ GIS Web App Link`, everything())
+    
     # All sites limited to waterbody type and subbasin
     WQSreactive_objects$snap_input <- readRDS('data/WQStable.RDS') %>%
       filter(str_extract(WQS_ID, "^.{2}") %in% filter(WQSlayerConversion, waterbodyType %in% input$WQSwaterbodyType)$WQS_ID) %>%
@@ -916,7 +926,6 @@ shinyServer(function(input, output, session) {
     WQSreactive_objects$finalWQS <- WQSreactive_objects$WQSlookup
     # Make dataset of all selectable sites on map
     #WQSreactive_objects$sitesUniqueFin <- WQSreactive_objects$conventionals_DWQS_Region 
-    
   })
   
   #  # Make dataset of all selectable sites on map
@@ -954,7 +963,7 @@ shinyServer(function(input, output, session) {
     #    "sfc_MULTILINESTRING" %in% class(st_geometry(WQSreactive_objects$tooMany_sf)) 
     #     ){
     #    print('yes')}
-    class(st_geometry(WQSreactive_objects$snapSingle_sf))
+    WQSreactive_objects$conventionals_DWQS_Region
     })
   
   
@@ -1443,7 +1452,7 @@ shinyServer(function(input, output, session) {
     req(WQSreactive_objects$namesToSmash)
     filter(WQSreactive_objects$sitesUnique, FDT_STA_ID %in% WQSreactive_objects$namesToSmash) %>%
       st_drop_geometry() %>%
-      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'))  })
+      datatable(rownames = F, escape= F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'))  })
   
   output$associatedWQSTableWQS <- DT::renderDataTable({
     req(WQSreactive_objects$namesToSmash)
