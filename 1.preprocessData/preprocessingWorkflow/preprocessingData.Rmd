@@ -404,7 +404,8 @@ estuaryPolysAUjoin <- polygonJoinAU(estuaryPolysAU, distinctSites_AUtoDo, estuar
   mutate(ID305B_1 = ID305B) %>%
   dplyr::select(names(distinctSites_AU)) %>%
   group_by(FDT_STA_ID) %>%
-  mutate(n = n()) %>%
+  mutate(n = n(),
+         `Buffer Distance` = 'In polygon') %>%
   ungroup() 
 
 rm(estuaryPolysAU) # clean up workspace
@@ -413,7 +414,7 @@ rm(estuaryPolysAU) # clean up workspace
 Add Estuary stations to distinctSites_AU.
 
 ```{r add estuary AU sites}
-distinctSites_AU <- rbind(distinctSites_AU, estuaryPolysAUjoin)
+distinctSites_AU <- bind_rows(distinctSites_AU, estuaryPolysAUjoin)
 ```
 
 
@@ -444,7 +445,8 @@ lakesPolyAU <- st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_draft/va_20ir_a
    st_cast("MULTIPOLYGON") # special step for weird WKB error reading in geodatabase, never encountered before, fix from: https://github.com/r-spatial/sf/issues/427
 
 lakesPolysAUjoin <- polygonJoinAU(lakesPolyAU, distinctSites_AUtoDo, estuaryTorF = T)%>%
-  mutate(ID305B_1 = ID305B) %>%
+  mutate(ID305B_1 = ID305B,
+         `Buffer Distance` = 'In polygon') %>%
   dplyr::select(names(distinctSites_AU)) %>%
   group_by(FDT_STA_ID) %>%
   mutate(n = n()) %>%
@@ -456,7 +458,7 @@ rm(lakesPolyAU) # clean up workspace
 Add lake stations to distinctSites_AU.
 
 ```{r add estuary AU sites}
-distinctSites_AU <- rbind(distinctSites_AU, lakesPolysAUjoin)
+distinctSites_AU <- bind_rows(distinctSites_AU, lakesPolysAUjoin)
 ```
 
 
@@ -556,6 +558,16 @@ And that none of the missing sites (sites that fall outside of the assessmentLay
 ```{r missingSites got WQS}
 missingSites$FDT_STA_ID[!(missingSites$FDT_STA_ID %in% unique(distinctSites_AU$FDT_STA_ID))]
 ```
+
+Make sure buffer distances save right
+
+```{r}
+unique(distinctSites_AU$`Buffer Distance`)
+
+distinctSites_AU$`Buffer Distance` <- as.character(distinctSites_AU$`Buffer Distance`)
+```
+
+
 
 Save your work!
 
