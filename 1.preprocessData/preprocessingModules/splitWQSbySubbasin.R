@@ -68,6 +68,10 @@ for(i in 1:length(unique(riverineLB$BASIN_CODE))){
   #                   unique(z$BASIN_CODE), '.shp'))
 }
 
+# and save all WQS_ID options to be called in the app easily
+allWQS_ID <- tibble(WQS_ID = unique(riverineLB$WQS_ID))
+
+
 rm(riverineLB);rm(riverineL)
 
 
@@ -121,6 +125,11 @@ for(i in 1:length(unique(lakesLB$BASIN_CODE))){
 }
 
 
+# and save all WQS_ID options to be called in the app easily
+allWQS_ID <- bind_rows(allWQS_ID, tibble(WQS_ID = unique(lakesLB$WQS_ID)))
+
+
+
 rm(lakesLB);rm(lakesL)
 
 
@@ -164,6 +173,12 @@ for(i in 1:length(unique(estuaryLB$BASIN_CODE))){
 }
 
 
+
+# and save all WQS_ID options to be called in the app easily
+allWQS_ID <- bind_rows(allWQS_ID, tibble(WQS_ID = unique(estuaryLB$WQS_ID)))
+
+
+
 rm(estuaryLB);rm(estuaryL)
 
 
@@ -205,6 +220,15 @@ for(i in 1:length(unique(estuaryPB$BASIN_CODE))){
   st_write(z, paste0('GIS/processedWQS/EP_', 
                      unique(z$BASIN_CODE), '.shp'))
 }
+
+
+# and save all WQS_ID options to be called in the app easily
+allWQS_ID <- bind_rows(allWQS_ID, tibble(WQS_ID = unique(estuaryPB$WQS_ID)))
+
+
+# Save for app
+
+saveRDS(allWQS_ID, 'data/allWQS_ID.RDS')
 
 
 rm(estuaryPB);rm(estuaryP)

@@ -15,6 +15,14 @@ source('appModules/multipleDependentSelectizeArguments.R')
 source('snappingFunctions/snapOrganizationFunctions_messAround.R') # turn this back on when messing with AU side of things again
 
 
+# Table of all WQS_ID options, this needs to be rerun any time updates to WQS layers
+# need to bring in as a table to speed in app rendering and allow users to cross over waterbody type (e.g. lake station doesnt fall in lake and snaps to riverine, needs lake WQS_ID)
+#allWQS_ID <- readRDS('data/allWQS_ID.RDS') # made with preprocessingModules/splitWQSbySubbasin.R
+
+
+
+
+
 #snapList_AU <- readRDS("data/preAnalyzedRegionalAUdata/BRRO/Riverine/James River Basin.RDS")
 #snapList_AU <- readRDS("data/preAnalyzedRegionalAUdata/BRRO/Lacustrine/Roanoke River Basin.RDS")
 #tooMany <- snapCheck(snapList_AU[['sf_output']])

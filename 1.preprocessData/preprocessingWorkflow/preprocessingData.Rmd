@@ -82,7 +82,7 @@ distinctSites <- readRDS('./data/conventionals_D.RDS') # for some reason doesn't
 Assessment region is important for processing each region through a loop, AU connection, and WQS attachment. Subbasin information is important for WQS processing.
 
 ```{r assessment and subbasin join}
-source('preprocessingModules/assessmentLayerSubbasinJoin.R')
+source('preprocessingModules/assessmentLayerSubbasinJoin.R') # for some reason doesn't work in chunk but does in console
 distinctSitesToDo <- distinctSites_sf 
 # keep a copy of original distinct sites to check that no one was lost at the end
 ``` 
@@ -298,7 +298,33 @@ write.csv(WQStable, 'data/processedWQS/WQStable.csv', row.names = F)
 
 
 
+
+
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
 # Assessment Unit
+
+## Split AUs for application easy rendering
+
+First we need to take the spatial data we will use for the app and split it efficiently.
+
+
+**DRAFT 2020 IR spatial data here, need to rerun with final data release!!!!!**
+
+```{r split AUs for app}
+# only run once
+#source('preprocessingModules/splitAUbySubbasin.R')
+```
+
+
+
 
 ## Assessment Unit Info from Last Cycle
 
@@ -314,30 +340,43 @@ final2020 <- st_read('GIS/2020_wqms.shp') %>%
 Join distinct sites to AU information to get all available free data.
 
 ```{r AU join}
-distinctSites_AU <- left_join(distinctSites_sf %>% st_drop_geometry(), 
-                              final2020 %>% st_drop_geometry(), # bc two spatial objects need to drop geometry to join on tabular data
+
+# start by adding back in missing sites (sites that are outside assessmentLayer boundary)
+missingSites_AU <- mutate(missingSites, HUC12 = NA, VAHU6 = NA, Portion = NA, MAP = NA, ASSESS_REG = NA, OFFICE_NM = NA, States = NA, HUType = NA, HUMod = NA, ToHUC = NA, META_ID = NA, Location = NA, VaName = NA, PC_Water = NA, Tidal = NA, VAHUSB = NA, FedName = NA, HUC10 = NA, VAHU5 = NA, Basin = NA, BASIN_NAME = NA, BASIN_CODE = NA, SUBBASIN = NA) %>%
+  dplyr::select(names(distinctSites_sf)) %>% st_drop_geometry()
+
+
+distinctSites_AUall <- distinctSites_sf %>% 
+  st_drop_geometry() %>%
+  rbind(missingSites_AU) %>%
+  left_join(final2020 %>% st_drop_geometry(), # bc two spatial objects need to drop geometry to join on tabular data
                               by = c('FDT_STA_ID' = 'STATION_ID')) %>%
+  dplyr::select(FDT_STA_ID : VAHU6.y) %>% # drop the last cycle's results, not important now
+  mutate(VAHU6 = ifelse(is.na(VAHU6.y), as.character(VAHU6.x), as.character(VAHU6.y))) %>% # use last cycle's VAHU6 designation over CEDS designation by default if available
+  dplyr::select(-c(VAHU6.x, VAHU6.y)) %>%
   group_by(FDT_STA_ID) %>%
   mutate(n = n())
 
 # Find any duplicates
-View(filter(distinctSites_AU, n >1)) # makes sense, these sites are being used for riverine and lacustrine assessment
+View(filter(distinctSites_AUall, n >1)) # makes sense, these sites are being used for riverine and lacustrine assessment
 ```
 
 Organize stations by whether or not they have AU data.
 
 ```{r AU haves and have nots}
 # Needs Work
-distinctSites_AUtoDo <- filter(distinctSites_AU, is.na(ID305B_1)) %>%
+distinctSites_AUtoDo <- filter(distinctSites_AUall, is.na(ID305B_1)) %>%
   st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
            remove = T, # don't remove these lat/lon cols from df
            crs = 4326)
 
 # All good for assessment app (once we join WQS info from lookup table)
-distinctSites_AU <- filter(distinctSites_AU, !is.na(ID305B_1)) %>%
+distinctSites_AU <- filter(distinctSites_AUall, !is.na(ID305B_1)) %>%
   st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
            remove = T, # don't remove these lat/lon cols from df
            crs = 4326)
+
+nrow(distinctSites_AU) + nrow(distinctSites_AUtoDo) == nrow(distinctSites_AUall)
 ```
 
 ## Spatially Join AU information
@@ -349,57 +388,178 @@ Since it is much faster to look for spatial joins by polygons compared to snappi
 Find any sites that fall into an estuary AU polygon. This method is only applied to subbasins that intersect estuarine areas.
 Removes any estuarine sites from the data frame of unique sites that need AU information.
 
+
+**This is DRAFT 2020 IR AU SPATIAL DATA, Needs to potentially be rerun with FINAL 2020 IR SPATIAL DATA**
+
 ```{r estuary methods AU}
 source('preprocessingModules/AU_Poly.R')
 
 # Bring in estuary layer
-estuaryPolysAU <- st_read('C:/HardDriveBackup/GIS/Assessment/va_2018_aus_estuarine.shp') %>%
-   st_transform( 4326 )
+estuaryPolysAU <- st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_draft/va_20ir_aus.gdb', layer = 'va_2020_aus_estuarine' , 
+                          fid_column_name = "OBJECTID") %>%
+   st_transform( 4326 ) %>%
+   st_cast("MULTIPOLYGON") # special step for weird WKB error reading in geodatabase, never encountered before, fix from: https://github.com/r-spatial/sf/issues/427
   
-estuaryPolysAUjoin <- polygonJoinAU(estuaryPolysAU, distinctSites_AUtoDo, estuaryTorF = T)
+estuaryPolysAUjoin <- polygonJoinAU(estuaryPolysAU, distinctSites_AUtoDo, estuaryTorF = T) %>%
+  mutate(ID305B_1 = ID305B) %>%
+  dplyr::select(names(distinctSites_AU)) %>%
+  group_by(FDT_STA_ID) %>%
+  mutate(n = n()) %>%
+  ungroup() 
 
 rm(estuaryPolysAU) # clean up workspace
 ```
 
+Add Estuary stations to distinctSites_AU.
+
+```{r add estuary AU sites}
+distinctSites_AU <- rbind(distinctSites_AU, estuaryPolysAUjoin)
+```
+
+
 Remove stations that fell inside estuarine polygons from the 'to do' list.
 
-```{r remove estuary poly sites}
-distinctSitesToDo <- filter(distinctSitesToDo, ! FDT_STA_ID %in% WQStable$StationID)
+```{r remove estuary poly sites AU}
+distinctSites_AUtoDo <- filter(distinctSites_AUtoDo, ! FDT_STA_ID %in% estuaryPolysAUjoin$FDT_STA_ID)
+
+nrow(distinctSites_AU) + nrow(distinctSites_AUtoDo) == nrow(distinctSites_AUall)
 ```
 
 
 ##### Lake Polygons
 
-Find any sites that fall into a lake WQS polygon. This method is applied to all subbasins.
-Removes any lake sites from the data frame of unique sites that need WQS information.
+Find any sites that fall into a lake AU polygon. This method is applied to all subbasins.
+Removes any lake sites from the data frame of unique sites that need AU information.
+
+**This is DRAFT 2020 IR AU SPATIAL DATA, Needs to potentially be rerun with FINAL 2020 IR SPATIAL DATA**
 
 
-```{r lake methods}
-source('preprocessingModules/WQS_lakePoly.R')
+```{r lake methods AU}
+source('preprocessingModules/AU_Poly.R')
 
-lakesPoly <- st_read('GIS/WQS_layers_05082020.gdb', layer = 'lakes_reservoirs_05082020' , fid_column_name = "OBJECTID") %>%
-  st_transform(4326)
+# Bring in Lakes layer
+lakesPolyAU <- st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_draft/va_20ir_aus.gdb', layer = 'va_2020_aus_reservoir' , 
+                          fid_column_name = "OBJECTID") %>%
+   st_transform( 4326 ) %>%
+   st_cast("MULTIPOLYGON") # special step for weird WKB error reading in geodatabase, never encountered before, fix from: https://github.com/r-spatial/sf/issues/427
 
-WQStable <- lakePolygonJoin(lakesPoly, distinctSitesToDo, WQStable)
+lakesPolysAUjoin <- polygonJoinAU(lakesPolyAU, distinctSites_AUtoDo, estuaryTorF = T)%>%
+  mutate(ID305B_1 = ID305B) %>%
+  dplyr::select(names(distinctSites_AU)) %>%
+  group_by(FDT_STA_ID) %>%
+  mutate(n = n()) %>%
+  ungroup() 
 
-rm(lakesPoly) # clean up workspace
+rm(lakesPolyAU) # clean up workspace
 ```
+
+Add lake stations to distinctSites_AU.
+
+```{r add estuary AU sites}
+distinctSites_AU <- rbind(distinctSites_AU, lakesPolysAUjoin)
+```
+
+
 
 Remove stations that fell inside lake polygons from the 'to do' list.
 
 ```{r remove estuary poly sites}
-distinctSitesToDo <- filter(distinctSitesToDo, ! FDT_STA_ID %in% WQStable$StationID)
+distinctSites_AUtoDo <- filter(distinctSites_AUtoDo, ! FDT_STA_ID %in% lakesPolysAUjoin$FDT_STA_ID)
+
+nrow(distinctSites_AU) + nrow(distinctSites_AUtoDo) == nrow(distinctSites_AUall)
+
+
+rm(lakesPolysAUjoin);rm(estuaryPolysAUjoin)
 ```
 
 
 
-### Spatially Join WQS Lines
+### Spatially Join AU Lines
 
-Now on to the more computationally heavy WQS line snapping methods. First we will try to attach riverine WQS, and where stations remain we will try the estuarine WQS snap.
+Now on to the more computationally heavy AU line snapping methods. First we will try to attach riverine AUs, and where stations remain we will try the estuarine lines AU snap.
 
-##### Riverine Lines
+##### Riverine Lines AU
 
-Buffer all sites that don't fall into a polygon layer. The output will add a field called `Buffer Distance` to the WQStable to indicate distance required for snapping. This does not get transported to the data of record, but it is useful to keep for now for QA purposes. If more than one segment is found within a set buffer distance, that many rows will be attached to the WQStable with the identifying station name. It is up to the QA tool to help the user determine which of these UID's are correct and drop the other records.
+Buffer all sites that don't fall into a polygon layer. The output will add a field called `Buffer Distance` to the distinctSites_AU to indicate distance required for snapping. This does not get transported to the data of record, but it is useful to keep for now for QA purposes. If more than one segment is found within a set buffer distance, that many rows will be attached to the WQStable with the identifying station name. It is up to the QA tool to help the user determine which of these AU's are correct and drop the other records.
 
-Removes any riverine sites from the data frame of unique sites that need WQS information.
+Removes any riverine sites from the data frame of unique sites that need AU information.
+
+**This is DRAFT 2020 IR AU SPATIAL DATA, Needs to potentially be rerun with FINAL 2020 IR SPATIAL DATA**
+
+
+```{r riverine methods AU}
+source('snappingFunctions/snapPointToStreamNetwork.R')
+
+riverineAU <- st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_draft/va_2020_aus_riverine.shp') %>%
+    st_transform(102003) # forcing to albers from start bc such a huge layer   
+  
+  # Even the Edzer hack didn't work on riverine layers so exported draft riverine layer to shapefile for now. Hopefully final dataset comes as decent .gdb
+  #st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_draft/va_20ir_aus.gdb', layer = 'va_2020_aus_riverine' , 
+              #            fid_column_name = "OBJECTID") %>%
+  #st_transform(102003) %>% # forcing to albers from start bc such a huge layer   
+  #st_cast("MULTILINESTRING") # special step for weird WKB error reading in geodatabase, never encountered before, fix from: https://github.com/r-spatial/sf/issues/427
+
+
+snapTable <- snapAndOrganize(distinctSites_AUtoDo, 'FDT_STA_ID', riverineAU, 
+                             bufferDistances = seq(20,80,by=20),  # buffering by 20m from 20 - 80 meters
+                             tibble(StationID = character(), ID305B = character(), `Buffer Distance` = character()),
+                             "ID305B")
+
+#snapTable <- readRDS('preprocessingWorkflow/snapTable.RDS')
+
+snapTable <- snapTable %>%
+  left_join(distinctSites_AUtoDo, by = c('StationID' = 'FDT_STA_ID')) %>% # get station information
+  rename('FDT_STA_ID' = 'StationID') %>%
+  mutate(ID305B_1 = ID305B) %>%
+  dplyr::select(names(distinctSites_AU), `Buffer Distance`) %>%
+  group_by(FDT_STA_ID) %>%
+  mutate(n = n()) %>%
+  ungroup()
+  
+  
+rm(riverineAU)
+```
+
+Add these sites to the sites with AU information.
+
+```{r add to AU table}
+distinctSites_AU <- bind_rows(distinctSites_AU %>% ungroup() %>% st_drop_geometry(), snapTable)
+```
+
+Remove stations that attached to riverine segments from the 'to do' list.
+
+```{r remove riverine snapped AU sites}
+distinctSites_AUtoDo <- filter(distinctSites_AUtoDo, ! FDT_STA_ID %in% snapTable$FDT_STA_ID)
+```
+
+
+We don't have estuarine lines AU information, so the sites that don't connect to any AU's at the max buffer distance will have to be sorted out by the assessors.
+
+
+
+Make sure all stations from original distinct station list have some sort of record (blank or populated) in the distinctSites_AU dataset.
+
+```{r double check no one lost AU}
+
+# check everyone dealt with
+nrow(distinctSites_AU) + nrow(distinctSites_AUtoDo) == nrow(distinctSites_AUall)
+
+distinctSites_AU$FDT_STA_ID[!(distinctSites_sf$FDT_STA_ID %in% unique(distinctSites_AU$FDT_STA_ID))]
+
+if(nrow(distinctSites_AUtoDo) == 0){rm(distinctSites_AUtoDo)}
+
+#View(filter(distinctSites_sf, FDT_STA_ID %in% distinctSites_AU$FDT_STA_ID[!(distinctSites_sf$FDT_STA_ID %in% unique(distinctSites_AU$FDT_STA_ID))]))
+```
+
+And that none of the missing sites (sites that fall outside of the assessmentLayer) are not missing from the AU snapping process.
+
+```{r missingSites got WQS}
+missingSites$FDT_STA_ID[!(missingSites$FDT_STA_ID %in% unique(distinctSites_AU$FDT_STA_ID))]
+```
+
+Save your work!
+
+```{r sites ready for app review}
+write.csv(distinctSites_AU %>% dplyr::select(-geometry), './data/preAnalyzedAUdata.csv', row.names = F)
+```
 
