@@ -2,18 +2,18 @@ source('global.R')
 
 ### All conventionals sites
 ####conventionals_D <- st_read('GIS/conventionals_D.shp') %>%
-conventionals_DWQS <- readRDS('data/conventionals_D.RDS') %>%
-  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
-           remove = F, # don't remove these lat/lon cols from df
-           crs = 4326) %>%
-  mutate(StationID= FDT_STA_ID)
+#conventionals_DWQS <- readRDS('data/conventionals_D.RDS') %>%
+#  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+#           remove = F, # don't remove these lat/lon cols from df
+#           crs = 4326) %>%
+#  mutate(StationID= FDT_STA_ID)
 
 
-assessmentRegions <- st_read( 'data/GIS/AssessmentRegions_simple.shp')
-assessmentLayer <- st_read('data/GIS/AssessmentRegions_VA84_basins.shp') %>%
-  st_transform( st_crs(4326)) 
-subbasins <- st_read('data/GIS/DEQ_VAHUSB_subbasins_EVJ.shp') %>%
-  rename('SUBBASIN' = 'SUBBASIN_1')
+#assessmentRegions <- st_read( 'data/GIS/AssessmentRegions_simple.shp')
+#assessmentLayer <- st_read('data/GIS/AssessmentRegions_VA84_basins.shp') %>%
+#  st_transform( st_crs(4326)) 
+#subbasins <- st_read('data/GIS/DEQ_VAHUSB_subbasins_EVJ.shp') %>%
+#  rename('SUBBASIN' = 'SUBBASIN_1')
 
 
 
