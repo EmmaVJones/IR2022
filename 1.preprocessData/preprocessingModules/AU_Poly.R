@@ -13,10 +13,11 @@ polygonJoinAU <- function(polygonAUlayer,
     # Identify which subbasins needs esturine work
     subB <-  c("Potomac River", "Rappahannock River", "Atlantic Ocean Coastal", "Chesapeake Bay Tributaries",
                "Chesapeake Bay - Mainstem", "James River - Lower",  "Appomattox River" ,   "Chowan River",
-               "Atlantic Ocean - South" , "Dismal Swamp/Albemarle Sound")
+               "Atlantic Ocean - South" , "Dismal Swamp/Albemarle Sound", NA) # NA is for York
     
     # Identify sites in said subB that will have estuary WQS attempted to be joined
-    distinctSites_AUtoDo_f <- filter(distinctSites_AUtoDo_f, SUBBASIN %in% subB)
+    distinctSites_AUtoDo_f <- filter(distinctSites_AUtoDo_f, SUBBASIN %in% subB) %>%
+      filter(BASIN_CODE != '9')
   }
   
   # Spatially join to polygon layer 

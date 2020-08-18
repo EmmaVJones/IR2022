@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 library(sf)
 library(readxl)
+library(lwgeom) # used in assessmentLayerSubbasinJoin missingSites step
 
 ```
 
@@ -88,6 +89,14 @@ distinctSitesToDo <- distinctSites_sf
 ``` 
 
 **Note the VAHU6 data is derived spatially, so this is a good first step, but when there is human QAed VAHU6 data available, we will use that data instead. Sometimes assessors use stations outside a VAHU6 to assess said VAHU6.**
+
+
+Save missingSites data for app. This is critical for those sites that fall out of assessment layer boundary that still need work. This will be brought in by app for assessor to use.
+
+```{r missingSites for app}
+saveRDS(missingSites, 'data/missingSites.RDS')
+```
+
 
 ### Spatially Join WQS
 
@@ -226,7 +235,7 @@ WQStable <- snapAndOrganizeWQS(filter(distinctSitesToDo, SUBBASIN %in% c("Potoma
 rm(estuarineLines)
 ```
 
-Remove stations that attached to riverine segments from the 'to do' list.
+Remove stations that attached to estuarine segments from the 'to do' list.
 
 ```{r remove estuary poly sites}
 distinctSitesToDo <- filter(distinctSitesToDo, ! StationID %in% WQStable$StationID)
@@ -244,6 +253,35 @@ And that none of the missing sites (sites that fall outside of the assessmentLay
 ```{r missingSites got WQS}
 missingSites$FDT_STA_ID[!(missingSites$FDT_STA_ID %in% unique(WQStable$StationID))]
 ```
+
+
+### Assign something to WQS_ID so sites will not fall through the cracks when application filtering occurs
+
+We don't want to give everyone all the stations that didn't snap to something, so we need to at least partially assign a WQS_ID so the stations get into the correct subbasin on initial filter.
+
+If a station snapped to nothing, we will assing it a RL WQS_ID and subbasin it falls into by default.
+
+```{r blank WQS_ID partially filled in}
+WQStableMissing <- filter(WQStable, is.na(WQS_ID)) %>%
+  # drop from list if actually fixed by snap to another segment
+  filter(! StationID %in% filter(WQStable, str_extract(WQS_ID, "^.{2}") %in% c('EL','LP','EP'))$StationID) %>%
+  left_join(dplyr::select(distinctSites_sf, FDT_STA_ID, BASIN_CODE) %>%
+              st_drop_geometry(), by = c('StationID' = 'FDT_STA_ID')) %>%
+  # some fixes for missing basin codes so they will match proper naming conventions for filtering
+  mutate(BASIN_CODE1 = case_when(is.na(BASIN_CODE) ~ str_pad(
+    ifelse(grepl('-', str_extract(StationID, "^.{2}")), str_extract(StationID, "^.{1}"), str_extract(StationID, "^.{2}")), 
+    width = 2, side = 'left', pad = '0'),
+    TRUE ~ as.character(BASIN_CODE)),
+    BASIN_CODE2 = str_pad(BASIN_CODE1, width = 2, side = 'left', pad = '0'),
+    WQS_ID = paste0('RL_', BASIN_CODE2,'_NA')) %>%
+  dplyr::select(-c(BASIN_CODE, BASIN_CODE1, BASIN_CODE2))
+
+WQStable <- filter(WQStable, !is.na(WQS_ID)) %>% 
+  filter(! StationID %in% WQStableMissing$StationID) %>%
+  bind_rows(WQStableMissing)
+```
+
+
 
 
 
@@ -378,6 +416,43 @@ distinctSites_AU <- filter(distinctSites_AUall, !is.na(ID305B_1)) %>%
 
 nrow(distinctSites_AU) + nrow(distinctSites_AUtoDo) == nrow(distinctSites_AUall)
 ```
+
+
+
+First we need to side step to join 1a stations that really are in ceds as 1A.
+
+```{r 1A fix}
+distinctSites_AUtoDoFix <- filter(distinctSites_sf, FDT_STA_ID %in% distinctSites_AUtoDo$FDT_STA_ID) %>%
+  st_drop_geometry() %>%
+  left_join(final2020 %>% st_drop_geometry() %>% mutate(STATION_ID = toupper(as.character(STATION_ID))), # bc two spatial objects need to drop geometry to join on tabular data
+                              by = c('FDT_STA_ID' = 'STATION_ID')) %>%
+  dplyr::select(FDT_STA_ID : VAHU6.y) %>% # drop the last cycle's results, not important now
+  mutate(VAHU6 = ifelse(is.na(VAHU6.y), as.character(VAHU6.x), as.character(VAHU6.y))) %>% # use last cycle's VAHU6 designation over CEDS designation by default if available
+  dplyr::select(-c(VAHU6.x, VAHU6.y)) %>%
+  group_by(FDT_STA_ID) %>%
+  mutate(n = n())
+
+
+
+distinctSites_AUtoDoFixed <- filter(distinctSites_AUtoDoFix, !is.na(ID305B_1)) %>%
+  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+           remove = T, # don't remove these lat/lon cols from df
+           crs = 4326)
+
+distinctSites_AU <- #filter(distinctSites_AU,FDT_STA_ID %in% distinctSites_AUtoDoFixed$FDT_STA_ID) %>%
+  rbind(distinctSites_AU, distinctSites_AUtoDoFixed)
+
+distinctSites_AUtoDo <- filter(distinctSites_AUtoDo, ! FDT_STA_ID %in% distinctSites_AUtoDoFixed$FDT_STA_ID)
+
+rm(distinctSites_AUtoDoFix)
+
+nrow(distinctSites_AU) + nrow(distinctSites_AUtoDo) == nrow(distinctSites_AUall)
+
+```
+
+That logic isnt' perfect but will work for now
+
+
 
 ## Spatially Join AU information
 
@@ -537,6 +612,11 @@ distinctSites_AUtoDo <- filter(distinctSites_AUtoDo, ! FDT_STA_ID %in% snapTable
 
 We don't have estuarine lines AU information, so the sites that don't connect to any AU's at the max buffer distance will have to be sorted out by the assessors.
 
+```{r}
+distinctSites_AU <- distinctSites_AU %>%
+  group_by(FDT_STA_ID) %>%
+  mutate(n=n())
+```
 
 
 Make sure all stations from original distinct station list have some sort of record (blank or populated) in the distinctSites_AU dataset.
@@ -570,6 +650,7 @@ distinctSites_AU$`Buffer Distance` <- as.character(distinctSites_AU$`Buffer Dist
 
 
 Save your work!
+
 
 ```{r sites ready for app review}
 write.csv(distinctSites_AU %>% dplyr::select(-geometry), './data/preAnalyzedAUdata.csv', row.names = F)

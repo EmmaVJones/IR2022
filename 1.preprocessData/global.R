@@ -9,32 +9,7 @@ library(inlmisc)
 library(DT)
 library(writexl)
 library(shinycssloaders)
-#library(testthat)
-
-source('appModules/multipleDependentSelectizeArguments.R')
-source('snappingFunctions/snapOrganizationFunctions_messAround.R') # turn this back on when messing with AU side of things again
-
-
-# Table of all WQS_ID options, this needs to be rerun any time updates to WQS layers
-# need to bring in as a table to speed in app rendering and allow users to cross over waterbody type (e.g. lake station doesnt fall in lake and snaps to riverine, needs lake WQS_ID)
-#allWQS_ID <- readRDS('data/allWQS_ID.RDS') # made with preprocessingModules/splitWQSbySubbasin.R
-
-
-
-
-
-#snapList_AU <- readRDS("data/preAnalyzedRegionalAUdata/BRRO/Riverine/James River Basin.RDS")
-#snapList_AU <- readRDS("data/preAnalyzedRegionalAUdata/BRRO/Lacustrine/Roanoke River Basin.RDS")
-#tooMany <- snapCheck(snapList_AU[['sf_output']])
-
-#AUs1 <- st_read(paste0('data/processedGIS/va_2018_aus_', 'riverine','_', 
-#                       'BRRO', "_", 'James River Basin', '.shp')) %>%
-#  st_transform(4326)
-
-#conventionals_D <- st_read(paste0('data/conventionals_D_James River Basin.shp')) 
-
-
-
+library(shinyjqui)
 
 # WQS layer type to WQS_ID conversion
 #st_layers('GIS/WQS_layers_05082020.gdb')
@@ -68,11 +43,15 @@ subbasinOptionsByWQStype <- read_csv('data/subbasinOptionsByWQStype&Region.csv')
 # Persistent data storage on server
 #outputDir <- "WQSlookupTable" # location on server to save data
 
+
 saveData <- function(data,outputDir) {
   #data <- t(data)
   # Create a unique file name
-  
-  fileName <- sprintf("%s_%s.csv", format(Sys.time(), "%Y%m%d_%H%M%S"), 'WQSlookup')
+  if(outputDir == 'WQSlookupTable'){
+    fileName <- sprintf("%s_%s.csv", format(Sys.time(), "%Y%m%d_%H%M%S"), 'WQSlookup')
+  } else {
+    fileName <- sprintf("%s_%s.csv", format(Sys.time(), "%Y%m%d_%H%M%S"), 'AUlookup')
+  }
   # Write the file to the local system
   write.csv(
     x = data,
@@ -84,10 +63,17 @@ saveData <- function(data,outputDir) {
 loadData <- function(outputDir) {
   # Read all the files into a list
   files <- list.files(outputDir, full.names = TRUE)
-  data <- lapply(files, read_csv) 
   # Concatenate all data together into one data.frame
-  data <- do.call(rbind, data) %>%
-    distinct(StationID, WQS_ID, .keep_all = T)
+  if(outputDir == 'WQSlookupTable'){
+    data <- lapply(files, read_csv) 
+    data <- do.call(rbind, data) %>%
+      distinct(StationID, WQS_ID, .keep_all = T)
+  } else {
+    data <- lapply(files, read_csv) # read_csv produces parsing errors
+    data <- do.call(rbind, data) %>%
+      distinct(FDT_STA_ID, ID305B_1,  .keep_all = T)
+  }
+ 
   data
 }
 

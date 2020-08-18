@@ -14,9 +14,14 @@ sudo  ls -l /app/rstudio-connect/apps/43/134/WQSlookupTable
 
 # Copy file from previous version to new version
 # make sure you update with correct version number of apps!
- sudo cp /app/rstudio-connect/apps/43/134/WQSlookupTable/20200609_112211_WQSlookup.csv /app/rstudio-connect/apps/43/135/WQSlookupTable
+ sudo cp /app/rstudio-connect/apps/43/135/WQSlookupTable/20200609_112211_WQSlookup.csv /app/rstudio-connect/apps/43/135/WQSlookupTable
  sudo chmod 755 /app/rstudio-connect/apps/43/135/WQSlookupTable/20200609_112211_WQSlookup.csv
 
 # Copy whole directory and change all file permissions for download
-cp -arv /app/rstudio-connect/apps/43/135/WQSlookupTable /home/aaejones/temp
+cp -arv /app/rstudio-connect/apps/43/190/WQSlookupTable /home/aaejones/temp
+chmod -R 755 /home/aaejones/temp/WQSlookupTable
+
+
+
+sudo cp /app/rstudio-connect/apps/43/135/WQSlookupTable/20200616_161453_WQSlookup.csv /app/rstudio-connect/apps/43/137
 chmod -R 755 /home/aaejones/temp/WQSlookupTable
