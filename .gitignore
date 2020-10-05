@@ -66,7 +66,7 @@ vignettes/*.pdf
 
 
 
-*/rsconnect/
+rsconnect/
 *.zip
 *.gdb
 *.Rproj
