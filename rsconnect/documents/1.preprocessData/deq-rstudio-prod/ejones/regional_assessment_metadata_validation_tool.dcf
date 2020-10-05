@@ -1,0 +1,13 @@
+name: regional_assessment_metadata_validation_tool
+title:
+username: ejones
+account: ejones
+server: deq-rstudio-prod
+hostUrl: http://deq-rstudio-prod:3939/__api__
+appId: 43
+bundleId: 257
+url: http://deq-rstudio-prod:3939/RegionalAssessmentMetadataValidation/
+when: 1598007365.64481
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .RData|blank_WQSlookup_VRO.csv|findDataOutside2020IRwindow.html|findDataOutside2020IRwindow.Rmd|how to see WQSlookuptable.txt|NRO_2013_2019riverineWQSmetadataNeeds.gdb.zip|serverOldAUworkflowApp.R|SWRO_2013_2019riverineWQSmetadataNeeds.gdb.zip|VRO_2013_2019_WQSmetadataNeeds.gdb.zip|appModules/multipleDependentSelectizeArguments.R|appTesting|AUlookupTable_Archive|data_old|GIS|NRO_2013_2019riverineWQSmetadataNeeds.gdb|preprocessingModules|preprocessingWorkflow|PRO_2013_2019_WQSmetadataNeeds.gdb|snappingFunctions|SWRO_2013_2019riverineWQSmetadataNeeds.gdb|VRO_2013_2019_WQSmetadataNeeds.gdb|WQSlookupTable_Archive

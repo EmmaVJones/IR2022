@@ -1,0 +1,73 @@
+---
+title: "Build DO % Saturation Method"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(tidyverse)
+```
+
+
+This document works out how to calculate DO % saturation from DO mg/L.
+
+The following SAS script was provided by Roger to summarize previous methods (DOSAT.docx).
+
+```{SAS, eval = FALSE}
+SET CL=FDT_SALINITY/1.80655;
+
+PROC SQL;   ALTER TABLE WORK.FDT ADD DOSAT NUM FORMAT 3.2 LABEL = 'DOSAT' ;QUIT;
+
+PROC SQL; UPDATE WORK.FDT SET FDT_DO_PROBE = FDT_DO_OPTICAL WHERE FDT_DO_OPTICAL IS NOT NULL;
+
+PROC SQL;
+   		UPDATE WORK.FDT
+		SET DOSAT=	(FDT_DO_PROBE/EXP(-139.34411+(1.575701*100000/(FDT_TEMP_CELCIUS+273.15))-
+					(6.642308*10000000/((FDT_TEMP_CELCIUS+273.15)*(FDT_TEMP_CELCIUS+273.15)))+
+					(1.243800*10000000000/((FDT_TEMP_CELCIUS+273.15)*(FDT_TEMP_CELCIUS+273.15)*(FDT_TEMP_CELCIUS+273.15)))-
+					(8.621949*100000000000/((FDT_TEMP_CELCIUS+273.15)*(FDT_TEMP_CELCIUS+273.15)*(FDT_TEMP_CELCIUS+273.15)*
+					(FDT_TEMP_CELCIUS+273.15)))-
+					CL*((3.192900*0.01)-(1.942800*10/(FDT_TEMP_CELCIUS+273.15))+
+					(3.867300*1000/((FDT_TEMP_CELCIUS+273.15)*(FDT_TEMP_CELCIUS+273.15))))))*100
+		WHERE FDT_DO_PROBE IS NOT NULL
+		AND CL IS NOT NULL
+		AND FDT_TEMP_CELCIUS IS NOT NULL;
+```
+
+### Test data
+
+Bring in conventionals data from 2020IR. Field names will be the same as script.
+
+```{r}
+conventionals <- read_csv('C:/HardDriveBackup/R/GitHub/IR2022/1.preprocessData/data/CEDSWQM_2020_IR_DATA-CONVENTIONALS_20190305.csv')
+
+lakeStations <-  read_csv('C:/HardDriveBackup/R/GitHub/IR2022/1.preprocessData/data/preAnalyzedAUdata.csv') %>% 
+  filter(grepl("L",STA_TYPE1) | grepl("L",STA_TYPE2) | grepl("L",STA_TYPE3))
+# filter to just lakeStations
+conventionals <- filter(conventionals, FDT_STA_ID %in% lakeStations$FDT_STA_ID)
+```
+
+
+### Transform Roger's code
+
+I will use the DO_mg/L field for DO since the conventionals workflow already combines optical and winkler DO for assessors.
+
+```{r}
+conventionals1 <- dplyr::select(conventionals, FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, `TEMPERATURE_00010_DEGREES CENTIGRADE`, `DO_mg/L`, SALINITY_00480_PPT) %>%
+  # change to old Roger's field names
+  rename('FDT_TEMP_CELCIUS' = 'TEMPERATURE_00010_DEGREES CENTIGRADE',
+         'FDT_DO_PROBE' = 'DO_mg/L') %>%
+  mutate(CL = SALINITY_00480_PPT/1.80655) %>%
+  mutate(`DO % Saturation` = 
+           (FDT_DO_PROBE/exp(-139.34411+(1.575701*100000/(FDT_TEMP_CELCIUS+273.15))-
+                               (6.642308*10000000/((FDT_TEMP_CELCIUS+273.15)*(FDT_TEMP_CELCIUS+273.15)))+
+                               (1.243800*10000000000/((FDT_TEMP_CELCIUS+273.15)*(FDT_TEMP_CELCIUS+273.15)*(FDT_TEMP_CELCIUS+273.15)))-
+                               (8.621949*100000000000/((FDT_TEMP_CELCIUS+273.15)*(FDT_TEMP_CELCIUS+273.15)*(FDT_TEMP_CELCIUS+273.15)*
+                                                         (FDT_TEMP_CELCIUS+273.15)))-
+                               CL*((3.192900*0.01)-(1.942800*10/(FDT_TEMP_CELCIUS+273.15))+
+                                     (3.867300*1000/((FDT_TEMP_CELCIUS+273.15)*(FDT_TEMP_CELCIUS+273.15))))))*100)
+```
+
+fine but doesn't work with missing salinity
+also what do we do about BP? Shouldn't that affect % saturation?

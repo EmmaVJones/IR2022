@@ -20,7 +20,9 @@ shinyUI(fluidPage(theme= "yeti.css",
                                                    fluidRow(column(4, textOutput('singleSnapSummary1')),
                                                             column(4, textOutput('snapTooManySummary1')),
                                                             column(4, textOutput('noSnapSummary1'))),
-                                                   br(), br(), br() # a little breathing room
+                                                   br(), br(), br(), # a little breathing room
+                                                   verbatimTextOutput('test'),
+                                                   verbatimTextOutput('test2')
                                                  )),
                                         tabPanel("Manual Review",
                                                  h4('Assessment Unit QA'),

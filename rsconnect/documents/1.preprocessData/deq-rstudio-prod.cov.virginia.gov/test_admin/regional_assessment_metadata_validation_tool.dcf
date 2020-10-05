@@ -1,0 +1,13 @@
+name: regional_assessment_metadata_validation_tool
+title: Regional Assessment Metadata Validation Tool
+username: test_admin
+account: test_admin
+server: deq-rstudio-prod.cov.virginia.gov
+hostUrl: http://deq-rstudio-prod.cov.virginia.gov:3939/__api__
+appId: 43
+bundleId: 143
+url: http://deq-rstudio-prod.cov.virginia.gov:3939/RegionalAssessmentMetadataValidation/
+when: 1592940138.78969
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .RData|findDataOutside2020IRwindow.html|findDataOutside2020IRwindow.Rmd|how to see WQSlookuptable.txt|serverOldAUworkflowApp.R|appModules/multipleDependentSelectizeArguments.R|appTesting|data_old|GIS|preprocessingModules|preprocessingWorkflow|snappingFunctions

@@ -44,21 +44,32 @@ vignettes/*.pdf
 0.CitmonDataOrganization/CitmonDataOrganization_portable/
 0.CitmonDataOrganization/James Beckley/
 0.CitmonDataOrganization/rsconnect/
+1.preprocessData/rsconnect/
 1.preprocessData/GIS/
 1.preprocessData/AUlookupTable/
+1.preprocessData/AUlookupTable_Archive/
 1.preprocessData/data/
 1.preprocessData/data_old/
 1.preprocessData/WQSlookupTable/
+1.preprocessData/WQSlookupTable_Archive/
 1.preprocessData/appTesting/
 1.preprocessData/www/
 1.preprocessData/rsconnect/
 1.preprocessData/WQSlookupTable/
 1.preprocessData/WQSlookupTable_BRRO_SWRO/
+1.preprocessData/extraDataProvidedToAssessors/
+1.preprocessData/how to see WQSlookuptable.txt
 
-rsconnect/
+2.organizeMetatdata/WQA_CEDS_templates/
+
+
+
+
+
+*/rsconnect/
 *.zip
 *.gdb
-
+*.Rproj
 
 # R Environment Variables
 .Renviron
