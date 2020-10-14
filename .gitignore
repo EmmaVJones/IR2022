@@ -62,6 +62,7 @@ vignettes/*.pdf
 
 2.organizeMetadata/WQA_CEDS_templates/
 2.organizeMetadata/data/
+2.organizeMetadata/processedStationData/
 
 3.automatedAssessment/data/
 
