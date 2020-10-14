@@ -35,67 +35,21 @@ The user will have to have all conventionals data, water column metals, and sedi
 
 ## Pin Data/Retrieve Data
 
-Repeat as necessary in order to access the most recent data available for assessment.
-
-```{r pin data}
-# Get data to pin
-conventionals2022IRdraft <- read_csv('data/CEDSWQM_2020_IR_DATA-CONVENTIONALS_20190305.csv') %>%
-  # change to naming system 
-  rename("FDT_TEMP_CELCIUS"  ="TEMPERATURE_00010_DEGREES CENTIGRADE",
-         #"FDT_TEMP_CELCIUS_RMK" = "FDT_TEMP_CELCIUS_RMK",  
-         "FDT_FIELD_PH" = "pH_00400_STD_UNITS" ,          
-         #"FDT_FIELD_PH_RMK"  ="FDT_FIELD_PH_RMK", 
-         "DO" =  "DO_mg/L",       
-         #"DO_RMK"  ="DO_RMK",    
-         "FDT_SPECIFIC_CONDUCTANCE"="SPECIFIC_CONDUCTANCE_00095_UMHOS/CM @ 25C",    
-         #"FDT_SPECIFIC_CONDUCTANCE_RMK" ="FDT_SPECIFIC_CONDUCTANCE_RMK" ,
-         "FDT_SALINITY" = "SALINITY_00480_PPT" ,            
-         #"FDT_SALINITY_RMK"  ="FDT_SALINITY_RMK",  
-         "NITROGEN" = "NITROGEN_mg/L" ,                    
-         "AMMONIA" ="AMMONIA_mg/L",
-         "PHOSPHORUS" =  "PHOSPHORUS_mg/L",
-         "FECAL_COLI" = "FECAL_COLIFORM_31616_NO/100mL" ,
-         "E.COLI" = "ECOLI_CFU/100mL",                       
-         "ENTEROCOCCI" =  "ENTEROCOCCI_31649_NO/100mL",
-         "CHLOROPHYLL" ="CHLOROPHYLL_32211_ug/L",                
-         "SSC" ="SSC-TOTAL_00530_mg/L" , 
-         "NITRATE" ="NITRATE_mg/L", 
-         "CHLORIDE" ="CHLORIDE_mg/L",
-         "SULFATE_TOTAL" ="SULFATE_TOTAL_00945_mg/L",              
-         "SULFATE_DISS" ="SULFATE_DISSOLVED_00946_mg/L") %>%
-  mutate(FDT_DATE_TIME = as.POSIXct(FDT_DATE_TIME, format="%m/%d/%Y %H:%M")) # fix date time
-conventionals2022IRdraft <- filter(conventionals2022IRdraft, FDT_DATE_TIME > "2014-12-31")
-
-conventionals_distinct_draft <- conventionals2022IRdraft %>%
-  distinct(FDT_STA_ID, .keep_all = T) %>%
-  # remove any data to avoid confusion
-  dplyr::select(FDT_STA_ID:FDT_COMMENT, Latitude:STA_CBP_NAME)
-
-vahu6 <- st_read('data/GIS/AssessmentRegions_VA84_basins.shp')
-
-stations2020IR_sf_draft <- st_read('data/GIS/2020_wqms.shp')
-
-# Pin data
-pin(conventionals2022IRdraft, description = "DRAFT 2022IR conventionals dataset from Roger Stewart", board = "rsconnect")
-pin(conventionals_distinct_draft, description = "DRAFT 2022IR conventionals distinct stations from Roger Stewart", board = "rsconnect")
-pin(vahu6, description = "DEQ Assessment Region Data at VAHU6 level", board = "rsconnect")
-pin(stations2020IR_sf_draft, description = "DRAFT 2020IR stations from Cleo Baker", board = "rsconnect")
-
-rm(conventionals2022IRdraft)
-rm(conventionals_distinct_draft)
-rm(vahu6)
-rm(stations2020IR_sf_draft)
-```
+Scripts to organize and pin data are in ../2.organizeMetadata/organizeStationMetadata_DRAFTforApplication.Rmd 
 
 ## Bring in Pinned data
 
 Much faster method and makes sure data used by assessors is same for testing.
 
 ```{r pull pins}
-
-pin_get("conventionals2022IRdraft", board = "rsconnect")
-pin_get("conventionals_distinct_draft", board = "rsconnect")
-pin_get("stations2020IR_sf_draft", board = "rsconnect")
+conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect")
+conventionals_distinct <- pin_get("conventionals-distinct-draft", board = "rsconnect")
+stations2020IR <- pin_get("stations2020IR-sf-draft", board = "rsconnect")
+VSCIresults <- pin_get("VSCIresults", board = "rsconnect")
+VCPMI63results <- pin_get("VCPMI63results", board = "rsconnect")
+VCPMI65results <- pin_get("VCPMI65results", board = "rsconnect")
+WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
+Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
 
 ```
 

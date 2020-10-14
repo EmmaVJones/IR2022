@@ -1,65 +1,56 @@
-StationID,Buffer Distance,WQS_ID Desired,WQS_ID Saved on the server,WQS_ID Suggested To User,Comments
-1APOT085.89,No connections within 80 m,,RL_1A_NA,RL_1A_NA,Manual Accept | Maryland
-1APOT081.29,No connections within 80 m,,RL_1A_NA,RL_1A_NA,Manual Accept | Maryland
-1APOT069.90,No connections within 80 m,,RL_1A_NA,RL_1A_NA,Manual Accept | Maryland
-6BSRA000.10,20 m,,NA,RL_6B_001059,Manual Accept |
-5BBKY004.73,NA,,NA,EP_5B_005016,Manual Accept |
-5BBKY006.37,NA,,NA,EP_5B_005016,Manual Accept |
-5BBKY006.48,NA,,NA,EP_5B_005016,Manual Accept |
-5BBKY007.42,NA,,NA,EP_5B_005016,Manual Accept |
-5BBKY007.70,NA,,NA,EP_5B_005016,Manual Accept |
-5BBKY008.42,NA,,NA,EP_5B_005016,Manual Accept |
-5BNWN000.00,NA,,NA,EP_5B_004894,Manual Accept |
-5BBKY005.60,NA,,NA,EP_5B_005016,Manual Accept |
-5BHPC000.00,NA,,NA,EP_5B_005016,Manual Accept |
-5BMDY000.00,NA,,NA,EP_5B_005016,Manual Accept |
-5BNTH000.58,NA,,NA,EP_5B_005016,Manual Accept |
-5BNTH000.60,NA,,NA,EP_5B_005016,Manual Accept |
-5BNTH001.45,NA,,NA,EP_5B_005016,Manual Accept |
-5BSHB000.57,NA,,NA,EP_5B_005016,Manual Accept |
-5BSHB000.91,NA,,NA,EP_5B_005016,Manual Accept |
-5BSHB001.03,NA,,NA,EP_5B_005016,Manual Accept |
-5BSHB002.03,NA,,NA,EP_5B_005016,Manual Accept |
-5BNLR000.97,NA,,NA,EP_5B_004712,Manual Accept |
-5BNLR002.11,NA,,NA,EP_5B_004712,Manual Accept |
-5BNLR003.44,NA,,NA,EP_5B_004712,Manual Accept |
-5BNLR003.83,NA,,NA,EP_5B_004712,Manual Accept |
-5BNLR001.25,NA,,NA,EP_5B_004712,Manual Accept |
-5BNLR003.87,NA,,NA,EP_5B_004712,Manual Accept |
-5BNLR005.56,NA,,NA,EP_5B_005045,Manual Accept |
-5BNLR007.56,NA,,NA,EP_5B_005045,Manual Accept |
-5BNLR009.68,NA,,NA,EP_5B_005045,Manual Accept |
-5BPCT001.79,NA,,NA,EP_5B_005045,Manual Accept |
-5BNLR010.25,NA,,NA,EP_5B_005045,Manual Accept |
-5BNLR010.75,NA,,NA,EP_5B_005045,Manual Accept |
-5BAAC000.49,NA,,NA,EP_5B_005063,Manual Accept |
-5BNLR013.61,NA,,NA,EP_5B_005063,Manual Accept |
-5BWNC001.73,NA,,NA,EP_5B_005045,Manual Accept |
-5BCYS001.65,80 m,,NA,RL_5B_263650,Manual Accept |
-5BADA002.34,20 m,,NA,RL_5B_263708,Manual Accept |
-5BLKD000.02,NA,,NA,LP_5B_039855,Manual Accept |
-5BLKD000.03,NA,,NA,LP_5B_039855,Manual Accept |
-5BLKD000.08,NA,,NA,LP_5B_039855,Manual Accept |
-5BLKD001.15,NA,,NA,LP_5B_039855,Manual Accept |
-5BLKD001.40,NA,,NA,LP_5B_039855,Manual Accept |
-5BLKD002.15,NA,,NA,LP_5B_039855,Manual Accept |
-3-BOL001.10,20 m,,NA,RL_03_231618,Manual Accept | 3-XMR02.02 is correct name: station name was updated in Dec 2019
-3-RPR002.11,20 m,,NA,RL_03_220096,Manual Accept | Lake Mooney
-3-RPR000.68,80 m,,NA,RL_03_220134,Manual Accept | Lake Mooney
-5AMHN001.22,20 m,,NA,RL_5A_248172,Manual Accept |
-5ATRR002.50,20 m,,NA,RL_5A_250150,Manual Accept |
-5ASTN008.78,20 m,,NA,RL_5A_259354,Manual Accept |
-5AMSP000.16,20 m,,NA,RL_5A_250859,Manual Accept |
-5ACYS001.92,20 m,,NA,RL_5A_260255,Manual Accept |
-5AANG004.08,20 m,,NA,RL_5A_250446,Manual Accept |
-5AXEE001.44,20 m,,NA,RL_5A_250459,Manual Accept |
-5ABKH003.89,20 m,,NA,RL_5A_251643,Manual Accept |
-5ANTW035.62,20 m,,NA,RL_5A_251906,Manual Accept |
-5ARKN006.40,20 m,,NA,RL_5A_266110,Manual Accept |
-5ABLC002.00,20 m,,NA,RL_5A_261171,Manual Accept |
-5ARHS004.20,20 m,,NA,RL_5A_260797,Manual Accept |
-5ABLW040.22,20 m,,NA,RL_5A_261991,Manual Accept |
-5ABNT002.70,20 m,,NA,RL_5A_260798,Manual Accept |
-5AXDZ000.81,20 m,,NA,RL_5A_256348,Manual Accept |
-5ABLW058.22,20 m,,NA,RL_5A_266541,Manual Accept |
-5AMSW010.89,20 m,,NA,RL_5A_267903,Manual Accept |
+"","StationID","Buffer Distance","WQS_ID Saved on the server","WQS_ID Suggested To User","Comments"
+"1","6BSRA000.10","20 m",NA,"RL_6B_001059","Manual Accept |"
+"2","5BBKY004.73",NA,NA,"EP_5B_005016","Manual Accept |"
+"3","5BBKY006.37",NA,NA,"EP_5B_005016","Manual Accept |"
+"4","5BBKY006.48",NA,NA,"EP_5B_005016","Manual Accept |"
+"5","5BBKY007.42",NA,NA,"EP_5B_005016","Manual Accept |"
+"6","5BBKY007.70",NA,NA,"EP_5B_005016","Manual Accept |"
+"7","5BBKY008.42",NA,NA,"EP_5B_005016","Manual Accept |"
+"8","5BNWN000.00",NA,NA,"EP_5B_004894","Manual Accept |"
+"9","5BHPC000.00",NA,NA,"EP_5B_005016","Manual Accept |"
+"10","5BMDY000.00",NA,NA,"EP_5B_005016","Manual Accept |"
+"11","5BNTH000.58",NA,NA,"EP_5B_005016","Manual Accept |"
+"12","5BNTH000.60",NA,NA,"EP_5B_005016","Manual Accept |"
+"13","5BNTH001.45",NA,NA,"EP_5B_005016","Manual Accept |"
+"14","5BSHB000.57",NA,NA,"EP_5B_005016","Manual Accept |"
+"15","5BSHB000.91",NA,NA,"EP_5B_005016","Manual Accept |"
+"16","5BSHB001.03",NA,NA,"EP_5B_005016","Manual Accept |"
+"17","5BSHB002.03",NA,NA,"EP_5B_005016","Manual Accept |"
+"18","5BNLR000.97",NA,NA,"EP_5B_004712","Manual Accept |"
+"19","5BNLR002.11",NA,NA,"EP_5B_004712","Manual Accept |"
+"20","5BNLR003.44",NA,NA,"EP_5B_004712","Manual Accept |"
+"21","5BNLR003.83",NA,NA,"EP_5B_004712","Manual Accept |"
+"22","5BNLR003.87",NA,NA,"EP_5B_004712","Manual Accept |"
+"23","5BNLR005.56",NA,NA,"EP_5B_005045","Manual Accept |"
+"24","5BNLR007.56",NA,NA,"EP_5B_005045","Manual Accept |"
+"25","5BPCT001.79",NA,NA,"EP_5B_005045","Manual Accept |"
+"26","5BNLR010.25",NA,NA,"EP_5B_005045","Manual Accept |"
+"27","5BNLR010.75",NA,NA,"EP_5B_005045","Manual Accept |"
+"28","5BAAC000.49",NA,NA,"EP_5B_005063","Manual Accept |"
+"29","5BNLR013.61",NA,NA,"EP_5B_005063","Manual Accept |"
+"30","5BWNC001.73",NA,NA,"EP_5B_005045","Manual Accept |"
+"31","5BCYS001.65","80 m",NA,"RL_5B_263650","Manual Accept |"
+"32","5BADA002.34","20 m",NA,"RL_5B_263708","Manual Accept |"
+"33","5BLKD000.02",NA,NA,"LP_5B_039855","Manual Accept |"
+"34","5BLKD000.03",NA,NA,"LP_5B_039855","Manual Accept |"
+"35","5BLKD000.08",NA,NA,"LP_5B_039855","Manual Accept |"
+"36","5BLKD001.15",NA,NA,"LP_5B_039855","Manual Accept |"
+"37","5BLKD001.40",NA,NA,"LP_5B_039855","Manual Accept |"
+"38","5BLKD002.15",NA,NA,"LP_5B_039855","Manual Accept |"
+"39","5AMHN001.22","20 m",NA,"RL_5A_248172","Manual Accept |"
+"40","5ATRR002.50","20 m",NA,"RL_5A_250150","Manual Accept |"
+"41","5ASTN008.78","20 m",NA,"RL_5A_259354","Manual Accept |"
+"42","5AMSP000.16","20 m",NA,"RL_5A_250859","Manual Accept |"
+"43","5ACYS001.92","20 m",NA,"RL_5A_260255","Manual Accept |"
+"44","5AANG004.08","20 m",NA,"RL_5A_250446","Manual Accept |"
+"45","5AXEE001.44","20 m",NA,"RL_5A_250459","Manual Accept |"
+"46","5ABKH003.89","20 m",NA,"RL_5A_251643","Manual Accept |"
+"47","5ANTW035.62","20 m",NA,"RL_5A_251906","Manual Accept |"
+"48","5ARKN006.40","20 m",NA,"RL_5A_266110","Manual Accept |"
+"49","5ABLC002.00","20 m",NA,"RL_5A_261171","Manual Accept |"
+"50","5ARHS004.20","20 m",NA,"RL_5A_260797","Manual Accept |"
+"51","5ABLW040.22","20 m",NA,"RL_5A_261991","Manual Accept |"
+"52","5ABNT002.70","20 m",NA,"RL_5A_260798","Manual Accept |"
+"53","5AXDZ000.81","20 m",NA,"RL_5A_256348","Manual Accept |"
+"54","5ABLW058.22","20 m",NA,"RL_5A_266541","Manual Accept |"
+"55","5AMSW010.89","20 m",NA,"RL_5A_267903","Manual Accept |"
