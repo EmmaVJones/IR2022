@@ -60,16 +60,17 @@ vignettes/*.pdf
 1.preprocessData/extraDataProvidedToAssessors/
 1.preprocessData/how to see WQSlookuptable.txt
 
-2.organizeMetatdata/WQA_CEDS_templates/
-2.organizeMetatdata/data/
+2.organizeMetadata/WQA_CEDS_templates/
+2.organizeMetadata/data/
 
-
+3.automatedAssessment/data/
 
 
 rsconnect/
 *.zip
 *.gdb
 *.Rproj
+*.yml
 
 # R Environment Variables
 .Renviron

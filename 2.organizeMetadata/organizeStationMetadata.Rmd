@@ -8,22 +8,10 @@ knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 ```
 
-## R Markdown
+## Overview
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+This project picks up after regional assessment staff attribute WQS and AU information to each station identified for inclusion in a given assessment cycle. 
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+This script combines the WQS and AU information archived by those applications (from the R Connect server) and attaches that information to all data associated with an assessment window.
 
-```{r cars}
-summary(cars)
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+This script combines all final data, as opposed to draft data.

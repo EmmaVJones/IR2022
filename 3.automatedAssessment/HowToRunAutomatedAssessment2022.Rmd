@@ -1,0 +1,118 @@
+---
+title: "How to run automated assessment- Riverine"
+author: "Emma Jones"
+date: "October 14, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(sf)
+library(readxl)
+library(pins)
+library(config)
+#library(FSA)
+#library(lubridate)
+#library(magrittr)
+
+# Bring in Assessment functions from app
+#source('global.R')
+
+# get configuration settings
+conn <- config::get("connectionSettings")
+
+# use API key to register board
+board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_KEY"),
+                          server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
+
+```
+
+This document walks users through running the automated assessement for any given set of stations and waterbody type (riverine or lacustrine for now). Prior to this point, the user needs to have completed the necessary prerequisites of attributing stations with AU and WQS information. This dataset is a companion to the rivers and streams/lake assessment applications and is **NOT** final. The results cited in this table are identical to the app calculations and are meant for assessor review, QA, editing prior to sumbitting to WQA CEDS bulk data upload.
+
+# Prerequisites
+The user will have to have all conventionals data, water column metals, and sediment metals organized by Roger for the window. **Additionally, the CEDS EDAS data needs to be exported and available for use, including regional Bioassessment calls**. Last cycle's finalized regional assessment layer (shapefile with AUs) are the spatial component needed. Lastly, the assessor must have the stations bulk data upload table filled out to their requirements in order to run the assessment scripts. 
+
+## Pin Data/Retrieve Data
+
+Repeat as necessary in order to access the most recent data available for assessment.
+
+```{r pin data}
+# Get data to pin
+conventionals2022IRdraft <- read_csv('data/CEDSWQM_2020_IR_DATA-CONVENTIONALS_20190305.csv') %>%
+  # change to naming system 
+  rename("FDT_TEMP_CELCIUS"  ="TEMPERATURE_00010_DEGREES CENTIGRADE",
+         #"FDT_TEMP_CELCIUS_RMK" = "FDT_TEMP_CELCIUS_RMK",  
+         "FDT_FIELD_PH" = "pH_00400_STD_UNITS" ,          
+         #"FDT_FIELD_PH_RMK"  ="FDT_FIELD_PH_RMK", 
+         "DO" =  "DO_mg/L",       
+         #"DO_RMK"  ="DO_RMK",    
+         "FDT_SPECIFIC_CONDUCTANCE"="SPECIFIC_CONDUCTANCE_00095_UMHOS/CM @ 25C",    
+         #"FDT_SPECIFIC_CONDUCTANCE_RMK" ="FDT_SPECIFIC_CONDUCTANCE_RMK" ,
+         "FDT_SALINITY" = "SALINITY_00480_PPT" ,            
+         #"FDT_SALINITY_RMK"  ="FDT_SALINITY_RMK",  
+         "NITROGEN" = "NITROGEN_mg/L" ,                    
+         "AMMONIA" ="AMMONIA_mg/L",
+         "PHOSPHORUS" =  "PHOSPHORUS_mg/L",
+         "FECAL_COLI" = "FECAL_COLIFORM_31616_NO/100mL" ,
+         "E.COLI" = "ECOLI_CFU/100mL",                       
+         "ENTEROCOCCI" =  "ENTEROCOCCI_31649_NO/100mL",
+         "CHLOROPHYLL" ="CHLOROPHYLL_32211_ug/L",                
+         "SSC" ="SSC-TOTAL_00530_mg/L" , 
+         "NITRATE" ="NITRATE_mg/L", 
+         "CHLORIDE" ="CHLORIDE_mg/L",
+         "SULFATE_TOTAL" ="SULFATE_TOTAL_00945_mg/L",              
+         "SULFATE_DISS" ="SULFATE_DISSOLVED_00946_mg/L") %>%
+  mutate(FDT_DATE_TIME = as.POSIXct(FDT_DATE_TIME, format="%m/%d/%Y %H:%M")) # fix date time
+conventionals2022IRdraft <- filter(conventionals2022IRdraft, FDT_DATE_TIME > "2014-12-31")
+
+conventionals_distinct_draft <- conventionals2022IRdraft %>%
+  distinct(FDT_STA_ID, .keep_all = T) %>%
+  # remove any data to avoid confusion
+  dplyr::select(FDT_STA_ID:FDT_COMMENT, Latitude:STA_CBP_NAME)
+
+vahu6 <- st_read('data/GIS/AssessmentRegions_VA84_basins.shp')
+
+stations2020IR_sf_draft <- st_read('data/GIS/2020_wqms.shp')
+
+# Pin data
+pin(conventionals2022IRdraft, description = "DRAFT 2022IR conventionals dataset from Roger Stewart", board = "rsconnect")
+pin(conventionals_distinct_draft, description = "DRAFT 2022IR conventionals distinct stations from Roger Stewart", board = "rsconnect")
+pin(vahu6, description = "DEQ Assessment Region Data at VAHU6 level", board = "rsconnect")
+pin(stations2020IR_sf_draft, description = "DRAFT 2020IR stations from Cleo Baker", board = "rsconnect")
+
+rm(conventionals2022IRdraft)
+rm(conventionals_distinct_draft)
+rm(vahu6)
+rm(stations2020IR_sf_draft)
+```
+
+## Bring in Pinned data
+
+Much faster method and makes sure data used by assessors is same for testing.
+
+```{r pull pins}
+
+pin_get("conventionals2022IRdraft", board = "rsconnect")
+pin_get("conventionals_distinct_draft", board = "rsconnect")
+pin_get("stations2020IR_sf_draft", board = "rsconnect")
+
+```
+
+
+# Workflow
+
+The following steps complete the automated assessment.
+
+#
+
+# steps
+
+pin conventionals, metals, benthics, wqs information, last cycle AU info (spatial)
+
+user upload AU and station info (carry over only what is given to scripts, NA if nothing given)
+
+script joins WQS info
+
+
+
