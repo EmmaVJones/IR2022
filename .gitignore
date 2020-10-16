@@ -65,7 +65,9 @@ vignettes/*.pdf
 2.organizeMetadata/processedStationData/
 
 3.automatedAssessment/data/
-
+3.automatedAssessment/processedStationData/
+3.automatedAssessment/calculationExamples/
+3.automatedAssessment/WQA_CEDS_templates/
 
 rsconnect/
 *.zip

@@ -238,6 +238,10 @@ LZ <- readRDS('data/LacustrineZoneData/lakeStationsFinal.RDS') %>%
                                                   '2-BRI013.12', '2-MBN000.96', '2-SDY004.27', '2-SDY005.85', 
                                                   '2-TBM000.92', '2-XEP000.44')) %>%
       mutate(Assess_TYPE = 'Yes') ) %>%
+  # VRO: LZ designations from Sara, email 10/15/2020
+  bind_rows(
+    read_excel('data/LacustrineZoneData/VROLacustrineStations2022RTool.xlsx') %>%
+      dplyr::select(STATION_ID = `Station ID`)  ) %>% # select and rename in 1 step
   mutate(Assess_TYPE = 'YES')
 
 # Fix Stations table
@@ -251,81 +255,6 @@ Make sure no stations are missing AU information. Try to build tools to handle n
 ```{r}
 nrow(filter(stationsTable2022begin, is.na(ID305B_1)))
 ```
-
-
-
-### WQS addition
-
-Now we need to make sure we have WQS information for each station we need to assess. 
-
-```{r wqs information}
-# most recent version taken from ..\1.preprocessData\WQSlookupTable
-WQSlookup <- read_csv('data/WQSlookupTable/20200925_115058_WQSlookup.csv')
-```
-
-To speed up the applications and assessment calculations, we will first join the actual WQS information to the lookup table now in the preprocessing steps.
-
-```{r WQS information joins}
-#bring in Riverine layers, valid for the assessment window
-riverine <- st_read('C:/HardDriveBackup/GIS/WQS/WQS_layers_05082020.gdb', layer = 'riverine_05082020') %>%
-  st_drop_geometry() # only care about data not geometry
-
-WQSlookupFull <- left_join(WQSlookup, riverine) %>%
-  filter(!is.na(CLASS))
-rm(riverine)
-
-lacustrine <- st_read('C:/HardDriveBackup/GIS/WQS/WQS_layers_05082020.gdb', layer = 'lakes_reservoirs_05082020') %>%
-  st_drop_geometry() # only care about data not geometry
-
-WQSlookupFull <- left_join(WQSlookup, lacustrine) %>%
-  filter(!is.na(CLASS)) %>%
-  bind_rows(WQSlookupFull)
-rm(lacustrine)
-
-estuarineLines <- st_read('C:/HardDriveBackup/GIS/WQS/WQS_layers_05082020.gdb', layer = 'estuarinelines_05082020') %>%
-  st_drop_geometry() # only care about data not geometry
-
-WQSlookupFull <- left_join(WQSlookup, estuarineLines) %>%
-  filter(!is.na(CLASS)) %>%
-  bind_rows(WQSlookupFull)
-rm(estuarineLines)
-
-estuarinePolys <- st_read('C:/HardDriveBackup/GIS/WQS/WQS_layers_05082020.gdb', layer = 'estuarinepolygons_05082020') %>%
-  st_drop_geometry() # only care about data not geometry
-
-WQSlookupFull <- left_join(WQSlookup, estuarinePolys) %>%
-  filter(!is.na(CLASS)) %>%
-  bind_rows(WQSlookupFull)
-rm(estuarinePolys)
-
-# What stations still need WQS?
-z <- filter(WQSlookup, ! StationID %in% WQSlookupFull$StationID) %>%
-  filter(StationID %in% conventionals_distinct$FDT_STA_ID)
-
-# fix user issues
-test <- readRDS('C:/HardDriveBackup/R/GitHub/IR2022/1.preprocessData/data/WQStable.RDS')
-y <- left_join(z, test, by = 'StationID') %>%
-  rename("WQS_ID Saved on the server" = "WQS_ID.x",
-         "WQS_ID Suggested To User" = "WQS_ID.y",
-         "Buffer Distance" = "Buffer Distance.y") %>%
-  dplyr::select(StationID, `Buffer Distance`, `WQS_ID Saved on the server`, `WQS_ID Suggested To User`, Comments)
-write.csv(y,'missingWQSforReview.csv')
-
-```
-
-
-Once I get that information back from assessors I can fully move on.
-
-
-
-
-Now time to actually join standards to stations.
-
-```{r join wqs info}
-stationsTable2022begin <- left_join(stationsTable2022begin, WQSlookupFull, by = c('STATION_ID' = 'StationID'))
-```
-
-Lots of citizen, non agency sites without WQS info. Need to figure out a solution to these sites.
 
 for now, maybe this is my starting point for rebuilding assessment scripts???????
 
@@ -371,4 +300,105 @@ pin(WCmetals_2020IRfinal, description = "FINAL 2020IR water column metals data f
 pin(Smetals_2020IRfinal, description = "FINAL 2020IR sediment metals data from Roger Stewart", board = "rsconnect")
 
 ```
+### WQS addition
+
+Now we need to make sure we have WQS information for each station we need to assess so that assessors only need to upload station information to the assessment applications and not bother with WQS information.
+
+First, take the most recent WQSlookup table and upload to server. This should be repeated once all WQS attribution is fully completed with full assessment cycle data.
+
+```{r wqs information}
+# most recent version taken from ..\1.preprocessData\WQSlookupTable
+WQSlookup <- read_csv('data/WQSlookupTable/20200925_115058_WQSlookup.csv')
+pin(WQSlookup, description = "WQS lookup table from metadata attribution application", board = "rsconnect")
+```
+
+Now read in the WQS info for the assessment and upload to server (makes syncing data across other applications better as well).
+
+```{r}
+riverine <- st_read('C:/HardDriveBackup/GIS/WQS/WQS_layers_05082020.gdb', layer = 'riverine_05082020') 
+pin(riverine, description = "Riverine WQS from Tish Robertson 5/8/2020", board = "rsconnect")
+rm(riverine)
+
+lacustrine <- st_read('C:/HardDriveBackup/GIS/WQS/WQS_layers_05082020.gdb', layer = 'lakes_reservoirs_05082020')
+pin(lacustrine, description = "Lacustring WQS from Tish Robertson 5/8/2020", board = "rsconnect")
+rm(lacustrine)
+
+estuarineLines <- st_read('C:/HardDriveBackup/GIS/WQS/WQS_layers_05082020.gdb', layer = 'estuarinelines_05082020')
+pin(estuarineLines, description = "Estuarine Lines WQS from Tish Robertson 5/8/2020", board = "rsconnect")
+rm(estuarineLines)
+
+estuarinePolys <- st_read('C:/HardDriveBackup/GIS/WQS/WQS_layers_05082020.gdb', layer = 'estuarinepolygons_05082020') 
+pin(estuarinePolys, description = "Estuarine Polys WQS from Tish Robertson 5/8/2020", board = "rsconnect")
+rm(estuarinePolys)
+
+```
+
+To speed up the applications and assessment calculations, we will first join the actual WQS information to the lookup table now in the preprocessing steps and pin that information as a starting point for apps.
+
+```{r WQS information joins, eval = FALSE}
+#bring in Riverine layers, valid for the assessment window
+riverine <- st_read('C:/HardDriveBackup/GIS/WQS/WQS_layers_05082020.gdb', layer = 'riverine_05082020') %>%
+  st_drop_geometry() # only care about data not geometry
+
+WQSlookupFull <- left_join(WQSlookup, riverine) %>%
+  filter(!is.na(CLASS))
+rm(riverine)
+
+lacustrine <- st_read('C:/HardDriveBackup/GIS/WQS/WQS_layers_05082020.gdb', layer = 'lakes_reservoirs_05082020') %>%
+  st_drop_geometry() # only care about data not geometry
+
+WQSlookupFull <- left_join(WQSlookup, lacustrine) %>%
+  filter(!is.na(CLASS)) %>%
+  bind_rows(WQSlookupFull)
+rm(lacustrine)
+
+estuarineLines <- st_read('C:/HardDriveBackup/GIS/WQS/WQS_layers_05082020.gdb', layer = 'estuarinelines_05082020') %>%
+  st_drop_geometry() # only care about data not geometry
+
+WQSlookupFull <- left_join(WQSlookup, estuarineLines) %>%
+  filter(!is.na(CLASS)) %>%
+  bind_rows(WQSlookupFull)
+rm(estuarineLines)
+
+estuarinePolys <- st_read('C:/HardDriveBackup/GIS/WQS/WQS_layers_05082020.gdb', layer = 'estuarinepolygons_05082020') %>%
+  st_drop_geometry() # only care about data not geometry
+
+WQSlookupFull <- left_join(WQSlookup, estuarinePolys) %>%
+  filter(!is.na(CLASS)) %>%
+  bind_rows(WQSlookupFull)
+rm(estuarinePolys)
+
+WQSlookup_withStandards <- WQSlookupFull # for pin
+
+# What stations still need WQS?
+z <- filter(WQSlookup, ! StationID %in% WQSlookupFull$StationID) %>%
+  filter(StationID %in% conventionals_distinct$FDT_STA_ID)
+
+# fix user issues
+test <- readRDS('C:/HardDriveBackup/R/GitHub/IR2022/1.preprocessData/data/WQStable.RDS')
+y <- left_join(z, test, by = 'StationID') %>%
+  rename("WQS_ID Saved on the server" = "WQS_ID.x",
+         "WQS_ID Suggested To User" = "WQS_ID.y",
+         "Buffer Distance" = "Buffer Distance.y") %>%
+  dplyr::select(StationID, `Buffer Distance`, `WQS_ID Saved on the server`, `WQS_ID Suggested To User`, Comments)
+write.csv(y,'missingWQSforReview.csv')
+
+```
+
+
+
+
+Once I get that information back from assessors I can fully move on.
+
+
+
+
+Now time to actually join standards to stations. This is going to be available on the server for users to access from the assessment scripts. The thinking right now is that it is better to store this information on the server right now and show users the data (when asked) instead of having it attached to the right of existing stationsTable (like 2020 cycle) since CEDS WQA only accepts a specific template. Also, if WQS info needs to be changed, the assessor is forced to update the WQS_ID. Maybe this isn't an awesome method but going with it for now.
+
+```{r pin WQS information}
+pin(WQSlookup_withStandards, description = "WQS lookup table with Standards from metadata attribution application", board = "rsconnect")
+```
+
+Lots of citizen, non agency sites without WQS info. Need to figure out a solution to these sites.
+
 

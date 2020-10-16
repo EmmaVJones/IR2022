@@ -1,5 +1,5 @@
 ---
-title: "How to run automated assessment- Riverine"
+title: "How to run automated assessment"
 author: "Emma Jones"
 date: "October 14, 2020"
 output: html_document
@@ -7,6 +7,9 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+options(digits = 12) #critical to seeing all the data
+
 library(tidyverse)
 library(sf)
 library(readxl)
@@ -17,7 +20,7 @@ library(config)
 #library(magrittr)
 
 # Bring in Assessment functions from app
-#source('global.R')
+source('global.R')
 
 # get configuration settings
 conn <- config::get("connectionSettings")
@@ -50,15 +53,53 @@ VCPMI63results <- pin_get("VCPMI63results", board = "rsconnect")
 VCPMI65results <- pin_get("VCPMI65results", board = "rsconnect")
 WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
 Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
+```
+
+## Bring in Station Table Bulk Upload Template
+
+```{r bulk upload template}
+stationsTemplate <- read_excel('WQA_CEDS_templates/WQA_Bulk_Station_Upload (3).xlsx', 
+                               sheet = 'Stations', col_types = "text")[0,] # just want structure and not the draft data, force everything to character for now
 
 ```
+
 
 
 # Workflow
 
 The following steps complete the automated assessment.
 
-#
+## Bring in user station table data
+
+This information communicates to the scripts which stations should be assessed and where they should be organized (AUs).
+
+```{r stationTable}
+stationTable <- read_csv('processedStationData/stationsTable2022begin.csv')
+```
+
+## Attach WQS information
+
+Is there a better way to do this?
+
+Pull pinned WQS info saved on server and join to station table. Identify if any stations are missing WQS. 
+
+```{r pull WQS info}
+WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
+
+stationTable <- left_join(stationTable, WQSlookup, by = c('STATION_ID'='StationID')) %>%
+  mutate(CLASS_BASIN = paste(CLASS,substr(BASIN, 1,1), sep="_")) %>%
+  mutate(CLASS_BASIN = ifelse(CLASS_BASIN == 'II_7', "II_7", as.character(CLASS))) %>%
+  # Fix for Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard)
+  left_join(WQSvalues, by = 'CLASS_BASIN') %>%
+  dplyr::select(-c(CLASS.y,CLASS_BASIN)) %>%
+  rename('CLASS' = 'CLASS.x') 
+  # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
+  
+
+missingWQS <- filter(stationTable, is.na(CLASS))
+```
+
+
 
 # steps
 
@@ -66,7 +107,33 @@ pin conventionals, metals, benthics, wqs information, last cycle AU info (spatia
 
 user upload AU and station info (carry over only what is given to scripts, NA if nothing given)
 
-script joins WQS info
+script joins WQS info to conventionals
+
+go through conventionals one station at a time, join stationTable, analyze by functions, report in WQA CEDS template
+
+
+```{r}
+# time it:
+startTime <- Sys.time()
+
+# loop over all sites, not super efficient but get the job done for now
+#for(i in 1:nrow(stationTable)){
+i = 1
+  print(paste('Assessing station', i, 'of', nrow(conventionals), sep=' '))
+
+  # pull one station data
+  stationData <- filter(conventionals, FDT_STA_ID %in% conventionals$FDT_STA_ID[i]) %>%
+    left_join(stationTable, by = c('FDT_STA_ID' = 'STATION_ID'))
+  
+  
+  results <- cbind(
+    StationTableStartingData(stationData),
+    tempExceedances(stationData),
+  
+```
+
+
+
 
 
 
