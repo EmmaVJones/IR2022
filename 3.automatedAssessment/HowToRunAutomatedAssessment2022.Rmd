@@ -15,8 +15,9 @@ library(sf)
 library(readxl)
 library(pins)
 library(config)
+library(EnvStats)
 #library(FSA)
-#library(lubridate)
+library(lubridate)
 #library(magrittr)
 
 # Bring in Assessment functions from app
@@ -113,22 +114,35 @@ go through conventionals one station at a time, join stationTable, analyze by fu
 
 
 ```{r}
+stationTableResults <- stationsTemplate
+
 # time it:
 startTime <- Sys.time()
 
 # loop over all sites, not super efficient but get the job done for now
-#for(i in 1:nrow(stationTable)){
-i = 1
-  print(paste('Assessing station', i, 'of', nrow(conventionals), sep=' '))
+for(i in 1:200){#nrow(stationTable)){
+#i = 1
+  print(paste('Assessing station', i, 'of', nrow(stationTable), sep=' '))
 
   # pull one station data
-  stationData <- filter(conventionals, FDT_STA_ID %in% conventionals$FDT_STA_ID[i]) %>%
+  stationData <- filter(conventionals, FDT_STA_ID %in% stationTable$STATION_ID[i]) %>%
     left_join(stationTable, by = c('FDT_STA_ID' = 'STATION_ID'))
   
   
   results <- cbind(
     StationTableStartingData(stationData),
     tempExceedances(stationData),
+    DOExceedances_Min(stationData), 
+    pHExceedances(stationData),
+    bacteriaExceedances_NEW(citmonOutOfBacteria(stationData, E.COLI, ECOLI_RMK),'E.COLI', 10, 410, 126),
+    bacteriaExceedances_NEW(citmonOutOfBacteria(stationData, ENTEROCOCCI, RMK_31649),'ENTEROCOCCI',10, 35, 104)
+    ) %>%
+    dplyr::select(-ends_with('exceedanceRate')) # to match Bulk Upload template but helpful to keep visible til now for testing
+  
+  stationTableResults <- rbind(stationTableResults,results)
+}
+
+timeDiff = Sys.time()- startTime
   
 ```
 

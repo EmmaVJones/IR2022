@@ -48,10 +48,11 @@ changeDEQRegionName <- function(stuff){
 
 
 quickStats <- function(parameterDataset, parameter){
-  if(nrow(parameterDataset) > 0 ){
+  if(nrow(parameterDataset) > 0 & any(!is.na(parameterDataset$limit))){
     results <- data.frame(VIO = nrow(filter(parameterDataset, exceeds == TRUE)),
                           SAMP = nrow(parameterDataset)) %>%
-      mutate(exceedanceRate = as.numeric(format((VIO/SAMP)*100,digits=3)))
+      # Implement Round to Even on Exceedance Frequency
+      mutate(exceedanceRate = as.numeric(round((VIO/SAMP)*100,digits=0))) # round to nearest whole number per Memo to Standardize Rounding for Assessment Guidance
     
     if(results$VIO >= 1){outcome <- 'Review'} # for Mary
     if(results$VIO >= 1 & results$exceedanceRate < 10.5){outcome <- 'Review'}
@@ -69,7 +70,7 @@ quickStats <- function(parameterDataset, parameter){
     #rename based on parameter entered
     return(results)
   } else {
-    z <- data.frame(VIO = NA, SAMP=NA, exceedanceRate= NA, STAT=NA)
+    z <- data.frame(VIO = NA, SAMP= nrow(parameterDataset), exceedanceRate= NA, STAT=NA)
     names(z) <- paste(parameter,names(z), sep='_')
     return(z)
   }
@@ -79,7 +80,8 @@ quickStats <- function(parameterDataset, parameter){
 StationTableStartingData <- function(x){
   x %>%
     dplyr::select(FDT_STA_ID, ID305B_1:VAHU6) %>%
-    rename('STATION_ID' = 'FDT_STA_ID')
+    rename('STATION_ID' = 'FDT_STA_ID') %>%
+    distinct(STATION_ID, .keep_all = T)
 }
 
 
@@ -91,8 +93,49 @@ tempExceedances <- function(x){
     filter(!(FDT_TEMP_CELCIUS_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
     filter(!is.na(FDT_TEMP_CELCIUS))%>% #get rid of NA's
     rename(parameter = !!names(.[2]), limit = !!names(.[4])) %>% # rename columns to make functions easier to apply
-    mutate(exceeds = ifelse(parameter > limit, T, F)) # Identify where above max Temperature, 
-  
+    # Round to Even Rule
+    mutate(parameterRound = round(parameter, digits = 0), # round to whole number based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
+           exceeds = ifelse(parameterRound > limit, T, F)) %>%# Identify where above max Temperature, 
+
   quickStats(temp, 'TEMP')
 }
 #tempExceedances(x)
+
+
+# Minimum DO Exceedance function
+DOExceedances_Min <- function(x){
+  DO <- dplyr::select(x,FDT_DATE_TIME,DO,DO_RMK,`Dissolved Oxygen Min (mg/L)`)%>% # Just get relevant columns, 
+    filter(!(DO_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    filter(!is.na(DO)) %>% 
+    rename(parameter = !!names(.[2]), limit = !!names(.[4])) %>% # rename columns to make functions easier to apply
+    # Round to Even Rule
+    mutate(parameterRound = round(parameter, digits = 1), # round to 1 digit based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
+           exceeds = ifelse(parameterRound < limit, T, F))# Identify where below min DO 
+  
+  quickStats(DO, 'DO')
+}
+#DOExceedances_Min(x)
+
+# pH range Exceedance Function
+pHExceedances <- function(x){
+  pH <- dplyr::select(x,FDT_DATE_TIME,FDT_DEPTH,FDT_FIELD_PH,FDT_FIELD_PH_RMK,`pH Min`,`pH Max`)%>% # Just get relevant columns, 
+    filter(!(FDT_FIELD_PH_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    filter(!is.na(FDT_FIELD_PH)) #get rid of NA's
+    
+  # only run analysis if WQS exist for station
+    if(any(is.na(pH$`pH Min`)) | any(is.na(pH$`pH Max`))){
+      pH <- mutate(pH, interval = 1, exceeds = FALSE, limit = `pH Min`) # placeholder to run quickStats() without any WQS
+    } else {
+      pH <- pH %>%
+        rowwise() %>% 
+        # Round to Even Rule
+        mutate(parameterRound = round(FDT_FIELD_PH, digits = 1)) %>% # round to 1 digit based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
+        mutate(interval=findInterval(parameterRound,c(`pH Min`,`pH Max`), left.open=TRUE, rightmost.closed = TRUE)) %>% # Identify where pH outside of assessment range with round to even
+        ungroup()%>%
+        mutate(exceeds=ifelse(interval == 1, F, T), # Highlight where pH doesn't fall into assessment range
+               limit = `pH Min`) # placeholder for quickStats function, carries over whether or not station has WQS attributed
+    }
+  
+  quickStats(pH, 'PH')
+}
+#pHExceedances(x)
