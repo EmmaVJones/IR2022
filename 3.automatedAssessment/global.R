@@ -95,7 +95,7 @@ tempExceedances <- function(x){
     rename(parameter = !!names(.[2]), limit = !!names(.[4])) %>% # rename columns to make functions easier to apply
     # Round to Even Rule
     mutate(parameterRound = round(parameter, digits = 0), # round to whole number based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
-           exceeds = ifelse(parameterRound > limit, T, F)) %>%# Identify where above max Temperature, 
+           exceeds = ifelse(parameterRound > limit, T, F)) # Identify where above max Temperature, 
 
   quickStats(temp, 'TEMP')
 }

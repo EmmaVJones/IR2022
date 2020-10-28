@@ -22,6 +22,7 @@ library(lubridate)
 
 # Bring in Assessment functions from app
 source('global.R')
+source('updatedBacteriaCriteria.R')
 
 # get configuration settings
 conn <- config::get("connectionSettings")
@@ -120,7 +121,7 @@ stationTableResults <- stationsTemplate
 startTime <- Sys.time()
 
 # loop over all sites, not super efficient but get the job done for now
-for(i in 1:200){#nrow(stationTable)){
+for(i in 1:20){#nrow(stationTable)){
 #i = 1
   print(paste('Assessing station', i, 'of', nrow(stationTable), sep=' '))
 
@@ -134,8 +135,10 @@ for(i in 1:200){#nrow(stationTable)){
     tempExceedances(stationData),
     DOExceedances_Min(stationData), 
     pHExceedances(stationData),
-    bacteriaExceedances_NEW(citmonOutOfBacteria(stationData, E.COLI, ECOLI_RMK),'E.COLI', 10, 410, 126),
-    bacteriaExceedances_NEW(citmonOutOfBacteria(stationData, ENTEROCOCCI, RMK_31649),'ENTEROCOCCI',10, 35, 104)
+    bacteriaAssessmentDecision(stationData, 'E.COLI', 'ECOLI_RMK', 10, 410, 126) %>%
+      dplyr::select(StationID:ECOLI_STAT),
+    bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35) %>%
+      dplyr::select(StationID:ENTER_STAT)
     ) %>%
     dplyr::select(-ends_with('exceedanceRate')) # to match Bulk Upload template but helpful to keep visible til now for testing
   
