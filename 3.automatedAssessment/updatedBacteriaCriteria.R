@@ -2,30 +2,33 @@
 
 # Function is built to calculate both E.coli and Enterococci based on 90 day assessment windows.
 # here is some test data 
-stationData <- filter(conventionals, FDT_STA_ID %in% '2-JKS023.61') %>%
-  left_join(stationTable, by = c('FDT_STA_ID' = 'STATION_ID'))
+#stationData <- filter(conventionals, FDT_STA_ID %in% '1AACO014.57')%>%
+#    left_join(stationTable, by = c('FDT_STA_ID' = 'STATION_ID'))
+
+#stationData <- filter(conventionals, FDT_STA_ID %in% '2-JKS023.61') %>%
+#  left_join(stationTable, by = c('FDT_STA_ID' = 'STATION_ID'))
 
 # add some high frequency data
-stationData <- bind_rows(stationData,
-                         data.frame(FDT_STA_ID = c('2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61', 
-                                                  '2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61'),
-                           FDT_DATE_TIME= as.POSIXct(c('2019-02-12 10:00:00', '2019-02-13 10:00:00', '2019-02-14 10:00:00', '2019-02-15 10:00:00', '2019-02-16 10:00:00',
-                                           '2019-02-17 10:00:00', '2019-02-18 10:00:00', '2019-02-19 10:00:00', '2019-02-20 10:00:00', '2019-02-21 10:00:00')),
-                          E.COLI = c(22, 33, 44, 55, 66, 77, 88, 99, 100, 120),
-                          ECOLI_RMK = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA)))
+#stationData <- bind_rows(stationData,
+#                         data.frame(FDT_STA_ID = c('2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61', 
+#                                                  '2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61'),
+#                           FDT_DATE_TIME= as.POSIXct(c('2019-02-12 10:00:00', '2019-02-13 10:00:00', '2019-02-14 10:00:00', '2019-02-15 10:00:00', '2019-02-16 10:00:00',
+#                                           '2019-02-17 10:00:00', '2019-02-18 10:00:00', '2019-02-19 10:00:00', '2019-02-20 10:00:00', '2019-02-21 10:00:00')),
+#                          E.COLI = c(22, 33, 44, 55, 66, 77, 88, 99, 100, 800),
+#                          ECOLI_RMK = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA)))
 
 
-x <- stationData
-bacteriaField <-# 'E.COLI' #
-  'ENTEROCOCCI'
-bacteriaRemark <-# 'ECOLI_RMK' #  
-  'RMK_31649'
-sampleRequirement <- 10
-STV <-# 410 #
-130
-geomeanCriteria <- #126 #
-  35
-#rm(x);rm(bacteriaField);rm(bacteriaRemark); rm(sampleRequirement); rm(STV); rm(geomeanCriteria); rm(stationTableName); rm(z);rm(exceedGeomean); rm(out); rm(exceedSTVrate)
+#x <- stationData
+#bacteriaField <- 'E.COLI' #
+##  'ENTEROCOCCI'
+#bacteriaRemark <- 'ECOLI_RMK' #  
+##  'RMK_31649'
+#sampleRequirement <- 10
+#STV <- 410 #
+##130
+#geomeanCriteria <- 126 #
+##  35
+#rm(i); rm(x);rm(bacteriaField);rm(bacteriaRemark); rm(sampleRequirement); rm(STV); rm(geomeanCriteria); rm(stationTableName); rm(z);rm(exceedGeomean); rm(out); rm(exceedSTVrate);rm(x2); rm(time1);rm(timePlus89); rm(nSamples); rm(exceedSTVn);
 
 # Function to assess on 90 day windows across input dataset
 # really just a building block, one probably wouldn't run this function independently
@@ -68,7 +71,8 @@ bacteriaExceedances_NEW <- function(x, # input dataframe with bacteria data
       
       # First level of testing: any STV hits in dataset? Want this information for all scenarios
       nSTVhitsInWindow <- nrow(filter(z, STVhit == TRUE))
-      STVexceedanceRate <- round(( nSTVhitsInWindow / unique(z$nSamples)) * 100, digits = 0) # STV exceedance rate calculation with round to even math
+      STVexceedanceRate <- ifelse(z$nSamples >= 10, round(( nSTVhitsInWindow / unique(z$nSamples)) * 100, digits = 0), # STV exceedance rate calculation with round to even math
+                                  NA) # no STV exceedance rate if < 10 samples
       if(nSTVhitsInWindow == 0){
         `STV Assessment` <- 'No STV violations within 90 day window' } 
       if(nSTVhitsInWindow == 1){
@@ -146,14 +150,16 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
     # Rename output columns based on station table template
     stationTableName <- ifelse(bacteriaField == 'E.COLI', "ECOLI", "ENTER")
     
-    if(any(!is.na(dplyr::select(x, {{ bacteriaField }}) %>% pull()))){ # only proceed through decisions if there is data to be analyzed
+    nSamples <- select(x,  Value = {{ bacteriaField }} ) %>% 
+      filter(!is.na(Value)) # total n samples taken in assessment window
+    
+    
+    if(nrow(nSamples) > 0){ # only proceed through decisions if there is data to be analyzed
 
-
-      
     # Run assessment function
-    z <- bacteriaExceedances_NEW(x, bacteriaField, bacteriaRemark, sampleRequirement, STV, geomeanCriteria)   
-#    exceedSTV <- filter(x, {{ bacteriaField }} > STV)
-    # add something here to calculate all stv's in dataset
+    z <- suppressWarnings(bacteriaExceedances_NEW(x, bacteriaField, bacteriaRemark, sampleRequirement, STV, geomeanCriteria)   )
+    exceedSTVn <- select(x,  Value = {{ bacteriaField }} ) %>% 
+      filter(Value > STV) # total STV exceedances in dataset
     exceedSTVrate <- filter(z, `STV Exceedance Rate` > 10)
     exceedGeomean <- filter(z, `Geomean In Window` > geomeanCriteria)
     
@@ -165,13 +171,13 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
       # Do the geometric means calculated for the 90-day periods represented by 10+ samples meet the GM criterion?
       if( nrow(exceedGeomean) == 0){ # Do the geometric means calculated for the 90-day periods represented by 10+ samples meet the GM criterion? - Yes
         # Do any of the 90-day periods of the assessment window represented in the dataset exceed the 10% STV Exceedance Rate?
-        if( nrow(exceedSTVrate) > 0){ # Do any of the 90-day periods of the assessment window represented in the dataset exceed the 10% STV Exceedance Rate? - Yes
+        if( nrow(exceedSTVn) > 0){ # Do any of the 90-day periods of the assessment window represented in the dataset exceed the 10% STV Exceedance Rate? - Yes
           
           # Yes, in a 90-day period represented by 10+ samples
           if(nrow(filter(exceedSTVrate, `Samples in 90 Day Window` >= 10 & `STV Exceedance Rate` > 10)) > 0){ # STV exceedances in a 90-day period represented by >= 10 samples
             return(tibble(StationID = unique(z$StationID),
-                          `_EXC` = nrow(exceedSTVrate), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
-                          `_SAMP` = nrow(x), 
+                          `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                          `_SAMP` = nrow(nSamples), 
                           `_GM_EXC` = nrow(exceedGeomean),
                           `_GM_SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
                           `_STAT` = "IM",
@@ -182,10 +188,10 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
           } else {  # STV exceedances in a 90-day period represented by < 10 samples
             
             # 2 or more hits in the same 90-day period?
-            if(any(exceedSTVrate$`STV Exceedances In Window` >= 2) ){
+            if(any(z$`STV Exceedances In Window` >= 2) ){
               return(tibble(StationID = unique(z$StationID),
-                            `_EXC` = nrow(exceedSTVrate), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
-                            `_SAMP` = nrow(x), 
+                            `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                            `_SAMP` = nrow(nSamples), 
                             `_GM_EXC` = nrow(exceedGeomean),
                             `_GM_SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
                             `_STAT` = "IM",
@@ -194,8 +200,8 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
                        rename_with( ~ gsub("_", paste0(stationTableName,"_"), .x, fixed = TRUE)) ) # fix names to match station table format
               } else { # 1 hit in one or multiple 90-day periods after verifying geomean passes where applicable
                 return(tibble(StationID = unique(z$StationID),
-                              `_EXC` = nrow(exceedSTVrate), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
-                              `_SAMP` = nrow(x), 
+                              `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                              `_SAMP` = nrow(nSamples), 
                               `_GM_EXC` = nrow(exceedGeomean),
                               `_GM_SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
                               `_STAT` = "OE",
@@ -207,8 +213,8 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
           
         } else {  # Do any of the 90-day periods of the assessment window represented in the dataset exceed the 10% STV Exceedance Rate? - No
           return(tibble(StationID = unique(z$StationID),
-                        `_EXC` = nrow(exceedSTVrate), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
-                        `_SAMP` = nrow(x), 
+                        `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                        `_SAMP` = nrow(nSamples), 
                         `_GM_EXC` = nrow(exceedGeomean),
                         `_GM_SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
                         `_STAT` = "S",
@@ -219,8 +225,8 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
         
       } else { # Do the geometric means calculated for the 90-day periods represented by 10+ samples meet the GM criterion? - No
         return(tibble(StationID = unique(z$StationID),
-                      `_EXC` = nrow(exceedSTVrate), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
-                      `_SAMP` = nrow(x), 
+                      `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                      `_SAMP` = nrow(nSamples), 
                       `_GM_EXC` = nrow(exceedGeomean),
                       `_GM_SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
                       `_STAT` = "IM",
@@ -231,11 +237,11 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
       
     } else { # Were at least 10 samples taken within any 90-day period of the assessment window? - No
       # Were there any hits of the STV during the dataset?
-      if( nrow(exceedSTVrate) == 0){ # Were there any hits of the STV during the dataset? - No
+      if( nrow(exceedSTVn) == 0){ # Were there any hits of the STV during the dataset? - No
         return(tibble(StationID = unique(z$StationID),
                       # not quite right yet
-                      `_EXC` = nrow(exceedSTVrate), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
-                      `_SAMP` = nrow(x), 
+                      `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                      `_SAMP` = nrow(nSamples), 
                       `_GM_EXC` = nrow(exceedGeomean),
                       `_GM_SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
                       `_STAT` = "IN", # is this the right code???
@@ -244,11 +250,11 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
                  rename_with( ~ gsub("_", paste0(stationTableName,"_"), .x, fixed = TRUE)) ) # fix names to match station table format
         } else { # Were there any hits of the STV during the dataset? - Yes
           # 2 or more hits in the same 90-day period
-          if(any(exceedSTVrate$`STV Exceedances In Window` >= 2) ){
+          if(any(z$`STV Exceedances In Window` >= 2) ){
             return(tibble(StationID = unique(z$StationID),
                           # not quite right yet
-                          `_EXC` = nrow(exceedSTVrate), # right now this is set to # total STV exceedances, not the number of STV exceedances in a 90-day period with 10+ samples
-                          `_SAMP` = nrow(x), 
+                          `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the number of STV exceedances in a 90-day period with 10+ samples
+                          `_SAMP` = nrow(nSamples), 
                           `_GM_EXC` = nrow(exceedGeomean),
                           `_GM_SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
                           `_STAT` = "IM", # is this the right code???
@@ -258,8 +264,8 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
           } else { 
             # 1 hit in one or multiple 90-day periods
             return(tibble(StationID = unique(z$StationID),
-                          `_EXC` = nrow(exceedSTVrate), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
-                          `_SAMP` = nrow(x), 
+                          `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                          `_SAMP` = nrow(nSamples), 
                           `_GM_EXC` = nrow(exceedGeomean),
                           `_GM_SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
                           `_STAT` = "IN", # is this the right code???

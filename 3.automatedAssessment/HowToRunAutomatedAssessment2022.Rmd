@@ -136,9 +136,9 @@ for(i in 1:20){#nrow(stationTable)){
     DOExceedances_Min(stationData), 
     pHExceedances(stationData),
     bacteriaAssessmentDecision(stationData, 'E.COLI', 'ECOLI_RMK', 10, 410, 126) %>%
-      dplyr::select(StationID:ECOLI_STAT),
+      dplyr::select(ECOLI_EXC:ECOLI_STAT),
     bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35) %>%
-      dplyr::select(StationID:ENTER_STAT)
+      dplyr::select(ENTER_EXC:ENTER_STAT)
     ) %>%
     dplyr::select(-ends_with('exceedanceRate')) # to match Bulk Upload template but helpful to keep visible til now for testing
   
