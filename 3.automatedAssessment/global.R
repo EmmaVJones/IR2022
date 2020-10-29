@@ -139,3 +139,18 @@ pHExceedances <- function(x){
   quickStats(pH, 'PH')
 }
 #pHExceedances(x)
+
+
+
+# Consolidate water column metals assessment decisions calculated by Roger Stewart
+# Fuction exactly the same as 2020 cycle and may need updates if dataset changes
+metalsExceedances <- function(x, metalType){
+  # if any data given to function
+  if(nrow(x) > 0){ VIO <- length(which(x == 'NSP')) 
+  }else {
+    VIO <- NA  }
+  
+  x <- data.frame(VIO = VIO, STAT = ifelse(VIO > 0, 'Review', 'S'))
+  names(x) <- paste(metalType,names(x), sep='_')
+  return(x)
+}

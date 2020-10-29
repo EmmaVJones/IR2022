@@ -39,6 +39,13 @@ Now we take that newly created layer and use it to split up each of the riverine
 #source('./preprocessingModules/splitWQSbySubbasin.R') # only run once as needed
 ```
 
+And one last step to link basins to VAHU6 information for easier filtering inside the apps.
+
+```{r build lookuptable for VAHU6 to subbasin}
+#source('./preprocessingModules/VAHU6toSubbasin.R')
+```
+
+
 Now we can move on to actual data processing.
 
 
