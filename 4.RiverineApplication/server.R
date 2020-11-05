@@ -9,8 +9,8 @@ source('global.R')
 
 
 # Pull data from server
-conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect")
-vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
+#conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect")
+#vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
 
 
 shinyServer(function(input, output, session) {
@@ -20,12 +20,12 @@ shinyServer(function(input, output, session) {
   
   ## Data Upload Tab
   
-  stationTable <- reactive({
-    req(input$stationsTable)
-    inFile <- input$stationsTable
-    read_csv(inFile$datapath) %>%
-      #fix periods in column names from excel
-      as_tibble() })
+  stationTable <- reactive({read_csv('userDataToUpload/processedStationData/stationsTable2022begin.csv')}) #for testing
+    #req(input$stationsTable)
+    #inFile <- input$stationsTable
+    #read_csv(inFile$datapath) %>%
+    #  #fix periods in column names from excel
+    #  as_tibble() })
   
 #  regionalAUs <- reactive({ #req(input$regionalAUshapefile)
 
@@ -37,42 +37,59 @@ shinyServer(function(input, output, session) {
   
   ## Watershed Selection Tab
   
+  output$DEQregionSelectionUI <- renderUI({req(vahu6)
+    selectInput("DEQregionSelection", "Select DEQ Assessment Region", choices = unique(vahu6$ASSESS_REG))})
+  
+  # Pull AU data from server
+  regionalAUs <- reactive({ 
+    req(input$pullAUs)
+    withProgress(message = 'Reading in Large Spatial File',
+                 #st_zm(st_as_sf(pin_get(paste0(input$DEQregionSelection, 'workingAUriverine'), board = 'rsconnect')) )) })
+                 regionalAUsForTesting ) })
+  
   # Query VAHUC6's By Selectize arguments
-  the_data <- reactive({filter(vahu6, ASSESS_REG %in% input$DEQregionSelection)})
-  #region_filter <- shiny::callModule(dynamicSelect, "DEQregionSelection", the_data, "ASSESS_REG" )
-  #basin_filter <- shiny::callModule(dynamicSelect, "basinSelection", region_filter, "Basin_Code" )
+  the_data <- reactive({
+    req(regionalAUs(), input$DEQregionSelection)
+    filter(vahu6, ASSESS_REG %in% input$DEQregionSelection) %>%
+      left_join(dplyr::select(subbasinToVAHU6, VAHU6, Basin, BASIN_CODE, Basin_Code))})
   basin_filter <- shiny::callModule(dynamicSelect, "basinSelection", the_data, "Basin_Code" )
   huc6_filter <- shiny::callModule(dynamicSelect, "HUC6Selection", basin_filter, "VAHU6" )
   
-#  regionalAUs <- reactive({ req(input$pullAUs)
-#    print(paste0(input$DEQregionSelection, 'workingAUriverine'))
-#        st_as_sf(pin_get(paste0(input$DEQregionSelection, 'workingAUriverine'), board = 'rsconnect')) })
-  
-  regionalAUs <- observe({ req(input$pullAUs)
-    print(paste0(input$DEQregionSelection, 'workingAUriverine'))
-    st_as_sf(pin_get(paste0(input$DEQregionSelection, 'workingAUriverine'), board = 'rsconnect')) })
-  
-  
+  # Spatially intersect chosen VAHU6 with regionalAUs
   AUs <- reactive({req(huc6_filter(), regionalAUs())
-    suppressWarnings(st_intersection(st_zm(regionalAUs()),  huc6_filter())) }) #filter(vahu6, VAHU6 %in% huc6_filter()$VAHU6)))})
+    suppressWarnings(st_intersection(regionalAUs(),  huc6_filter())) }) #filter(vahu6, VAHU6 %in% huc6_filter()$VAHU6)))})
   
+
   # Watershed Map
-#  output$VAmap <- renderLeaflet({
-#    req(basin_filter(), huc6_filter(), regionalAUs())
-#    m <- mapview(basin_filter(),label= basin_filter()$VAHU6, layer.name = 'Basin Chosen',
-#                 popup= leafpop::popupTable(basin_filter(), zcol=c('VAHU6',"VaName","VAHU5","ASSESS_REG"))) + 
-#      mapview(huc6_filter(), color = 'yellow',lwd= 5, label= huc6_filter()$VAHU6, layer.name = c('Selected HUC6'),
-#              popup= leafpop::popupTable(huc6_filter(), zcol=c('VAHU6',"VaName","VAHU5","ASSESS_REG")))
-#    m@map %>% setView(st_bbox(huc6_filter())$xmax[[1]],st_bbox(huc6_filter())$ymax[[1]],zoom = 9) })
+  output$VAmap <- renderLeaflet({
+    req(basin_filter(), huc6_filter(), regionalAUs())
+    m <- mapview(basin_filter(),label= basin_filter()$VAHU6, layer.name = 'Basin Chosen',
+                 popup= leafpop::popupTable(basin_filter(), zcol=c('VAHU6',"VaName","VAHU5","ASSESS_REG"))) + 
+      mapview(huc6_filter(), color = 'yellow',lwd= 5, label= huc6_filter()$VAHU6, layer.name = c('Selected HUC6'),
+              popup= leafpop::popupTable(huc6_filter(), zcol=c('VAHU6',"VaName","VAHU5","ASSESS_REG")))
+    m@map %>% setView(st_bbox(huc6_filter())$xmax[[1]],st_bbox(huc6_filter())$ymax[[1]],zoom = 9) })
   
   # Table of AUs within Selected VAHU6
-  output$AUSummary <-  DT::renderDataTable({ req(regionalAUs())
-    DT::datatable(regionalAUs() %>% st_drop_geometry(), rownames = FALSE, 
-                  options= list(scrollX = TRUE, pageLength = nrow(regionalAUs()), scrollY = "300px", dom='Bt')) 
-  })
+  output$AUSummary <-  DT::renderDataTable({ req(AUs())
+    DT::datatable(AUs() %>% st_drop_geometry(), rownames = FALSE, 
+                  options= list(scrollX = TRUE, pageLength = nrow(AUs()), scrollY = "300px", dom='Bti'))   })
 
-  #output$AUSummary <-  DT::renderDataTable({ req(regionalAUs(),AUs())
-  #  DT::datatable(AUs() %>% st_drop_geometry(), rownames = FALSE, 
-  #                options= list(scrollX = TRUE, pageLength = nrow(AUs()), scrollY = "300px", dom='Bt')) 
-  #})
+  # Table of Stations within Selected VAHU6
+  output$stationSummary <- DT::renderDataTable({
+    req(huc6_filter())
+    z <- filter(conventionals, Huc6_Vahu6 %in% huc6_filter()$VAHU6) %>%
+      distinct(FDT_STA_ID, .keep_all = TRUE) %>%
+      select(FDT_STA_ID:FDT_SPG_CODE, STA_LV2_CODE:STA_CBP_NAME) %>% 
+      mutate(`Analyzed By App` = ifelse(FDT_STA_ID %in% unique(stationTable()$STATION_ID), 'yes','no'))
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "300px", dom='Bti')) %>%
+      DT::formatStyle('Analyzed By App', target = 'row', backgroundColor = styleEqual(c('yes','no'), c('lightgray', 'yellow')))
+  })
+  
+  
+  
+  #  output$test <- renderPrint({#req(regionalAUs)
+  #    glimpse(AUs())})
+  
+  
+  
 })

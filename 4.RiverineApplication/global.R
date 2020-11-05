@@ -8,6 +8,7 @@ library(lubridate)
 library(config)
 library(leaflet)
 library(mapview)
+library(DT)
 
 
 #####################################   UPDATE EACH NEW TOOL REBUILD #############################################
@@ -43,7 +44,7 @@ conn <- config::get("connectionSettings") # get configuration settings
 
 
 # Helpful lookup table to ease data filtering
-#subbasinToVAHU6 <- read_csv('data/subbasinToVAHU6conversion.csv')
+subbasinToVAHU6 <- read_csv('data/subbasinToVAHU6conversion.csv')
 
 
 
