@@ -27,8 +27,8 @@ source('appModulesAndFunctions/multipleDependentSelectizeArguments.R')
 conn <- config::get("connectionSettings") # get configuration settings
 
 # use API key to register board
-#board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_KEY"),
-#                         server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
+board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_KEY"),
+                         server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
 
 # Pull data from server
 #conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect")
