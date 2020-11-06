@@ -2,16 +2,17 @@
 source('global.R')
 
 DEQregionSelection <- 'BRRO'
-basinSelection <- "James-Upper"
-HUC6Selection <- 'JU11'
+basinSelection <- "James-Middle"
+HUC6Selection <- 'JM02'
 
 
-conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect")
+conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
+  filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 UTC" )
 vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
 WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 
 
-stationTable <- read_csv('userDataToUpload/processedStationData/stationsTable2022begin.csv')
+stationTable <- read_csv('userDataToUpload/processedStationData/stationTableResults.csv')
 # Remove stations that don't apply to application
 lakeStations <- filter_at(stationTable, vars(starts_with('TYPE')), any_vars(. == 'L'))
 stationTable <- filter(stationTable, !STATION_ID %in% lakeStations$STATION_ID) %>%
@@ -29,6 +30,11 @@ stationTable <- filter(stationTable, !STATION_ID %in% lakeStations$STATION_ID) %
 
 regionalAUs <- st_zm(st_as_sf(pin_get(paste0(DEQregionSelection, 'workingAUriverine'), board = 'rsconnect'))) 
 regionalAUsForTesting <- regionalAUs
+
+
+
+
+
 
 the_data <- filter(vahu6, ASSESS_REG %in% DEQregionSelection) %>%
     left_join(dplyr::select(subbasinToVAHU6, VAHU6, Basin, BASIN_CODE, Basin_Code))
@@ -51,7 +57,7 @@ stationSummary <- filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>%
 ## Assessment Unit Review Tab
 
 conventionals_HUC <- filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>%
-    left_join(dplyr::select(stationTable, STATION_ID:TYPE_10,
+    left_join(dplyr::select(stationTable, STATION_ID:VAHU6,
                             WQS_ID:`Max Temperature (C)`), 
               by = c('FDT_STA_ID' = 'STATION_ID')) %>%
     filter(!is.na(ID305B_1))
@@ -83,10 +89,25 @@ point <- dplyr::select(stationData[1,],  FDT_STA_ID, starts_with('ID305B'), Lati
              crs = 4269) # add projection, needs to be geographic for now bc entering lat/lng
 segmentChoices <- dplyr::select(point, starts_with('ID305B')) %>% st_drop_geometry() %>% as.character()  
 segment <- filter(regionalAUs, ID305B %in% segmentChoices)
-  map1 <- mapview(segment,zcol = 'ID305B', label= segment$ID305B, layer.name = 'Assessment Unit (ID305B_1)',
-                  popup= leafpop::popupTable(segment, zcol=c("ID305B","MILES","CYCLE","WATER_NAME")), legend= FALSE) + 
-    mapview(point, color = 'yellow', lwd = 5, label= point$FDT_STA_ID, layer.name = c('Selected Station'),
-            popup=NULL, legend= FALSE)
-  map1@map %>% setView(point$Longitude, point$Latitude, zoom = 12)
+map1 <- mapview(segment,zcol = 'ID305B', label= segment$ID305B, layer.name = 'Assessment Unit (ID305B_1)',
+                popup= leafpop::popupTable(segment, zcol=c("ID305B","MILES","CYCLE","WATER_NAME")), legend= FALSE) + 
+  mapview(point, color = 'yellow', lwd = 5, label= point$FDT_STA_ID, layer.name = c('Selected Station'),
+          popup=NULL, legend= FALSE)
+map1@map %>% setView(point$Longitude, point$Latitude, zoom = 12)
 
   
+  
+  
+# Station Table Output
+StationTableOutput <- cbind(StationTableStartingData(stationData),
+                            tempExceedances(stationData),
+                            DOExceedances_Min(stationData), 
+                            pHExceedances(stationData),
+                            bacteriaAssessmentDecision(stationData, 'E.COLI', 'ECOLI_RMK', 10, 410, 126) %>%
+                              dplyr::select(ECOLI_EXC:ECOLI_STAT),
+                            bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35) %>%
+                              dplyr::select(ENTER_EXC:ENTER_STAT)
+                            ) %>%
+  mutate(COMMENTS = NA) %>%
+  dplyr::select(-ends_with('exceedanceRate')) %>% # to match Bulk Upload template but helpful to keep visible til now for testing
+  dplyr::select(STATION_ID:COMMENTS) # for now bc bacteria needs help still

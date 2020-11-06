@@ -21,7 +21,7 @@ library(lubridate)
 #library(magrittr)
 
 # Bring in Assessment functions from app
-source('global.R')
+source('automatedAssessmentFunctions.R')
 source('updatedBacteriaCriteria.R')
 
 # get configuration settings
@@ -61,7 +61,8 @@ Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
 
 ```{r bulk upload template}
 stationsTemplate <- read_excel('WQA_CEDS_templates/WQA_Bulk_Station_Upload (3).xlsx', 
-                               sheet = 'Stations', col_types = "text")[0,] # just want structure and not the draft data, force everything to character for now
+                               sheet = 'Stations')[0,]#, col_types = "text")[0,] %>%  # just want structure and not the draft data, force everything to character for now
+#  mutate(LATITUDE= as.numeric(LATITUDE), LONGITUDE = as.numeric(LONGITUDE))
 
 ```
 
@@ -73,10 +74,10 @@ The following steps complete the automated assessment.
 
 ## Bring in user station table data
 
-This information communicates to the scripts which stations should be assessed and where they should be organized (AUs).
+This information communicates to the scripts which stations should be assessed and where they should be organized (AUs). It also has data from the last cycle to populate the historical station information table in the application
 
 ```{r stationTable}
-stationTable <- read_csv('processedStationData/stationsTable2022begin.csv')
+stationTable <- read_csv('processedStationData/stationsTable2022begin.csv') 
 ```
 
 ## Attach WQS information
@@ -103,6 +104,15 @@ missingWQS <- filter(stationTable, is.na(CLASS))
 
 
 
+
+
+For testing reduce stationTable to just BRRO for now
+
+```{r}
+stationTable <- filter(stationTable, REGION == "BRRO")
+```
+
+
 # steps
 
 pin conventionals, metals, benthics, wqs information, last cycle AU info (spatial)
@@ -121,7 +131,7 @@ stationTableResults <- stationsTemplate
 startTime <- Sys.time()
 
 # loop over all sites, not super efficient but get the job done for now
-for(i in 1:20){#nrow(stationTable)){
+for(i in 1:nrow(stationTable)){
 #i = 1
   print(paste('Assessing station', i, 'of', nrow(stationTable), sep=' '))
 
@@ -129,8 +139,9 @@ for(i in 1:20){#nrow(stationTable)){
   stationData <- filter(conventionals, FDT_STA_ID %in% stationTable$STATION_ID[i]) %>%
     left_join(stationTable, by = c('FDT_STA_ID' = 'STATION_ID'))
   
-  
-  results <- cbind(
+  # If data exists for station, run it, otherwise just output what last cycle said and comment
+  if(nrow(stationData) > 0){
+    results <- cbind(
     StationTableStartingData(stationData),
     tempExceedances(stationData),
     DOExceedances_Min(stationData), 
@@ -138,7 +149,7 @@ for(i in 1:20){#nrow(stationTable)){
     bacteriaAssessmentDecision(stationData, 'E.COLI', 'ECOLI_RMK', 10, 410, 126) %>%
       dplyr::select(ECOLI_EXC:ECOLI_STAT),
     bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35) %>%
-      dplyr::select(ENTER_EXC:ENTER_STAT),
+      dplyr::select(ENTER_EXC:ENTER_STAT)#,
     
     # Ammonia needs to go here
     # AMMONIA_EXC, AMMONIA_STAT
@@ -166,16 +177,31 @@ for(i in 1:20){#nrow(stationTable)){
     # COMMENTS
     ) %>%
     dplyr::select(-ends_with('exceedanceRate')) # to match Bulk Upload template but helpful to keep visible til now for testing
+  } else {# pull what you can from last cycle and flag as carry over
+    results <- filter(stationTable, STATION_ID == stationTable$STATION_ID[i]) %>%
+      dplyr::select(STATION_ID:VAHU6, COMMENTS) %>%
+      mutate(COMMENTS= paste0('This station has no data in current window but was carried over 
+                              due to IM in one of the 2020IR status fields. The 2020 comment 
+                              was as follows: ', COMMENTS))
+  }
   
-  stationTableResults <- rbind(stationTableResults,results)
+  stationTableResults <- bind_rows(stationTableResults,results)
 }
+
+
+stationTableResults <- bind_rows(stationsTemplate, stationTableResults) %>%
+  # for now bc bacteria needs help still
+  dplyr::select(STATION_ID:COMMENTS)
 
 timeDiff = Sys.time()- startTime
   
 ```
 
 
+Now this is the starting point for the app.
 
-
+```{r}
+write_csv(stationTableResults, 'processedStationData/stationTableResults.csv')
+```
 
 

@@ -1,3 +1,10 @@
+## global
+board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_KEY"),
+                         server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
+
+
+
+
 # ui 
 
 tabPanel('Data Upload',
@@ -57,13 +64,12 @@ tabPanel('Data Upload',
                    accept = c(".csv")),
          h5('Regional Assessment Units'),
          helpText(span('This shapefile is the current working copy of the regional assessment units.',
-                       strong('It will be uploaded to the app on startup for you to avoid shiny application 
-                                                           data upload limits.'), ' Any time any spatial changes (performed in ArcGIS on
-                                                   the file soured by the application) to the assessment units (e.g. split an assessment 
-                                                   unit) are saved', strong('and the application is re-launched'), 'these changes will be
-                                                   reflected in the Riverine Assessment Tool.')),
-         h6(strong('To view or change the location of the Regional Assessment Units shapefile sourced
-                                                    by the application, see the AUshapefileLocation.R script.'))
+                       strong('It will be uploaded to the app on startup for you to expedite application rendering
+                                                        time.'), ' Any changes to the regional dataset (e.g. split an assessment 
+                                                        unit) should be synced with the statewide version and a copy of the ', strong('new spatial 
+                                                        dataset should be sent to Emma Jones (emma.jones@deq.virginia.gov) to update on the server.')))
+         #h6(strong('To view or change the location of the Regional Assessment Units shapefile sourced
+         #          by the application, see the AUshapefileLocation.R script.'))
          #fileInput('regionalAUshapefile','Choose your Regional Assessment Unit shapefile.',
          #          accept = c(".shp",#)),# only need .shp for st_read 
          #                     ".dbf",".prj",".sbn",".sbx","shp.xml",".shx"), multiple = T),
@@ -71,10 +77,15 @@ tabPanel('Data Upload',
 
 
 
+
+
+
+
 # pre server
 
 # Pull data from server
-conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect")
+conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
+  filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 UTC" )
 vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
 WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 
@@ -107,7 +118,7 @@ stationTable <- reactive({
 })
 # for testing
 stationTable <- reactive({
-  stationTable <- read_csv('userDataToUpload/processedStationData/stationsTable2022begin.csv')
+  stationTable <-  read_csv('userDataToUpload/processedStationData/stationTableResults.csv')
   # Remove stations that don't apply to application
   lakeStations <- filter_at(stationTable, vars(starts_with('TYPE')), any_vars(. == 'L'))
   stationTable <- filter(stationTable, !STATION_ID %in% lakeStations$STATION_ID) %>%

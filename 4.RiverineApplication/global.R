@@ -9,26 +9,26 @@ library(config)
 library(leaflet)
 library(mapview)
 library(DT)
-
-
-#####################################   UPDATE EACH NEW TOOL REBUILD #############################################
-# Establish Assessment Period 
-assessmentPeriod <- as.POSIXct(c("2015-01-01 00:00:00 UTC","2020-12-31 23:59:59 UTC"),tz='UTC')
-assessmentCycle <- '2022'
-##################################################################################################################
+library(plotly)
 
 
 # Bring in assessment Functions and app modules
 source('appModulesAndFunctions/updatedBacteriaCriteria.R')
 source('appModulesAndFunctions/multipleDependentSelectizeArguments.R')
+source('appModulesAndFunctions/automatedAssessmentFunctions.R')
 
+modulesToReadIn <- c('temperature')#,'pH','DO','SpCond','Salinity','TN','Ecoli','chlA','Enteroccoci', 'TP','sulfate',
+                     #'Ammonia', 'Chloride', 'Nitrate','metals', 'fecalColiform','SSC','Benthics')
+for (i in 1:length(modulesToReadIn)){
+  source(paste('appModulesAndFunctions/',modulesToReadIn[i],'Module.R',sep=''))
+}
 
 # Server connection things
 conn <- config::get("connectionSettings") # get configuration settings
 
 # use API key to register board
-board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_KEY"),
-                         server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
+#board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_KEY"),
+#                         server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
 
 # Pull data from server
 #conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect")
@@ -45,23 +45,7 @@ board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_K
 
 # Helpful lookup table to ease data filtering
 subbasinToVAHU6 <- read_csv('data/subbasinToVAHU6conversion.csv')
-
-
-
-# WQS information for functions
-# From: 9VAC25-260-50. Numerical Criteria for Dissolved Oxygen, Ph, and Maximum Temperature
-# https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
-WQSvalues <- tibble(CLASS_BASIN = c('I',"II","II_7","III","IV","V","VI","VII"),
-                    CLASS = c('I',"II","II","III","IV","V","VI","VII"),
-                    `Description Of Waters` = c('Open Ocean', 'Tidal Waters in the Chowan Basin and the Atlantic Ocean Basin',
-                                                'Tidal Waters in the Chesapeake Bay and its tidal tributaries',
-                                                'Nontidal Waters (Coastal and Piedmont Zone)','Mountainous Zone Waters',
-                                                'Stockable Trout Waters','Natural Trout Waters','Swamp Waters'),
-                    `Dissolved Oxygen Min (mg/L)` = c(5,4,NA,4,4,5,6,NA),
-                    `Dissolved Oxygen Daily Avg (mg/L)` = c(NA,5,NA,5,5,6,7,NA),
-                    `pH Min` = c(6,6,6.0,6.0,6.0,6.0,6.0,3.7),
-                    `pH Max` = c(9.0,9.0,9.0,9.0,9.0,9.0,9.0,8.0),
-                    `Max Temperature (C)` = c(NA, NA, NA, 32, 31, 21, 20, NA))
+historicalStationsTable <- read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
 
 
 # Loading screen
@@ -70,3 +54,57 @@ load_data <- function() {
   shinyjs::hide("loading_page")
   shinyjs::show("main_content")
 }
+
+
+
+withinAssessmentPeriod <- function(x){
+  if((range(unique(x$FDT_DATE_TIME))[1] < assessmentPeriod[1]) | 
+     (range(unique(x$FDT_DATE_TIME))[2] > assessmentPeriod[2])){
+    return('Data included that falls outside of assessment period. Review input data.')
+  }else{return('All input data falls within the assessment period.')}
+}
+
+
+
+
+#### Temperature Assessment Functions ---------------------------------------------------------------------------------------------------
+
+#Max Temperature Exceedance Function
+temp_Assessment <- function(x){
+  temp <- dplyr::select(x,FDT_DATE_TIME,FDT_TEMP_CELCIUS, FDT_TEMP_CELCIUS_RMK, `Max Temperature (C)`)%>% # Just get relevant columns, 
+    filter(!(FDT_TEMP_CELCIUS_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    filter(!is.na(FDT_TEMP_CELCIUS))%>% #get rid of NA's
+    mutate(TemperatureExceedance=ifelse(FDT_TEMP_CELCIUS > `Max Temperature (C)`,T,F))%>% # Identify where above max Temperature, 
+    filter(TemperatureExceedance==TRUE) # Only return temp measures above threshold
+  return(temp)
+}
+
+
+
+# Exceedance Rate Temperature
+exceedance_temp <- function(x){
+  temp <- dplyr::select(x,FDT_DATE_TIME,FDT_TEMP_CELCIUS,FDT_TEMP_CELCIUS_RMK,`Max Temperature (C)`)%>% # Just get relevant columns, 
+    filter(!(FDT_TEMP_CELCIUS_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    filter(!is.na(FDT_TEMP_CELCIUS)) #get rid of NA's
+  temp_Assess <- temp_Assessment(x)
+  
+  temp_results <- assessmentDetermination(temp,temp_Assess,"temperature","Aquatic Life")
+  return(temp_results)
+}
+
+# Super Assessment function
+assessmentDetermination <- function(parameterDF,parameterAssessmentDF,parameter,use){
+  
+  results <- data.frame(nSamples = nrow(parameterDF),nExceedance = nrow(parameterAssessmentDF))%>%
+    mutate(exceedanceRate = (nExceedance/nSamples)*100)
+  
+  if(results$exceedanceRate > 10.5 & results$nSamples > 10){outcome <- paste('Water impaired for',parameter)}
+  if(results$exceedanceRate < 10.5 & results$nSamples > 10){outcome <- paste('Water not impaired for',parameter)}
+  if(results$nExceedance >= 2 & results$nSamples < 10){outcome <- paste('Water impaired for',parameter)}
+  if(results$nExceedance < 2 & results$nSamples < 10){outcome <- paste('Water not impaired for',parameter)}
+  
+  results <- mutate(results,Assessment=outcome, Use= use)
+  return(results)
+}
+#assessmentDetermination(temp,temp_Assess,"temperature","Aquatic Life")
+

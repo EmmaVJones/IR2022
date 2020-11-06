@@ -49,17 +49,17 @@ changeDEQRegionName <- function(stuff){
 
 quickStats <- function(parameterDataset, parameter){
   if(nrow(parameterDataset) > 0 & any(!is.na(parameterDataset$limit))){
-    results <- data.frame(VIO = nrow(filter(parameterDataset, exceeds == TRUE)),
+    results <- data.frame(EXC = nrow(filter(parameterDataset, exceeds == TRUE)),
                           SAMP = nrow(parameterDataset)) %>%
       # Implement Round to Even on Exceedance Frequency
-      mutate(exceedanceRate = as.numeric(round((VIO/SAMP)*100,digits=0))) # round to nearest whole number per Memo to Standardize Rounding for Assessment Guidance
+      mutate(exceedanceRate = as.numeric(round((EXC/SAMP)*100,digits=0))) # round to nearest whole number per Memo to Standardize Rounding for Assessment Guidance
     
-    if(results$VIO >= 1){outcome <- 'Review'} # for Mary
-    if(results$VIO >= 1 & results$exceedanceRate < 10.5){outcome <- 'Review'}
-    if(results$exceedanceRate > 10.5 & results$VIO >= 2 & results$SAMP > 10){outcome <- '10.5% Exceedance'}
-    if(results$VIO < 1 &results$exceedanceRate < 10.5 & results$SAMP > 10){outcome <- 'S'}
-    if(results$VIO >= 1 & results$SAMP <= 10){outcome <- 'Review'}
-    if(results$VIO < 1 & results$SAMP <= 10){outcome <- 'S'}
+    if(results$EXC >= 1){outcome <- 'Review'} # for Mary
+    if(results$EXC >= 1 & results$exceedanceRate < 10.5){outcome <- 'Review'}
+    if(results$exceedanceRate > 10.5 & results$EXC >= 2 & results$SAMP > 10){outcome <- '10.5% Exceedance'}
+    if(results$EXC < 1 &results$exceedanceRate < 10.5 & results$SAMP > 10){outcome <- 'S'}
+    if(results$EXC >= 1 & results$SAMP <= 10){outcome <- 'Review'}
+    if(results$EXC < 1 & results$SAMP <= 10){outcome <- 'S'}
     
     
     results <- mutate(results, STAT = outcome)
@@ -70,7 +70,7 @@ quickStats <- function(parameterDataset, parameter){
     #rename based on parameter entered
     return(results)
   } else {
-    z <- data.frame(VIO = NA, SAMP= nrow(parameterDataset), exceedanceRate= NA, STAT=NA)
+    z <- data.frame(EXC = NA, SAMP= nrow(parameterDataset), exceedanceRate= NA, STAT=NA)
     names(z) <- paste(parameter,names(z), sep='_')
     return(z)
   }
