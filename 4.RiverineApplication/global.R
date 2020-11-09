@@ -69,28 +69,28 @@ withinAssessmentPeriod <- function(x){
 
 #### Temperature Assessment Functions ---------------------------------------------------------------------------------------------------
 
-#Max Temperature Exceedance Function
-temp_Assessment <- function(x){
-  temp <- dplyr::select(x,FDT_DATE_TIME,FDT_TEMP_CELCIUS, FDT_TEMP_CELCIUS_RMK, `Max Temperature (C)`)%>% # Just get relevant columns, 
-    filter(!(FDT_TEMP_CELCIUS_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
-    filter(!is.na(FDT_TEMP_CELCIUS))%>% #get rid of NA's
-    mutate(TemperatureExceedance=ifelse(FDT_TEMP_CELCIUS > `Max Temperature (C)`,T,F))%>% # Identify where above max Temperature, 
-    filter(TemperatureExceedance==TRUE) # Only return temp measures above threshold
-  return(temp)
-}
+#Max Temperature Exceedance Function, flexible with standards
+#temp_Assessment <- function(x){
+#  temp <- dplyr::select(x,FDT_DATE_TIME,FDT_TEMP_CELCIUS, FDT_TEMP_CELCIUS_RMK, `Max Temperature (C)`)%>% # Just get relevant columns, 
+#    filter(!(FDT_TEMP_CELCIUS_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
+#    filter(!is.na(FDT_TEMP_CELCIUS))%>% #get rid of NA's
+#    mutate(TemperatureExceedance=ifelse(FDT_TEMP_CELCIUS > `Max Temperature (C)`,T,F))%>% # Identify where above max Temperature, 
+#    filter(TemperatureExceedance==TRUE) # Only return temp measures above threshold
+#  return(temp)
+#}
 
 
 
 # Exceedance Rate Temperature
-exceedance_temp <- function(x){
-  temp <- dplyr::select(x,FDT_DATE_TIME,FDT_TEMP_CELCIUS,FDT_TEMP_CELCIUS_RMK,`Max Temperature (C)`)%>% # Just get relevant columns, 
-    filter(!(FDT_TEMP_CELCIUS_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
-    filter(!is.na(FDT_TEMP_CELCIUS)) #get rid of NA's
-  temp_Assess <- temp_Assessment(x)
-  
-  temp_results <- assessmentDetermination(temp,temp_Assess,"temperature","Aquatic Life")
-  return(temp_results)
-}
+#exceedance_temp <- function(x){
+#  temp <- dplyr::select(x,FDT_DATE_TIME,FDT_TEMP_CELCIUS,FDT_TEMP_CELCIUS_RMK,`Max Temperature (C)`)%>% # Just get relevant columns, 
+#    filter(!(FDT_TEMP_CELCIUS_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
+#    filter(!is.na(FDT_TEMP_CELCIUS)) #get rid of NA's
+#  temp_Assess <- temp_Assessment(x)
+#  
+#  temp_results <- assessmentDetermination(temp,temp_Assess,"temperature","Aquatic Life")
+#  return(temp_results)
+#}
 
 # Super Assessment function
 assessmentDetermination <- function(parameterDF,parameterAssessmentDF,parameter,use){

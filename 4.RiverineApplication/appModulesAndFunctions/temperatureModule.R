@@ -1,17 +1,19 @@
+
 temperaturePlotlySingleStationUI <- function(id){
   ns <- NS(id)
   tagList(
     wellPanel(
       h4(strong('Single Station Data Visualization')),
-      fluidRow(column(6,uiOutput(ns('temperature_oneStationSelectionUI'))),
-               column(6,actionButton(ns('reviewData'),"Review Raw Parameter Data",class='btn-block', width = '250px'))),
+      fluidRow(column(4,uiOutput(ns('temperature_oneStationSelectionUI'))),
+               column(4,uiOutput(ns('temperature_changeWQSUI'))),
+               column(4,actionButton(ns('reviewData'),"Review Raw Parameter Data",class='btn-block', width = '250px'))),
       plotlyOutput(ns('Tempplotly')),
       br(),hr(),br(),
       fluidRow(
         column(8, h5('All temperature records that are above the criteria for the ',span(strong('selected site')),' are highlighted below.'),
-               div(style = 'height:150px;overflow-y: scroll', tableOutput(ns('TempRangeTableSingleSite')))),
+               dataTableOutput(ns('TempRangeTableSingleSite'))),
         column(4, h5('Individual temperature exceedance statistics for the ',span(strong('selected site')),' are highlighted below.'),
-               tableOutput(ns("stationTempExceedanceRate")))
+               dataTableOutput(ns("stationTempExceedanceRate")))
       )
     )
   )
@@ -25,12 +27,31 @@ temperaturePlotlySingleStation <- function(input,output,session, AUdata, station
     req(AUdata)
     selectInput(ns('temperature_oneStationSelection'),strong('Select Station to Review'),
                 choices= sort(unique(c(stationSelectedAbove(),AUdata()$FDT_STA_ID))), # Change this based on stationSelectedAbove
-                width='300px', selected = stationSelectedAbove())})
+                width='200px', selected = stationSelectedAbove())})
   
-  temperature_oneStation <- reactive({
+  temperature_oneStation_original <- reactive({
     req(ns(input$temperature_oneStationSelection))
     filter(AUdata(),FDT_STA_ID %in% input$temperature_oneStationSelection) %>%
       filter(!is.na(FDT_TEMP_CELCIUS))})
+  
+  # Option to change WQS used for modal
+  output$temperature_changeWQSUI <- renderUI({
+    req(temperature_oneStation_original())
+    selectInput(ns('temperature_changeWQS'),strong('WQS For Analysis'),
+                choices= WQSvalues$CLASS_DESCRIPTION,
+                width='400px', selected = unique(temperature_oneStation_original()$CLASS_DESCRIPTION)) })
+  
+  temperature_oneStation <- reactive({
+    req(temperature_oneStation_original(), input$temperature_changeWQS)
+    if(input$temperature_changeWQS != unique(temperature_oneStation_original()$CLASS_DESCRIPTION)){
+      changedWQS <- filter(WQSvalues, CLASS_DESCRIPTION %in% input$temperature_changeWQS)
+      return(
+        dplyr::select(temperature_oneStation_original(), -c(`Description Of Waters`:CLASS_DESCRIPTION)) %>%
+          mutate(CLASS = changedWQS$CLASS, 
+                 `Description Of Waters` = changedWQS$`Description Of Waters` ) %>%
+          left_join(changedWQS, by = c('CLASS', 'Description Of Waters')) )
+    } else { return(temperature_oneStation_original())} })
+  
   
   # Button to visualize modal table of available parameter data
   observeEvent(input$reviewData,{
@@ -52,8 +73,7 @@ temperaturePlotlySingleStation <- function(input,output,session, AUdata, station
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
       formatStyle(c( 'FDT_TEMP_CELCIUS', 'FDT_TEMP_CELCIUS_RMK'), 'FDT_TEMP_CELCIUS_RMK', 
-                  backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
-  })
+                  backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))  })
   
   
   output$Tempplotly <- renderPlotly({
@@ -73,66 +93,17 @@ temperaturePlotlySingleStation <- function(input,output,session, AUdata, station
              xaxis=list(title="Sample Date",tickfont = list(size = 10)))
   })
   
-  output$TempRangeTableSingleSite <- renderTable({
+  output$TempRangeTableSingleSite <- renderDataTable({
     req(temperature_oneStation())
-    temp_Assessment(temperature_oneStation())})
+    z <- tempExceedances(temperature_oneStation()) %>%
+      rename("FDT_TEMP" = 'parameter', 'Criteria' = 'limit', 'Parameter Rounded to WQS Format' = 'parameterRound') %>%
+      filter(exceeds == TRUE) %>%
+      dplyr::select(-exceeds)
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "300px", dom='t'))})
   
   # Temperature Station Exceedance Rate
-  output$stationTempExceedanceRate <- renderTable({
+  output$stationTempExceedanceRate <- renderDataTable({
     req(ns(input$temperature_oneStationSelection), temperature_oneStation())
-    exceedance_temp(temperature_oneStation()) %>%
-      dplyr::select(nSamples,nExceedance,exceedanceRate)}) # don't give assessment determination for single station})
-  
-  #req(input$stationTempExceedanceRateSelect)
-  #z <- filter(AUdata(),FDT_STA_ID %in% input$stationTempExceedanceRateSelect)
-  #exceedance_temp(z) %>%
-  #  dplyr::select(nSamples,nExceedance,exceedanceRate)}) # don't give assessment determination for single station})
-  
-}
-
-temperatureExceedanceAnalysisUI <- function(id){
-  ns <- NS(id)
-  tagList(
-    #fluidRow(
-    #column(6,
-    h5('All temperature records that exceed the threshold for the',span(strong('assessment unit')),' are highlighted below. 
-                If no records are presented in the table below, then no data exceedes the temperature threshold.'),
-    tableOutput(ns('tempRangeTable'))#),
-    # column(6,
-    #wellPanel(
-    #h5('Station Exceedance Rate:'),
-    #uiOutput(ns('stationTempExceedanceRateSelect_UI')),
-    #tableOutput(ns("stationTempExceedanceRate")))))#,
-    #hr(),
-    #h5('Assessment Unit Exceedance Rate:'),
-    #tableOutput(ns("tempExceedanceRate"))))
-    
-  )
-}
-
-temperatureExceedanceAnalysis <- function(input, output, session, AUdata){
-  ns <- session$ns
-  
-  # Temperature Raw Exceedance Results (all AU)
-  output$tempRangeTable <- renderTable({
-    req(AUdata)
-    temp_Assessment(AUdata())})
-  
-  #  # Temperature Station Exceedance Rate
-  #  output$stationTempExceedanceRateSelect_UI <- renderUI({
-  #   req(AUdata)
-  #  selectInput(ns('stationTempExceedanceRateSelect'),strong('Select Station to Review for individual temperature exceedance statistics'),
-  #              choices=unique(AUdata())$FDT_STA_ID,width='300px')})
-  
-  # output$stationTempExceedanceRate <- renderTable({
-  #    req(input$stationTempExceedanceRateSelect)
-  #    z <- filter(AUdata(),FDT_STA_ID %in% input$stationTempExceedanceRateSelect)
-  #    exceedance_temp(z) %>%
-  #      dplyr::select(nSamples,nExceedance,exceedanceRate)}) # don't give assessment determination for single station})
-  #  
-  # Temperature AU Exceedance Rate
-  #output$tempExceedanceRate <- renderTable({
-  #  req(AUdata)
-  #  exceedance_temp(AUdata())})
-  
+    z <- tempExceedances(temperature_oneStation()) %>% quickStats('TEMP') %>% dplyr::select(-TEMP_STAT)
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t')) })
 }

@@ -18,7 +18,8 @@ WQSvalues <- tibble(CLASS_BASIN = c('I',"II","II_7","III","IV","V","VI","VII"),
                     `Dissolved Oxygen Daily Avg (mg/L)` = c(NA,5,NA,5,5,6,7,NA),
                     `pH Min` = c(6,6,6.0,6.0,6.0,6.0,6.0,3.7),
                     `pH Max` = c(9.0,9.0,9.0,9.0,9.0,9.0,9.0,8.0),
-                    `Max Temperature (C)` = c(NA, NA, NA, 32, 31, 21, 20, NA))
+                    `Max Temperature (C)` = c(NA, NA, NA, 32, 31, 21, 20, NA)) %>%
+  mutate(CLASS_DESCRIPTION = paste0(CLASS, " | ", `Description Of Waters`))
 
 concatinateUnique <- function(stuff){
   if(length(stuff)==1){
@@ -89,32 +90,29 @@ StationTableStartingData <- function(x){
 
 #Max Temperature Exceedance Function
 tempExceedances <- function(x){
-  temp <- dplyr::select(x,FDT_DATE_TIME,FDT_TEMP_CELCIUS, FDT_TEMP_CELCIUS_RMK, `Max Temperature (C)`)%>% # Just get relevant columns, 
+  dplyr::select(x,FDT_DATE_TIME,FDT_TEMP_CELCIUS, FDT_TEMP_CELCIUS_RMK, `Max Temperature (C)`)%>% # Just get relevant columns, 
     filter(!(FDT_TEMP_CELCIUS_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
     filter(!is.na(FDT_TEMP_CELCIUS))%>% #get rid of NA's
     rename(parameter = !!names(.[2]), limit = !!names(.[4])) %>% # rename columns to make functions easier to apply
     # Round to Even Rule
     mutate(parameterRound = round(parameter, digits = 0), # round to whole number based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
            exceeds = ifelse(parameterRound > limit, T, F)) # Identify where above max Temperature, 
-
-  quickStats(temp, 'TEMP')
 }
-#tempExceedances(x)
+#tempExceedances(x) %>%
+#  quickStats('TEMP')
 
 
 # Minimum DO Exceedance function
 DOExceedances_Min <- function(x){
-  DO <- dplyr::select(x,FDT_DATE_TIME,DO,DO_RMK,`Dissolved Oxygen Min (mg/L)`)%>% # Just get relevant columns, 
+  dplyr::select(x,FDT_DATE_TIME,DO,DO_RMK,`Dissolved Oxygen Min (mg/L)`)%>% # Just get relevant columns, 
     filter(!(DO_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
     filter(!is.na(DO)) %>% 
     rename(parameter = !!names(.[2]), limit = !!names(.[4])) %>% # rename columns to make functions easier to apply
     # Round to Even Rule
     mutate(parameterRound = round(parameter, digits = 1), # round to 1 digit based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
            exceeds = ifelse(parameterRound < limit, T, F))# Identify where below min DO 
-  
-  quickStats(DO, 'DO')
 }
-#DOExceedances_Min(x)
+#DOExceedances_Min(x) %>% quickStats('DO')
 
 # pH range Exceedance Function
 pHExceedances <- function(x){
@@ -135,10 +133,9 @@ pHExceedances <- function(x){
         mutate(exceeds=ifelse(interval == 1, F, T), # Highlight where pH doesn't fall into assessment range
                limit = `pH Min`) # placeholder for quickStats function, carries over whether or not station has WQS attributed
     }
-  
-  quickStats(pH, 'PH')
+  return(pH)
 }
-#pHExceedances(x)
+#pHExceedances(x) %>% quickStats('PH')
 
 
 

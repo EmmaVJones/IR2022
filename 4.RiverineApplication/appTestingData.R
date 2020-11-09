@@ -58,7 +58,8 @@ stationSummary <- filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>%
 
 conventionals_HUC <- filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>%
     left_join(dplyr::select(stationTable, STATION_ID:VAHU6,
-                            WQS_ID:`Max Temperature (C)`), 
+                            WQS_ID:CLASS_DESCRIPTION),
+                            #WQS_ID:`Max Temperature (C)`), 
               by = c('FDT_STA_ID' = 'STATION_ID')) %>%
     filter(!is.na(ID305B_1))
 
@@ -79,7 +80,7 @@ stationData <- filter(AUData, FDT_STA_ID %in% stationSelection)
 
 stationInfo <- filter(stationTable, STATION_ID == stationSelection) %>% 
     select(STATION_ID:VAHU6, WQS_ID:Trout) %>% 
-    t() %>% as.data.frame() %>% rename(`Station and WQS Information` = 1)
+    t() %>% as.data.frame() %>% rename(`Station and WQS Information` = 'V1')
 
 
 #stationMap
@@ -100,9 +101,9 @@ map1@map %>% setView(point$Longitude, point$Latitude, zoom = 12)
   
 # Station Table Output
 StationTableOutput <- cbind(StationTableStartingData(stationData),
-                            tempExceedances(stationData),
-                            DOExceedances_Min(stationData), 
-                            pHExceedances(stationData),
+                            tempExceedances(stationData) %>% quickStats('TEMP'),
+                            DOExceedances_Min(stationData) %>% quickStats('DO'), 
+                            pHExceedances(stationData) %>% quickStats('PH'),
                             bacteriaAssessmentDecision(stationData, 'E.COLI', 'ECOLI_RMK', 10, 410, 126) %>%
                               dplyr::select(ECOLI_EXC:ECOLI_STAT),
                             bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35) %>%
@@ -111,3 +112,24 @@ StationTableOutput <- cbind(StationTableStartingData(stationData),
   mutate(COMMENTS = NA) %>%
   dplyr::select(-ends_with('exceedanceRate')) %>% # to match Bulk Upload template but helpful to keep visible til now for testing
   dplyr::select(STATION_ID:COMMENTS) # for now bc bacteria needs help still
+
+
+
+# Temperature WQS change math
+#x <- stationData
+#temperature_changeWQS <- WQSvalues$CLASS_DESCRIPTION[7]
+
+#if(temperature_changeWQS != unique(x$CLASS_DESCRIPTION)){
+#    changedWQS <- filter(WQSvalues, CLASS_DESCRIPTION %in% temperature_changeWQS)
+#    temperature_oneStation <- dplyr::select(x, -c(`Description Of Waters`:CLASS_DESCRIPTION)) %>%
+#        mutate(CLASS = changedWQS$CLASS, 
+#               `Description Of Waters` = changedWQS$`Description Of Waters` ) %>%
+#        left_join(changedWQS, by = c('CLASS', 'Description Of Waters')) 
+#} else {temperature_oneStation <- x} 
+
+#tempExceedances(temperature_oneStation) %>%
+#  rename("FDT_TEMP" = 'parameter', 'Criteria' = 'limit', 'Parameter Rounded to WQS Format' = 'parameterRound') %>%
+#  filter(exceeds == TRUE) %>%
+#  dplyr::select(-exceeds)
+#z <- tempExceedances(temperature_oneStation) %>% quickStats('TEMP') %>% dplyr::select(-TEMP_STAT)
+#datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "300px", dom='t')) 

@@ -143,9 +143,9 @@ for(i in 1:nrow(stationTable)){
   if(nrow(stationData) > 0){
     results <- cbind(
     StationTableStartingData(stationData),
-    tempExceedances(stationData),
-    DOExceedances_Min(stationData), 
-    pHExceedances(stationData),
+    tempExceedances(stationData) %>% quickStats('TEMP'),
+    DOExceedances_Min(stationData) %>% quickStats('DO'), 
+    pHExceedances(stationData) %>% quickStats('PH'),
     bacteriaAssessmentDecision(stationData, 'E.COLI', 'ECOLI_RMK', 10, 410, 126) %>%
       dplyr::select(ECOLI_EXC:ECOLI_STAT),
     bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35) %>%

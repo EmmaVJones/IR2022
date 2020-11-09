@@ -145,7 +145,8 @@ shinyServer(function(input, output, session) {
   conventionals_HUC <- reactive({#eventReactive( input$pullHUCdata, {
     filter(conventionals, Huc6_Vahu6 %in% huc6_filter()$VAHU6) %>%
       left_join(dplyr::select(stationTable(), STATION_ID:VAHU6,
-                              WQS_ID:`Max Temperature (C)`), 
+                              WQS_ID:CLASS_DESCRIPTION),
+                              #WQS_ID:`Max Temperature (C)`), 
                 by = c('FDT_STA_ID' = 'STATION_ID')) %>%
       filter(!is.na(ID305B_1))  })
   
@@ -180,8 +181,7 @@ shinyServer(function(input, output, session) {
     DT::datatable(z, options= list(pageLength = nrow(z), scrollY = "250px", dom='t'))  })
 
 
-  output$stationMap <- renderLeaflet({
-    req(stationData())
+  output$stationMap <- renderLeaflet({req(nrow(stationData()) >0) # to prevent having no lat/lng data for that half second app is catching up after station change
     point <- dplyr::select(stationData()[1,],  FDT_STA_ID, starts_with('ID305B'), Latitude, Longitude ) %>%
       st_as_sf(coords = c("Longitude", "Latitude"), 
                remove = F, # don't remove these lat/lon cols from df
@@ -196,36 +196,37 @@ shinyServer(function(input, output, session) {
   
   
   # Historical Station Information need last cycle stations table final
-  output$stationHistoricalInfo <- DT::renderDataTable({ req(stationData())
-    z <- filter(historicalStationsTable, STATION_ID %in% input$stationSelection) %>% 
+  output$stationHistoricalInfo <- DT::renderDataTable({ req(nrow(stationData()) >0)
+    z <- suppressWarnings(filter(historicalStationsTable, STATION_ID %in% input$stationSelection) %>% 
       select(STATION_ID:COMMENTS) %>%
-      t() %>% as.data.frame() %>% rename(`Station Information From Last Cycle` = 1)
+      t() %>% as.data.frame() %>% rename(`Station Information From Last Cycle` = 'V1'))
     DT::datatable(z, options= list(pageLength = nrow(z), scrollY = "250px", dom='t'))  })
   
   
   ## Station Table View Section
   
-  observe(siteData$StationTablePrelimStuff <- StationTableStartingData(stationData()))
-  observe(siteData$StationTableOutput <- cbind(#StationTableStartingData(stationData()),
-                                               tempExceedances(stationData()),
-                                               DOExceedances_Min(stationData()), 
-                                               pHExceedances(stationData()),
-                                               bacteriaAssessmentDecision(stationData(), 'E.COLI', 'ECOLI_RMK', 10, 410, 126) %>%
-                                                 dplyr::select(ECOLI_EXC:ECOLI_STAT),
-                                               bacteriaAssessmentDecision(stationData(), 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35) %>%
-                                                 dplyr::select(ENTER_EXC:ENTER_STAT)
-  ) %>%
-    mutate(COMMENTS = NA) %>%
-    dplyr::select(-ends_with('exceedanceRate'))  # to match Bulk Upload template but helpful to keep visible til now for testing
-    #dplyr::select(STATION_ID:COMMENTS) # for now bc bacteria needs help still
-  )
+  observe({#run longer analyses first
+    siteData$ecoli <- bacteriaAssessmentDecision(stationData(), 'E.COLI', 'ECOLI_RMK', 10, 410, 126) %>%
+      dplyr::select(ECOLI_EXC:ECOLI_STAT)
+    siteData$enter <- bacteriaAssessmentDecision(stationData(), 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35) %>%
+      dplyr::select(ENTER_EXC:ENTER_STAT)})
   
-  
-  
+  observe({
+    req(nrow(siteData$ecoli)>0, nrow(siteData$enter)>0) # need to tell the app to wait for data to exist in these objects before smashing data together or will bomb out when switching between VAHU6's on the Watershed Selection Page
+    siteData$stationTableOutput <- cbind(StationTableStartingData(stationData()),
+                                         tempExceedances(stationData()) %>% quickStats('TEMP'),
+                                         DOExceedances_Min(stationData()) %>% quickStats('DO'), 
+                                         pHExceedances(stationData()) %>% quickStats('PH'),
+                                         siteData$ecoli,
+                                         siteData$enter) %>%
+      mutate(COMMENTS = NA) %>%
+      dplyr::select(-ends_with('exceedanceRate'))
+  })
+
   output$stationTableDataSummary <- DT::renderDataTable({
-    req(stationData(),siteData$StationTableOutput)
-    datatable(siteData$StationTableOutput, extensions = 'Buttons', escape=F, rownames = F, editable = TRUE,
-              options= list(scrollX = TRUE, pageLength = nrow(siteData$StationTableOutput),
+    req(stationData(),siteData$stationTableOutput)
+    datatable(siteData$stationTableOutput, extensions = 'Buttons', escape=F, rownames = F, editable = TRUE,
+              options= list(scrollX = TRUE, pageLength = nrow(siteData$stationTableOutput),
                             # hide certain columns
                             #columnDefs = list(list(targets = 6, visible = FALSE)),
                             dom='Bt', buttons=list('copy',
@@ -239,9 +240,6 @@ shinyServer(function(input, output, session) {
   })
   
   
-  
-  
-  
   ## PWS table
   
   
@@ -249,21 +247,18 @@ shinyServer(function(input, output, session) {
   #### Data Sub Tab ####---------------------------------------------------------------------------------------------------
   
   # Display Data 
-  output$AURawData <- DT::renderDataTable({ AUData()
+  output$AURawData <- DT::renderDataTable({ req(AUData())
     DT::datatable(AUData(), extensions = 'Buttons', escape=F, rownames = F, 
                   options= list(scrollX = TRUE, pageLength = nrow(AUData()), scrollY = "300px", 
                                 dom='Btf', buttons=list('copy',
                                                         list(extend='csv',filename=paste('AUData_',paste(input$stationSelection, collapse = "_"),Sys.Date(),sep='')),
                                                         list(extend='excel',filename=paste('AUData_',paste(input$stationSelection, collapse = "_"),Sys.Date(),sep='')))))})
   # Summarize data
-  output$stationDataTableRecords <- renderText({
-    req(AUData())
+  output$stationDataTableRecords <- renderText({req(AUData())
     paste(nrow(AUData()), 'records were retrieved for',as.character(input$AUselection),sep=' ')})
-  output$uniqueStationDataTableRecords <- renderTable({
-    req(AUData())
+  output$uniqueStationDataTableRecords <- renderTable({req(AUData())
     plyr::count(AUData(), vars = c("FDT_STA_ID")) %>% dplyr::rename('Number of Records'='freq')})
-  output$stationDataTableAssessmentWindow <- renderText({
-    req(AUData())
+  output$stationDataTableAssessmentWindow <- renderText({req(AUData())
     withinAssessmentPeriod(AUData())})
   
   
@@ -273,7 +268,6 @@ shinyServer(function(input, output, session) {
   
   ## Temperature Sub Tab ##------------------------------------------------------------------------------------------------------
   
-  #callModule(temperaturePlotlySingleStation,'temperature', AUData, stationSelected)
+  callModule(temperaturePlotlySingleStation,'temperature', AUData, stationSelected)
   
-  
-})
+ })
