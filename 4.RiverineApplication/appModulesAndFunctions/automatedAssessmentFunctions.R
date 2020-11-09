@@ -115,6 +115,15 @@ DOExceedances_Min <- function(x){
 #DOExceedances_Min(x) %>% quickStats('DO')
 
 # pH range Exceedance Function
+pHSpecialStandardsCorrection <- function(x){
+  z <- filter(x, str_detect(as.character(SPSTDS), '6.5-9.5'))
+  if(nrow(z) > 0){
+    return(
+      mutate(x, `pH Min` = case_when(str_detect(as.character(SPSTDS), '6.5-9.5') ~ 6.5, TRUE ~ `pH Min`),
+             `pH Max` = case_when(str_detect(as.character(SPSTDS), '6.5-9.5') ~ 9.5, TRUE ~ `pH Max`)))
+    }else{return(x)}
+}
+
 pHExceedances <- function(x){
   pH <- dplyr::select(x,FDT_DATE_TIME,FDT_DEPTH,FDT_FIELD_PH,FDT_FIELD_PH_RMK,`pH Min`,`pH Max`)%>% # Just get relevant columns, 
     filter(!(FDT_FIELD_PH_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out

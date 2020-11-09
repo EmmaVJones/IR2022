@@ -8,6 +8,10 @@ source('global.R')
 
 
 # Pull data from server
+conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
+  filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 UTC" )
+vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
+WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 
 
 
@@ -22,9 +26,12 @@ shinyServer(function(input, output, session) {
   
   ################################ Data Upload Tab ################################################# 
   
-  # for testing
   stationTable <- reactive({
-    stationTable <- read_csv('userDataToUpload/processedStationData/stationTableResults.csv')
+    req(input$stationsTable)
+    inFile <- input$stationsTable
+    stationTable <- read_csv(inFile$datapath) %>%
+      #fix periods in column names from excel
+      as_tibble()
     # Remove stations that don't apply to application
     lakeStations <- filter_at(stationTable, vars(starts_with('TYPE')), any_vars(. == 'L'))
     stationTable <- filter(stationTable, !STATION_ID %in% lakeStations$STATION_ID) %>%
@@ -39,7 +46,7 @@ shinyServer(function(input, output, session) {
     # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
     
     return(stationTable)
-  }) #for testing
+  })
   
   
   
@@ -51,12 +58,10 @@ shinyServer(function(input, output, session) {
   
 
   # Pull AU data from server
-  # for testing
-  # Pull AU data from server
   regionalAUs <- reactive({ 
     req(input$pullAUs)
     withProgress(message = 'Reading in Large Spatial File',
-                 regionalAUsForTesting ) }) # for testing
+                 st_zm(st_as_sf(pin_get(paste0(input$DEQregionSelection, 'workingAUriverine'), board = 'rsconnect')) )) })
   
   # Query VAHUC6's By Selectize arguments
   the_data <- reactive({
@@ -148,7 +153,8 @@ shinyServer(function(input, output, session) {
                               WQS_ID:CLASS_DESCRIPTION),
                               #WQS_ID:`Max Temperature (C)`), 
                 by = c('FDT_STA_ID' = 'STATION_ID')) %>%
-      filter(!is.na(ID305B_1))  })
+      filter(!is.na(ID305B_1)) %>%
+      pHSpecialStandardsCorrection() }) #correct pH to special standards where necessary
   
   output$AUselection_ <- renderUI({ req(conventionals_HUC())
     selectInput('AUselection', 'Assessment Unit Selection', choices = unique(conventionals_HUC()$ID305B_1))  })
@@ -270,4 +276,8 @@ shinyServer(function(input, output, session) {
   
   callModule(temperaturePlotlySingleStation,'temperature', AUData, stationSelected)
   
+  ## pH Sub Tab ##------------------------------------------------------------------------------------------------------
+  
+  callModule(pHPlotlySingleStation,'pH', AUData, stationSelected)
+
  })

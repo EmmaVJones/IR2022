@@ -137,7 +137,8 @@ for(i in 1:nrow(stationTable)){
 
   # pull one station data
   stationData <- filter(conventionals, FDT_STA_ID %in% stationTable$STATION_ID[i]) %>%
-    left_join(stationTable, by = c('FDT_STA_ID' = 'STATION_ID'))
+    left_join(stationTable, by = c('FDT_STA_ID' = 'STATION_ID')) %>%
+  pHSpecialStandardsCorrection() # correct pH to special standards where necessary
   
   # If data exists for station, run it, otherwise just output what last cycle said and comment
   if(nrow(stationData) > 0){

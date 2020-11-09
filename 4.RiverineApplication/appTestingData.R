@@ -2,8 +2,8 @@
 source('global.R')
 
 DEQregionSelection <- 'BRRO'
-basinSelection <- "James-Middle"
-HUC6Selection <- 'JM02'
+basinSelection <- "James-Middle"#"Roanoke"#
+HUC6Selection <- 'JM01'#'RU09'#
 
 
 conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
@@ -61,7 +61,8 @@ conventionals_HUC <- filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>
                             WQS_ID:CLASS_DESCRIPTION),
                             #WQS_ID:`Max Temperature (C)`), 
               by = c('FDT_STA_ID' = 'STATION_ID')) %>%
-    filter(!is.na(ID305B_1))
+    filter(!is.na(ID305B_1)) %>%
+  pHSpecialStandardsCorrection()
 
 AUselection <- unique(conventionals_HUC$ID305B_1)[1]
 
@@ -74,7 +75,7 @@ stationSelection <- filter(conventionals_HUC, ID305B_1 %in% AUselection | ID305B
   pull()
 stationSelection <- stationSelection[1]
 
-AUData <- filter_at(conventionals_HUC, vars(starts_with("ID305B")), any_vars(. %in% AUselection) )
+AUData <- filter_at(conventionals_HUC, vars(starts_with("ID305B")), any_vars(. %in% AUselection) ) 
 
 stationData <- filter(AUData, FDT_STA_ID %in% stationSelection)
 
@@ -116,16 +117,8 @@ StationTableOutput <- cbind(StationTableStartingData(stationData),
 
 
 # Temperature WQS change math
-#x <- stationData
-#temperature_changeWQS <- WQSvalues$CLASS_DESCRIPTION[7]
 
-#if(temperature_changeWQS != unique(x$CLASS_DESCRIPTION)){
-#    changedWQS <- filter(WQSvalues, CLASS_DESCRIPTION %in% temperature_changeWQS)
-#    temperature_oneStation <- dplyr::select(x, -c(`Description Of Waters`:CLASS_DESCRIPTION)) %>%
-#        mutate(CLASS = changedWQS$CLASS, 
-#               `Description Of Waters` = changedWQS$`Description Of Waters` ) %>%
-#        left_join(changedWQS, by = c('CLASS', 'Description Of Waters')) 
-#} else {temperature_oneStation <- x} 
+#temperature_oneStation <- changeWQSfunction(stationData, WQSvalues$CLASS_DESCRIPTION[7])
 
 #tempExceedances(temperature_oneStation) %>%
 #  rename("FDT_TEMP" = 'parameter', 'Criteria' = 'limit', 'Parameter Rounded to WQS Format' = 'parameterRound') %>%
@@ -133,3 +126,12 @@ StationTableOutput <- cbind(StationTableStartingData(stationData),
 #  dplyr::select(-exceeds)
 #z <- tempExceedances(temperature_oneStation) %>% quickStats('TEMP') %>% dplyr::select(-TEMP_STAT)
 #datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "300px", dom='t')) 
+
+
+
+# pH WQS change math with special standards correction
+#oneStation_original <- stationData %>%
+#  mutate(CLASS_DESCRIPTION = case_when(str_detect(as.character(SPSTDS), '6.5-9.5') ~ 'SPSTDS = 6.5-9.5',
+#                                       TRUE ~ CLASS_DESCRIPTION))
+#choices <- c(WQSvalues$CLASS_DESCRIPTION, 'SPSTDS = 6.5-9.5')
+#oneStation <- changeWQSfunction(oneStation_original, choices[9])

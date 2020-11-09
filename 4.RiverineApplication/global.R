@@ -17,7 +17,7 @@ source('appModulesAndFunctions/updatedBacteriaCriteria.R')
 source('appModulesAndFunctions/multipleDependentSelectizeArguments.R')
 source('appModulesAndFunctions/automatedAssessmentFunctions.R')
 
-modulesToReadIn <- c('temperature')#,'pH','DO','SpCond','Salinity','TN','Ecoli','chlA','Enteroccoci', 'TP','sulfate',
+modulesToReadIn <- c('temperature','pH')#,'DO','SpCond','Salinity','TN','Ecoli','chlA','Enteroccoci', 'TP','sulfate',
                      #'Ammonia', 'Chloride', 'Nitrate','metals', 'fecalColiform','SSC','Benthics')
 for (i in 1:length(modulesToReadIn)){
   source(paste('appModulesAndFunctions/',modulesToReadIn[i],'Module.R',sep=''))
@@ -27,8 +27,8 @@ for (i in 1:length(modulesToReadIn)){
 conn <- config::get("connectionSettings") # get configuration settings
 
 # use API key to register board
-#board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_KEY"),
-#                         server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
+board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_KEY"),
+                         server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
 
 # Pull data from server
 #conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect")
@@ -65,32 +65,23 @@ withinAssessmentPeriod <- function(x){
 }
 
 
+# change WQS for a given module
+changeWQSfunction <- function(stationData,  # single station dataset
+                              inputCLASS_DESCRIPTION){ # from user module)
+  WQSvalues <- bind_rows(WQSvalues, 
+                         tribble(
+                           ~`pH Min`, ~`pH Max`, ~CLASS_DESCRIPTION, 
+                           6.5, 9.5, 'SPSTDS = 6.5-9.5'))
+  if(inputCLASS_DESCRIPTION != unique(stationData$CLASS_DESCRIPTION)){
+    changedWQS <- filter(WQSvalues, CLASS_DESCRIPTION %in% inputCLASS_DESCRIPTION)
+    return(dplyr::select(stationData, -c(`Description Of Waters`:CLASS_DESCRIPTION)) %>%
+             mutate(CLASS = changedWQS$CLASS, 
+                    `Description Of Waters` = changedWQS$`Description Of Waters` ) %>%
+             left_join(changedWQS, by = c('CLASS', 'Description Of Waters'))) 
+  } else {return(stationData)} 
+}
 
 
-#### Temperature Assessment Functions ---------------------------------------------------------------------------------------------------
-
-#Max Temperature Exceedance Function, flexible with standards
-#temp_Assessment <- function(x){
-#  temp <- dplyr::select(x,FDT_DATE_TIME,FDT_TEMP_CELCIUS, FDT_TEMP_CELCIUS_RMK, `Max Temperature (C)`)%>% # Just get relevant columns, 
-#    filter(!(FDT_TEMP_CELCIUS_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
-#    filter(!is.na(FDT_TEMP_CELCIUS))%>% #get rid of NA's
-#    mutate(TemperatureExceedance=ifelse(FDT_TEMP_CELCIUS > `Max Temperature (C)`,T,F))%>% # Identify where above max Temperature, 
-#    filter(TemperatureExceedance==TRUE) # Only return temp measures above threshold
-#  return(temp)
-#}
-
-
-
-# Exceedance Rate Temperature
-#exceedance_temp <- function(x){
-#  temp <- dplyr::select(x,FDT_DATE_TIME,FDT_TEMP_CELCIUS,FDT_TEMP_CELCIUS_RMK,`Max Temperature (C)`)%>% # Just get relevant columns, 
-#    filter(!(FDT_TEMP_CELCIUS_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
-#    filter(!is.na(FDT_TEMP_CELCIUS)) #get rid of NA's
-#  temp_Assess <- temp_Assessment(x)
-#  
-#  temp_results <- assessmentDetermination(temp,temp_Assess,"temperature","Aquatic Life")
-#  return(temp_results)
-#}
 
 # Super Assessment function
 assessmentDetermination <- function(parameterDF,parameterAssessmentDF,parameter,use){
@@ -107,4 +98,32 @@ assessmentDetermination <- function(parameterDF,parameterAssessmentDF,parameter,
   return(results)
 }
 #assessmentDetermination(temp,temp_Assess,"temperature","Aquatic Life")
+
+
+
+
+
+#### pH Assessment Functions ---------------------------------------------------------------------------------------------------
+
+pH_rangeAssessment <- function(x){
+  pH <- dplyr::select(x,FDT_STA_ID,FDT_DATE_TIME,FDT_DEPTH,FDT_FIELD_PH,FDT_FIELD_PH_RMK,`pH Min`,`pH Max`)%>% # Just get relevant columns, 
+    filter(!(FDT_FIELD_PH_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    filter(!is.na(FDT_FIELD_PH))%>% #get rid of NA's
+    rowwise()%>% mutate(interval=findInterval(FDT_FIELD_PH,c(`pH Min`,`pH Max`)))%>% # Identify where pH outside of assessment range
+    ungroup()%>%
+    mutate(pHrange=ifelse(interval==1,T,F))%>% # Highlight where pH doesn't fall into assessment range
+    filter(pHrange==FALSE)%>% # Only return pH measures outside of assessement range
+    dplyr::select(-c(interval,pHrange)) # Don't show user interval column, could be confusing to them, T/F in pHrange column sufficient
+  return(pH)
+}
+
+
+exceedance_pH <- function(x){
+  pH <- dplyr::select(x,FDT_STA_ID,FDT_DATE_TIME,FDT_DEPTH,FDT_FIELD_PH,FDT_FIELD_PH_RMK,`pH Min`,`pH Max`)%>% # Just get relevant columns, 
+    filter(!(FDT_FIELD_PH_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    filter(!is.na(FDT_FIELD_PH)) #get rid of NA's
+  pH_rangeAssess <- pH_rangeAssessment(x)
+  pH_results <- assessmentDetermination(pH, pH_rangeAssess,"pH","Aquatic Life")
+  return(pH_results)
+}
 

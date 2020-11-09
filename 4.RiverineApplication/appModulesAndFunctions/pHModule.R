@@ -1,5 +1,6 @@
 
-temperaturePlotlySingleStationUI <- function(id){
+
+pHPlotlySingleStationUI <- function(id){
   ns <- NS(id)
   tagList(
     wellPanel(
@@ -10,16 +11,15 @@ temperaturePlotlySingleStationUI <- function(id){
       plotlyOutput(ns('plotly')),
       br(),hr(),br(),
       fluidRow(
-        column(8, h5('All temperature records that are above the criteria for the ',span(strong('selected site')),' are highlighted below.'),
+        column(8, h5('All pH records that are outside the criteria for the ',span(strong('selected site')),' are highlighted below.'),
                dataTableOutput(ns('rangeTableSingleSite'))),
-        column(4, h5('Individual temperature exceedance statistics for the ',span(strong('selected site')),' are highlighted below.'),
-               dataTableOutput(ns("stationExceedanceRate")))
-      )
+        column(4, h5('Individual pH exceedance statistics for the ',span(strong('selected site')),' are highlighted below.'),
+               dataTableOutput(ns("stationExceedanceRate"))))
     )
   )
 }
 
-temperaturePlotlySingleStation <- function(input,output,session, AUdata, stationSelectedAbove){
+pHPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedAbove){
   ns <- session$ns
   
   # Select One station for individual review
@@ -32,19 +32,22 @@ temperaturePlotlySingleStation <- function(input,output,session, AUdata, station
   oneStation_original <- reactive({
     req(ns(input$oneStationSelection))
     filter(AUdata(),FDT_STA_ID %in% input$oneStationSelection) %>%
-      filter(!is.na(FDT_TEMP_CELCIUS))})
+      filter(!is.na(FDT_FIELD_PH)) %>%
+      # special step for pH to make the CLASS_BASIN update if pH special standards exist
+      mutate(CLASS_DESCRIPTION = case_when(str_detect(as.character(SPSTDS), '6.5-9.5') ~ 'SPSTDS = 6.5-9.5',
+                                           TRUE ~ CLASS_DESCRIPTION))})
+  
   
   # Option to change WQS used for modal
   output$changeWQSUI <- renderUI({
     req(oneStation_original())
     selectInput(ns('changeWQS'),strong('WQS For Analysis'),
-                choices= WQSvalues$CLASS_DESCRIPTION,
+                choices= c(WQSvalues$CLASS_DESCRIPTION, 'SPSTDS = 6.5-9.5'), # special just for pH
                 width='400px', selected = unique(oneStation_original()$CLASS_DESCRIPTION)) })
   
   # change WQS for rest of module if user chooses to do so
   oneStation <- reactive({req(oneStation_original(), input$changeWQS)
     changeWQSfunction(oneStation_original(), input$changeWQS) })
-  
   
   # Button to visualize modal table of available parameter data
   observeEvent(input$reviewData,{
@@ -61,42 +64,56 @@ temperaturePlotlySingleStation <- function(input,output,session, AUdata, station
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, FDT_TEMP_CELCIUS, FDT_TEMP_CELCIUS_RMK)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, FDT_FIELD_PH, FDT_FIELD_PH_RMK)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
-      formatStyle(c( 'FDT_TEMP_CELCIUS', 'FDT_TEMP_CELCIUS_RMK'), 'FDT_TEMP_CELCIUS_RMK', 
-                  backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))  })
-  
+      formatStyle(c('FDT_FIELD_PH','FDT_FIELD_PH_RMK'), 'FDT_FIELD_PH_RMK', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
+  })
   
   output$plotly <- renderPlotly({
     req(input$oneStationSelection, oneStation())
-    dat <- mutate(oneStation(),top = `Max Temperature (C)`)
+    dat <- mutate(oneStation(),top = `pH Max`, bottom = `pH Min`)
     dat$SampleDate <- as.POSIXct(dat$FDT_DATE_TIME, format="%m/%d/%y")
+    
+    box1 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(9, 14, 14, 9))
+    box2 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(6, 9, 9, 6))
+    box3 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(0, 6, 6, 0))
+    
     plot_ly(data=dat)%>%
-      add_lines(x=~SampleDate,y=~top, mode='line',line = list(color = 'black'),
-                hoverinfo = "text", text="Temperature Standard", name="Temperature Standard") %>%
-      add_markers(x= ~SampleDate, y= ~FDT_TEMP_CELCIUS,mode = 'scatter', name="Temperature (Celsius)",marker = list(color= '#535559'),
+      add_polygons(data = box1, x = ~x, y = ~y, fillcolor = "#F0E442",opacity=0.6, line = list(width = 0),
+                   hoverinfo="text", name =paste('Medium Probability of Stress to Aquatic Life')) %>%
+      add_polygons(data = box2, x = ~x, y = ~y, fillcolor = "#009E73",opacity=0.6, line = list(width = 0),
+                   hoverinfo="text", name =paste('Low Probability of Stress to Aquatic Life')) %>%
+      add_polygons(data = box3, x = ~x, y = ~y, fillcolor = "#F0E442",opacity=0.6, line = list(width = 0),
+                   hoverinfo="text", name =paste('Medium Probability of Stress to Aquatic Life')) %>%
+      
+      add_lines(data=dat, x=~SampleDate,y=~top, mode='line',line = list(color = 'black'),
+                hoverinfo = "text",text="pH Standard", name="pH Standard") %>%
+      add_lines(data=dat, x=~SampleDate,y=~bottom, mode='line',line = list(color = 'black'),
+                hoverinfo = "text", text="pH Standard", name="pH Standard") %>%
+      add_markers(data=dat, x= ~SampleDate, y= ~FDT_FIELD_PH,mode = 'scatter', name="pH (unitless)",  marker = list(color= '#535559'),
                   hoverinfo="text",text=~paste(sep="<br>",
                                                paste("Date: ",SampleDate),
                                                paste("Depth: ",FDT_DEPTH, "m"),
-                                               paste("Temperature: ",FDT_TEMP_CELCIUS,"C")))%>%
+                                               paste("pH: ",FDT_FIELD_PH," (unitless)")))%>%
       layout(showlegend=FALSE,
-             yaxis=list(title="Temperature (Celsius)"),
+             yaxis=list(title="pH (unitless)"),
              xaxis=list(title="Sample Date",tickfont = list(size = 10)))
   })
   
   output$rangeTableSingleSite <- renderDataTable({
     req(oneStation())
-    z <- tempExceedances(oneStation()) %>%
-      rename("FDT_TEMP" = 'parameter', 'Criteria' = 'limit', 'Parameter Rounded to WQS Format' = 'parameterRound') %>%
+    z <- pHExceedances(oneStation()) %>%
       filter(exceeds == TRUE) %>%
-      dplyr::select(-exceeds)
+      rename('Outside WQS Criteria' = 'exceeds', 'Parameter Rounded to WQS Format' = 'parameterRound') %>%
+      dplyr::select(-c(FDT_DEPTH, limit, interval))
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "300px", dom='t'))})
   
-  # Temperature Station Exceedance Rate
+  
   output$stationExceedanceRate <- renderDataTable({
     req(ns(input$oneStationSelection), oneStation())
-    z <- tempExceedances(oneStation()) %>% quickStats('TEMP') %>% dplyr::select(-TEMP_STAT)
+    z <- pHExceedances(oneStation()) %>% quickStats('PH') %>% dplyr::select(-PH_STAT)
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t')) })
+  
 }
