@@ -104,7 +104,7 @@ shinyUI(fluidPage(theme="yeti.css",
                                                      preview the AUs contained within the selected watershed by clicking the ',
                                                      span(strong('Spatially Preview Assessment Units')),' below.'),
                                             actionButton('reviewAUs',"Spatially Preview Assessment Units",class='btn-block')
-                                            ),
+                                          ),
                                           mainPanel(
                                             leafletOutput('VAmap'),
                                             br(),
@@ -120,12 +120,12 @@ shinyUI(fluidPage(theme="yeti.css",
                                             br(), br(), br() # a bit of breathing room
                                           )
                                  ),
+                                 
                                  tabPanel('Assessment Unit Review',
                                           fluidRow(column(9, DT::dataTableOutput('selectedVAHU6'))),#,
-                                                   #column(3,br(),actionButton('pullVAHU6data','Select Watershed for analysis'),
-                                                    #      helpText('If the button above is disabled, there are no AUs in the selected VAHU6 watershed.'))),
+                                          #column(3,br(),actionButton('pullVAHU6data','Select Watershed for analysis'),
+                                          #      helpText('If the button above is disabled, there are no AUs in the selected VAHU6 watershed.'))),
                                           hr(),
-                                          #verbatimTextOutput('test'),
                                           uiOutput('AUselection_'),
                                           h5(strong('AU information from last cycle')),
                                           DT::dataTableOutput('selectedAU'),br(),
@@ -145,7 +145,7 @@ shinyUI(fluidPage(theme="yeti.css",
                                                   violation of a standard. When BENTHIC_STAT is highlighed, it indicates there is benthic data present for that site
                                                   and the assessor should review that information with the Regional Biologist. Parameters highlighted in red exceed the 10.5% exceedance rate. Both scenarios warrant further
                                                   investigation and may requre comments in the Station Table and ADB.'),
-                                          DT::dataTableOutput('stationTableDataSummary'), br(), 
+                                          DT::dataTableOutput('stationTableDataSummary'), br(),
                                           h4('PWS violations'),
                                           helpText("Any PWS violations should noted in a station's COMMENT field of the Stations Table. The table below organizes 
                                                   PWS information to expedite the comment process."),
@@ -166,23 +166,39 @@ shinyUI(fluidPage(theme="yeti.css",
                                                                 fluidRow(column(1),column(10,textOutput('stationDataTableAssessmentWindow'))), br(),br()),
                                                        tabPanel('Temperature',
                                                                 helpText('Review each site using the single site visualization section. The results from this analysis are reflected
-                                                                        in the TEMP_EXC, TEMP_SAMP, and TEMP_STAT columns in the station table.'),
+                                                                        in the TEMP_EXC, TEMP_SAMP, and TEMP_STAT columns in the station table.',
+                                                                         span('Users may adjust the WQS used for analysis in this modal by choosing a standard from
+                                                                              the `WQS for Analysis` drop down. The default WQS chosen is the WQS provided by the assessor
+                                                                              to the WQS Metadata Attribution App.', style="color:red")),
                                                                 temperaturePlotlySingleStationUI('temperature')),
                                                        tabPanel('pH',
                                                                 helpText('Review each site using the single site visualization section. The results from this analysis are reflected
-                                                                        in the PH_EXC, PH_SAMP, and PH_STAT columns in the station table.',span('If the Benthic Stressor Analysis
-                                                                                                                                                background colors differ from the standards
-                                                                                                                                                applied to the station being analyzed, this indicates
-                                                                                                                                                there are special WQS for this station.', style="color:red")),
+                                                                        in the PH_EXC, PH_SAMP, and PH_STAT columns in the station table.',
+                                                                         span('Users may adjust the WQS used for analysis in this modal by choosing a standard from
+                                                                              the `WQS for Analysis` drop down. The default WQS chosen is the WQS provided by the assessor
+                                                                              to the WQS Metadata Attribution App.', style="color:red"),
+                                                                         'The Benthic Stressor Analysis background colors are provided as a guide to users, but all analyses are conducted against the chosen WQS.'),
                                                                 pHPlotlySingleStationUI('pH')),
-                                                       tabPanel("DO"),
+                                                       tabPanel("DO",
+                                                                helpText('Review each site using the single site visualization section. The results from this analysis are reflected
+                                                                        in the DO_EXC, DO_SAMP, and DO_STAT columns in the station table.',
+                                                                         span('Users may adjust the WQS used for analysis in this modal by choosing a standard from
+                                                                              the `WQS for Analysis` drop down. The default WQS chosen is the WQS provided by the assessor
+                                                                              to the WQS Metadata Attribution App.', style="color:red"),
+                                                                         'The Benthic Stressor Analysis background colors are provided as a guide to users, but all analyses are conducted against the chosen WQS.'),
+                                                                DOPlotlySingleStationUI('DO')),
                                                        tabPanel("Specific Conductance"),
                                                        tabPanel("Salinity"),
                                                        tabPanel("Total Nitrogen"),
                                                        tabPanel("Ammonia"),
                                                        tabPanel("Total Phosphorus"),
                                                        tabPanel("Fecal Coliform"),
-                                                       tabPanel("E. Coli"),
+                                                       tabPanel("E. Coli",
+                                                                #verbatimTextOutput('testOutside'),
+                                                                helpText('Review each site using the single site visualization section. Both the old and the new E. coli assessment
+                                                                        methods are presented in the station visualization section. The results from the new analysis method are reflected
+                                                                        in the ECOLI_EXC, ECOLI_SAMP, ECOLI_GM_EXC, ECOLI_GM_SAMP, and ECOLI_STAT columns in the station table.'),
+                                                                EcoliPlotlySingleStationUI('Ecoli')),
                                                        tabPanel("Enterococci"),
                                                        tabPanel("Chlorophyll a"),
                                                        tabPanel("Suspended Sediments"),
@@ -198,6 +214,6 @@ shinyUI(fluidPage(theme="yeti.css",
                                             #            tabPanel('Water Column Toxics'),
                                             #            tabPanel('Sediment Toxics')))
                                             
-                                          ))
-                      )))))
-                                            
+                                          ))        
+                                          
+                                 )))))

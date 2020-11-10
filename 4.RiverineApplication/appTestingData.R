@@ -3,7 +3,7 @@ source('global.R')
 
 DEQregionSelection <- 'BRRO'
 basinSelection <- "James-Middle"#"Roanoke"#
-HUC6Selection <- 'JM01'#'RU09'#
+HUC6Selection <- "JM01"#'JM16'#'RU09'#
 
 
 conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
@@ -101,15 +101,16 @@ map1@map %>% setView(point$Longitude, point$Latitude, zoom = 12)
   
   
 # Station Table Output
-StationTableOutput <- cbind(StationTableStartingData(stationData),
-                            tempExceedances(stationData) %>% quickStats('TEMP'),
-                            DOExceedances_Min(stationData) %>% quickStats('DO'), 
-                            pHExceedances(stationData) %>% quickStats('PH'),
-                            bacteriaAssessmentDecision(stationData, 'E.COLI', 'ECOLI_RMK', 10, 410, 126) %>%
-                              dplyr::select(ECOLI_EXC:ECOLI_STAT),
-                            bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35) %>%
-                              dplyr::select(ENTER_EXC:ENTER_STAT)
-                            ) %>%
+#run longer analyses first
+ecoli1 <- bacteriaAssessmentDecision(stationData, 'E.COLI', 'ECOLI_RMK', 10, 410, 126)
+enter1 <- bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35)
+
+stationTableOutput <- cbind(StationTableStartingData(stationData()),
+                                     tempExceedances(stationData()) %>% quickStats('TEMP'),
+                                     DOExceedances_Min(stationData()) %>% quickStats('DO'), 
+                                     pHExceedances(stationData()) %>% quickStats('PH'),
+                                     ecoli %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),
+                                     enter %>% dplyr::select(ENTER_EXC:ENTER_STAT)) %>%
   mutate(COMMENTS = NA) %>%
   dplyr::select(-ends_with('exceedanceRate')) %>% # to match Bulk Upload template but helpful to keep visible til now for testing
   dplyr::select(STATION_ID:COMMENTS) # for now bc bacteria needs help still
@@ -135,3 +136,49 @@ StationTableOutput <- cbind(StationTableStartingData(stationData),
 #                                       TRUE ~ CLASS_DESCRIPTION))
 #choices <- c(WQSvalues$CLASS_DESCRIPTION, 'SPSTDS = 6.5-9.5')
 #oneStation <- changeWQSfunction(oneStation_original, choices[9])
+
+
+# Ecoli build
+#windowChoice_ <- unique(ecoli[['associatedDecisionData']][[1]]$`Date Window Starts`)[1]
+
+#windowData <- filter(ecoli[['associatedDecisionData']][[1]], `Date Window Starts` %in% windowChoice_) %>%
+#  dplyr::select( associatedData) %>%
+#  unnest(cols = c(associatedData)) %>%
+#  mutate(#`Date Window Starts` = as.POSIXct(unique(windowStart$`Date Window Starts`, format="%m/%d/%y")),
+#         #`Date Window Ends` = as.POSIXct(unique(windowStart$`Date Window Ends`, format="%m/%d/%y")),
+#         newSTV = 410, geomean = 126,
+#         `Date Time` = as.POSIXct(strptime(FDT_DATE_TIME, format="%Y-%m-%d")))#as.POSIXct(windowData$`Date Time`, format="%Y-%m-%d", tz='GMT') + as.difftime(1, units="days")
+
+#plot_ly(data=windowData) %>%
+#  add_markers(x= ~`Date Time`, y= ~Value,mode = 'scatter', name="E. coli (CFU / 100 mL)", marker = list(color= '#535559'),
+#              hoverinfo="text",text=~paste(sep="<br>",
+#                                           paste("Date: ",`Date Time`),
+#                                           paste("E. coli: ",Value,"CFU / 100 mL"))) %>%
+#  add_lines(data=windowData, x=~`Date Time`, y=~E.COLI_geomean, mode='line', line = list(color = 'orange', dash= 'dash'),
+#            hoverinfo = "text", text= ~paste("Window Geomean: ", format(E.COLI_geomean,digits=3)," CFU / 100 mL", sep=''), 
+#            name="Window Geomean") %>%
+#  add_lines(data=windowData, x=~`Date Time`,y=~newSTV, mode='line', line = list(color = '#484a4c',dash = 'dot'),
+#            hoverinfo = "text", text= "New STV: 410 CFU / 100 mL", name="New STV: 410 CFU / 100 mL") %>%
+#  add_lines(data=windowData, x=~`Date Time`,y=~geomean, mode='line', line = list(color = 'black', dash= 'dash'),
+#            hoverinfo = "text", text= "Geomean: 126 CFU / 100 mL", name="Geomean: 126 CFU / 100 mL") %>%
+#  layout(showlegend=FALSE,
+#         yaxis=list(title="E. coli (CFU / 100 mL)"),
+#         xaxis=list(title="Sample Date",tickfont = list(size = 10))) 
+
+
+## Old bacteria 
+
+#bacteria_ExceedancesSTV_OLD(stationData %>%
+#                              dplyr::select(FDT_DATE_TIME,E.COLI)%>% # Just get relevant columns, 
+#                              filter(!is.na(E.COLI)) #get rid of NA's
+#                            , 235 ) %>%
+#  filter(exceeds == T) %>%
+#  mutate(FDT_DATE_TIME = as.Date(FDT_DATE_TIME), E.COLI = parameter) %>%
+#  dplyr::select(FDT_DATE_TIME, E.COLI, limit, exceeds)
+
+#bacteria_ExceedancesGeomeanOLD(stationData %>% 
+#                                 dplyr::select(FDT_DATE_TIME,E.COLI)%>% # Just get relavent columns, 
+#                                 filter(!is.na(E.COLI)), #get rid of NA's
+#                               'E.COLI', 126) %>%
+#  dplyr::select(FDT_DATE_TIME, E.COLI, sampleMonthYear, geoMeanCalendarMonth, limit, samplesPerMonth) %>%
+#  filter(samplesPerMonth > 4, geoMeanCalendarMonth > limit) # minimum sampling rule for geomean to apply

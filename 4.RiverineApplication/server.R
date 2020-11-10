@@ -15,6 +15,7 @@ WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 
 
 
+
 shinyServer(function(input, output, session) {
   
   # display the loading feature until data loads into app
@@ -26,6 +27,7 @@ shinyServer(function(input, output, session) {
   
   ################################ Data Upload Tab ################################################# 
   
+  # real
   stationTable <- reactive({
     req(input$stationsTable)
     inFile <- input$stationsTable
@@ -49,7 +51,6 @@ shinyServer(function(input, output, session) {
   })
   
   
-  
 
   ################################ Watershed Selection Tab ########################################
   
@@ -62,6 +63,9 @@ shinyServer(function(input, output, session) {
     req(input$pullAUs)
     withProgress(message = 'Reading in Large Spatial File',
                  st_zm(st_as_sf(pin_get(paste0(input$DEQregionSelection, 'workingAUriverine'), board = 'rsconnect')) )) })
+  
+  
+  
   
   # Query VAHUC6's By Selectize arguments
   the_data <- reactive({
@@ -211,11 +215,15 @@ shinyServer(function(input, output, session) {
   
   ## Station Table View Section
   
-  observe({#run longer analyses first
-    siteData$ecoli <- bacteriaAssessmentDecision(stationData(), 'E.COLI', 'ECOLI_RMK', 10, 410, 126) %>%
-      dplyr::select(ECOLI_EXC:ECOLI_STAT)
-    siteData$enter <- bacteriaAssessmentDecision(stationData(), 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35) %>%
-      dplyr::select(ENTER_EXC:ENTER_STAT)})
+#  observe({#run longer analyses first
+#    siteData$ecoli <- bacteriaAssessmentDecision(stationData(), 'E.COLI', 'ECOLI_RMK', 10, 410, 126)
+#    siteData$enter <- bacteriaAssessmentDecision(stationData(), 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35)})
+  
+  # try as reactive instead
+  ecoli <- reactive({req(stationData())
+    bacteriaAssessmentDecision(stationData(), 'E.COLI', 'ECOLI_RMK', 10, 410, 126)})
+  enter <- reactive({req(stationData())
+    bacteriaAssessmentDecision(stationData(), 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35)})
   
   observe({
     req(nrow(siteData$ecoli)>0, nrow(siteData$enter)>0) # need to tell the app to wait for data to exist in these objects before smashing data together or will bomb out when switching between VAHU6's on the Watershed Selection Page
@@ -223,11 +231,13 @@ shinyServer(function(input, output, session) {
                                          tempExceedances(stationData()) %>% quickStats('TEMP'),
                                          DOExceedances_Min(stationData()) %>% quickStats('DO'), 
                                          pHExceedances(stationData()) %>% quickStats('PH'),
-                                         siteData$ecoli,
-                                         siteData$enter) %>%
+                                         ecoli() %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),#siteData$ecoli %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),
+                                         enter() %>% dplyr::select(ECOLI_EXC:ECOLI_STAT)) %>%#siteData$enter %>% dplyr::select(ENTER_EXC:ENTER_STAT)) %>%
       mutate(COMMENTS = NA) %>%
       dplyr::select(-ends_with('exceedanceRate'))
   })
+  
+  #output$testOutside <- renderPrint({ecoli()})#siteData$ecoli})
 
   output$stationTableDataSummary <- DT::renderDataTable({
     req(stationData(),siteData$stationTableOutput)
@@ -273,11 +283,15 @@ shinyServer(function(input, output, session) {
   
   
   ## Temperature Sub Tab ##------------------------------------------------------------------------------------------------------
-  
   callModule(temperaturePlotlySingleStation,'temperature', AUData, stationSelected)
   
   ## pH Sub Tab ##------------------------------------------------------------------------------------------------------
-  
   callModule(pHPlotlySingleStation,'pH', AUData, stationSelected)
+  
+  ## DO Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(DOPlotlySingleStation,'DO', AUData, stationSelected)
+  
+  ## E.coli Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(EcoliPlotlySingleStation,'Ecoli', AUData, stationSelected, ecoli)#siteData$ecoli)
 
  })

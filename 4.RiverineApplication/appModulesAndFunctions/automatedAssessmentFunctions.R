@@ -114,6 +114,25 @@ DOExceedances_Min <- function(x){
 }
 #DOExceedances_Min(x) %>% quickStats('DO')
 
+
+# Daily Average exceedance function
+DO_Assessment_DailyAvg <- function(x){ 
+  dplyr::select(x,FDT_STA_ID,FDT_DATE_TIME, FDT_DATE_TIME,FDT_DEPTH,DO,DO_RMK,`Dissolved Oxygen Min (mg/L)`,`Dissolved Oxygen Daily Avg (mg/L)`)%>% # Just get relevant columns, 
+    filter(!(DO_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    filter(!is.na(DO)) %>% #get rid of NA's
+    mutate(date = as.Date(FDT_DATE_TIME, format="%m/%d/%Y"), 
+           limit = `Dissolved Oxygen Daily Avg (mg/L)`) %>% 
+    group_by(date) %>%
+    mutate(n_Samples_Daily = n()) %>% # how many samples per day?
+    filter(n_Samples_Daily > 1) %>%
+    # Daily average with average rounded to even
+    mutate(DO_DailyAverage = round(mean(DO), digits = 1),  # round to 1 digit based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
+           exceeds = ifelse(DO_DailyAverage < `Dissolved Oxygen Daily Avg (mg/L)`,T,F)) %>% 
+    ungroup() %>% 
+    dplyr::select(-c(FDT_DATE_TIME, `Dissolved Oxygen Min (mg/L)`))
+}
+#DO_Assessment_DailyAvg(x) %>% quickStats('DO_Daily_Avg')
+
 # pH range Exceedance Function
 pHSpecialStandardsCorrection <- function(x){
   z <- filter(x, str_detect(as.character(SPSTDS), '6.5-9.5'))
