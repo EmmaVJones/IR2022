@@ -226,13 +226,14 @@ shinyServer(function(input, output, session) {
     bacteriaAssessmentDecision(stationData(), 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35)})
   
   observe({
-    req(nrow(siteData$ecoli)>0, nrow(siteData$enter)>0) # need to tell the app to wait for data to exist in these objects before smashing data together or will bomb out when switching between VAHU6's on the Watershed Selection Page
+    req(nrow(ecoli()) > 0, nrow(enter()) > 0)# need to tell the app to wait for data to exist in these objects before smashing data together or will bomb out when switching between VAHU6's on the Watershed Selection Page
+    #req(nrow(siteData$ecoli)>0, nrow(siteData$enter)>0) # need to tell the app to wait for data to exist in these objects before smashing data together or will bomb out when switching between VAHU6's on the Watershed Selection Page
     siteData$stationTableOutput <- cbind(StationTableStartingData(stationData()),
                                          tempExceedances(stationData()) %>% quickStats('TEMP'),
                                          DOExceedances_Min(stationData()) %>% quickStats('DO'), 
                                          pHExceedances(stationData()) %>% quickStats('PH'),
                                          ecoli() %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),#siteData$ecoli %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),
-                                         enter() %>% dplyr::select(ECOLI_EXC:ECOLI_STAT)) %>%#siteData$enter %>% dplyr::select(ENTER_EXC:ENTER_STAT)) %>%
+                                         enter() %>% dplyr::select(ENTER_EXC:ENTER_STAT)) %>%#siteData$enter %>% dplyr::select(ENTER_EXC:ENTER_STAT)) %>%
       mutate(COMMENTS = NA) %>%
       dplyr::select(-ends_with('exceedanceRate'))
   })
@@ -293,5 +294,9 @@ shinyServer(function(input, output, session) {
   
   ## E.coli Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(EcoliPlotlySingleStation,'Ecoli', AUData, stationSelected, ecoli)#siteData$ecoli)
+  
+  ## Enteroccoci Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(EnteroPlotlySingleStation,'Entero', AUData, stationSelected, enter)#siteData$enter)
+  
 
  })

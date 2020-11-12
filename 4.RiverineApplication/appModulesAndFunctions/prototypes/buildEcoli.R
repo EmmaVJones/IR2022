@@ -7,7 +7,7 @@ EcoliPlotlySingleStationUI <- function(id){
       h4(strong('Single Station Data Visualization')),
       fluidRow(column(6, helpText('Station used for this module is the station selected above to expedite app rendering.')),#uiOutput(ns('oneStationSelectionUI'))),
                column(6,actionButton(ns('reviewData'),"Review Raw Parameter Data",class='btn-block', width = '250px'))),
-      verbatimTextOutput(ns('test')),
+      #verbatimTextOutput(ns('test')),
       plotlyOutput(ns('plotly')),
       br(),hr(),br(),
       fluidRow(
@@ -79,7 +79,7 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
   oneStationAnalysis <- reactive({analyzedData()})# bc not updating in full app unless this is reactive
   oneStationDecisionData <- reactive({oneStationAnalysis()[['associatedDecisionData']][[1]]}) # bc not updating in full app unless this is reactive
   
-  output$test <- renderPrint({analyzedData()})
+  #output$test <- renderPrint({analyzedData()})
   
   
   # Button to visualize modal table of available parameter data
@@ -169,7 +169,7 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
         filter(samplesPerMonth > 4, geoMeanCalendarMonth > limit) # minimum sampling rule for geomean to apply
     } else {z <- tibble(FDT_DATE_TIME = NA, `E.COLI` = NA, sampleMonthYear= NA, geoMeanCalendarMonth= NA, limit= NA, samplesPerMonth= NA)}
       
-    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "150px", dom='t')) })
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "100px", dom='t')) })
   
   output$oldStdTableSingleSite <- DT::renderDataTable({req(oneStation())
     #get rid of citizen data
@@ -214,8 +214,8 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
                   hoverinfo="text",text=~paste(sep="<br>",
                                                paste("Date: ",`Date Time`),
                                                paste("E. coli: ",Value,"CFU / 100 mL"))) %>%
-      add_lines(data=windowData, x=~`Date Time`, y=~E.COLI_geomean, mode='line', line = list(color = 'orange', dash= 'dash'),
-                hoverinfo = "text", text= ~paste("Window Geomean: ", format(E.COLI_geomean,digits=3)," CFU / 100 mL", sep=''), 
+      add_lines(data=windowData, x=~`Date Time`, y=~geomean, mode='line', line = list(color = 'orange', dash= 'dash'),
+                hoverinfo = "text", text= ~paste("Window Geomean: ", format(geomean,digits=3)," CFU / 100 mL", sep=''), 
                 name="Window Geomean") %>%
       add_lines(data=windowData, x=~`Date Time`,y=~newSTV, mode='line', line = list(color = '#484a4c',dash = 'dot'),
                 hoverinfo = "text", text= "New STV: 410 CFU / 100 mL", name="New STV: 410 CFU / 100 mL") %>%

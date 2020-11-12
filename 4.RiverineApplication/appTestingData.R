@@ -64,7 +64,7 @@ conventionals_HUC <- filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>
     filter(!is.na(ID305B_1)) %>%
   pHSpecialStandardsCorrection()
 
-AUselection <- unique(conventionals_HUC$ID305B_1)[1]
+AUselection <- unique(conventionals_HUC$ID305B_1)[2]
 
 #selectedAU <-  filter(regionalAUs, ID305B %in% AUselection) %>% st_set_geometry(NULL) %>% as.data.frame()
 stationSelection <- filter(conventionals_HUC, ID305B_1 %in% AUselection | ID305B_2 %in% AUselection | 
@@ -139,14 +139,15 @@ stationTableOutput <- cbind(StationTableStartingData(stationData()),
 
 
 # Ecoli build
-#windowChoice_ <- unique(ecoli[['associatedDecisionData']][[1]]$`Date Window Starts`)[1]
+#windowChoice_ <- unique(enter1[['associatedDecisionData']][[1]]$`Date Window Starts`)[1]
 
-#windowData <- filter(ecoli[['associatedDecisionData']][[1]], `Date Window Starts` %in% windowChoice_) %>%
+#windowData <- filter(enter1[['associatedDecisionData']][[1]], `Date Window Starts` %in% windowChoice_) %>%
 #  dplyr::select( associatedData) %>%
 #  unnest(cols = c(associatedData)) %>%
 #  mutate(#`Date Window Starts` = as.POSIXct(unique(windowStart$`Date Window Starts`, format="%m/%d/%y")),
 #         #`Date Window Ends` = as.POSIXct(unique(windowStart$`Date Window Ends`, format="%m/%d/%y")),
-#         newSTV = 410, geomean = 126,
+#    newSTV = 130, geomean = 35,     
+#    #newSTV = 410, geomean = 126,
 #         `Date Time` = as.POSIXct(strptime(FDT_DATE_TIME, format="%Y-%m-%d")))#as.POSIXct(windowData$`Date Time`, format="%Y-%m-%d", tz='GMT') + as.difftime(1, units="days")
 
 #plot_ly(data=windowData) %>%
@@ -154,8 +155,8 @@ stationTableOutput <- cbind(StationTableStartingData(stationData()),
 #              hoverinfo="text",text=~paste(sep="<br>",
 #                                           paste("Date: ",`Date Time`),
 #                                           paste("E. coli: ",Value,"CFU / 100 mL"))) %>%
-#  add_lines(data=windowData, x=~`Date Time`, y=~E.COLI_geomean, mode='line', line = list(color = 'orange', dash= 'dash'),
-#            hoverinfo = "text", text= ~paste("Window Geomean: ", format(E.COLI_geomean,digits=3)," CFU / 100 mL", sep=''), 
+#  add_lines(data=windowData, x=~`Date Time`, y=~geomean, mode='line', line = list(color = 'orange', dash= 'dash'),
+#            hoverinfo = "text", text= ~paste("Window Geomean: ", format(geomean,digits=3)," CFU / 100 mL", sep=''), 
 #            name="Window Geomean") %>%
 #  add_lines(data=windowData, x=~`Date Time`,y=~newSTV, mode='line', line = list(color = '#484a4c',dash = 'dot'),
 #            hoverinfo = "text", text= "New STV: 410 CFU / 100 mL", name="New STV: 410 CFU / 100 mL") %>%
@@ -177,8 +178,25 @@ stationTableOutput <- cbind(StationTableStartingData(stationData()),
 #  dplyr::select(FDT_DATE_TIME, E.COLI, limit, exceeds)
 
 #bacteria_ExceedancesGeomeanOLD(stationData %>% 
-#                                 dplyr::select(FDT_DATE_TIME,E.COLI)%>% # Just get relavent columns, 
+#                                 dplyr::select(FDT_DATE_TIME,E.COLI)%>% # Just get relevant columns, 
 #                                 filter(!is.na(E.COLI)), #get rid of NA's
 #                               'E.COLI', 126) %>%
 #  dplyr::select(FDT_DATE_TIME, E.COLI, sampleMonthYear, geoMeanCalendarMonth, limit, samplesPerMonth) %>%
+#  filter(samplesPerMonth > 4, geoMeanCalendarMonth > limit) # minimum sampling rule for geomean to apply
+
+
+#bacteria_ExceedancesSTV_OLD(stationData %>%
+#                                   dplyr::select(FDT_DATE_TIME,ENTEROCOCCI)%>% # Just get relevant columns, 
+#                                   filter(!is.na(ENTEROCOCCI)) #get rid of NA's
+#                                 , 130 ) %>%
+#  filter(exceeds == T) %>%
+#  mutate(FDT_DATE_TIME = as.Date(FDT_DATE_TIME), ENTEROCOCCI = parameter) %>%
+#  dplyr::select(FDT_DATE_TIME, ENTEROCOCCI, limit, exceeds)
+
+
+#bacteria_ExceedancesGeomeanOLD(stationData %>% 
+#                                      dplyr::select(FDT_DATE_TIME,ENTEROCOCCI)%>% # Just get relavent columns, 
+#                                      filter(!is.na(ENTEROCOCCI)), #get rid of NA's
+#                                    'ENTEROCOCCI', 35) %>%
+#  dplyr::select(FDT_DATE_TIME, ENTEROCOCCI, sampleMonthYear, geoMeanCalendarMonth, limit, samplesPerMonth) %>%
 #  filter(samplesPerMonth > 4, geoMeanCalendarMonth > limit) # minimum sampling rule for geomean to apply

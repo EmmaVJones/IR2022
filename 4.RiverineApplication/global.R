@@ -17,7 +17,7 @@ source('appModulesAndFunctions/updatedBacteriaCriteria.R')
 source('appModulesAndFunctions/multipleDependentSelectizeArguments.R')
 source('appModulesAndFunctions/automatedAssessmentFunctions.R')
 
-modulesToReadIn <- c('temperature','pH','DO','Ecoli')#'Enteroccoci','SpCond','Salinity','TN','chlA','Enteroccoci', 'TP','sulfate',
+modulesToReadIn <- c('temperature','pH','DO','Ecoli', 'Enteroccoci')#,'SpCond','Salinity','TN','chlA','Enteroccoci', 'TP','sulfate',
                      #'Ammonia', 'Chloride', 'Nitrate','metals', 'fecalColiform','SSC','Benthics')
 for (i in 1:length(modulesToReadIn)){
   source(paste('appModulesAndFunctions/',modulesToReadIn[i],'Module.R',sep=''))

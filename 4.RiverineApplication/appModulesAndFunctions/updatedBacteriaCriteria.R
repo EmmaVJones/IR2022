@@ -66,8 +66,8 @@ bacteriaExceedances_NEW <- function(x, # input dataframe with bacteria data
       z <- filter(x2, FDT_DATE_TIME >= time1 & FDT_DATE_TIME <= timePlus89) %>% 
         mutate(nSamples = n(), # count number of samples in 90 day window
                STVhit = ifelse(Value > STV, TRUE, FALSE), # test values in window against STV
-               E.COLI_geomean = ifelse(nSamples > 1, EnvStats::geoMean(Value, na.rm = TRUE), NA), # calculate geomean of samples if nSamples>1
-               geomeanCriteriaHit = ifelse(E.COLI_geomean > geomeanCriteria, TRUE, FALSE)) # test geomean against geomean Criteria
+               geomean = ifelse(nSamples > 1, EnvStats::geoMean(Value, na.rm = TRUE), NA), # calculate geomean of samples if nSamples>1
+               geomeanCriteriaHit = ifelse(geomean > geomeanCriteria, TRUE, FALSE)) # test geomean against geomean Criteria
       
       # First level of testing: any STV hits in dataset? Want this information for all scenarios
       nSTVhitsInWindow <- nrow(filter(z, STVhit == TRUE))
@@ -87,10 +87,10 @@ bacteriaExceedances_NEW <- function(x, # input dataframe with bacteria data
       if(unique(z$nSamples) >= sampleRequirement){
         # Geomean Hit
         if(unique(z$geomeanCriteriaHit) == TRUE){
-          `Geomean Assessment` <- paste('Geomean: ', format(unique(z$E.COLI_geomean), digits = 3), 
+          `Geomean Assessment` <- paste('Geomean: ', format(unique(z$geomean), digits = 3), 
                                         ' | Impaired: geomean exceeds criteria in the 90-day period', sep='')  
         } else{
-          `Geomean Assessment` <-  paste('Geomean: ', format(unique(z$E.COLI_geomean), digits = 3), 
+          `Geomean Assessment` <-  paste('Geomean: ', format(unique(z$geomean), digits = 3), 
                                          ' | Geomean criteria met, hold assessment decision for further testing', sep= '')} 
       } else { # minimum geomean sampling requirements NOT met in 90 day period
         `Geomean Assessment` <- 'Insufficient Information: geomean sampling criteria not met'  }
@@ -101,7 +101,7 @@ bacteriaExceedances_NEW <- function(x, # input dataframe with bacteria data
                          `STV Exceedances In Window` = nSTVhitsInWindow, 
                          `STV Exceedance Rate` = STVexceedanceRate,
                          `STV Assessment` = `STV Assessment`,
-                         `Geomean In Window` = ifelse(unique(z$nSamples) >= sampleRequirement, unique(z$E.COLI_geomean), NA), # avoid excitement, only give geomean result if 10+ samples
+                         `Geomean In Window` = ifelse(unique(z$nSamples) >= sampleRequirement, unique(z$geomean), NA), # avoid excitement, only give geomean result if 10+ samples
                          `Geomean Assessment` = `Geomean Assessment`,
                          associatedData = list(z)) 
     } #end for loop
