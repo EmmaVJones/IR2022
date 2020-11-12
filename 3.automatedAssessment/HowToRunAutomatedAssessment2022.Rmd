@@ -203,6 +203,10 @@ Now this is the starting point for the app.
 
 ```{r}
 write_csv(stationTableResults, 'processedStationData/stationTableResults.csv')
+
+stationTableResults1 <- filter(stationTableResults, STATION_ID %in% filter(stationTable, REGION == "BRRO")$STATION_ID)
+write_csv(stationTableResults1, 'processedStationData/stationTableResultsBRRO.csv')
+
 ```
 
 
