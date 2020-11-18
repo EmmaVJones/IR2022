@@ -7,9 +7,15 @@ pHPlotlySingleStationUI <- function(id){
   tagList(
     wellPanel(
       h4(strong('Single Station Data Visualization')),
-      fluidRow(column(4,uiOutput(ns('oneStationSelectionUI'))),
-               column(4,uiOutput(ns('changeWQSUI'))),
-               column(4,actionButton(ns('reviewData'),"Review Raw Parameter Data",class='btn-block', width = '250px'))),
+      fluidRow(column(2,uiOutput(ns('oneStationSelectionUI'))),
+               column(1),
+               column(2,br(),checkboxInput(ns('displayBSAcolors'), 'Display Benthic Stressor Analysis Colors on Plot', value = TRUE)),
+               column(1),
+               column(2,uiOutput(ns('changeWQSUI'))),
+               column(1),
+               column(2,actionButton(ns('reviewData'),"Review Raw Parameter Data",class='btn-block', width = '250px'))),
+      helpText('All data presented in the interactive plot is raw data. Rounding rules are appropriately applied to the 
+               assessment functions utilized by the application.'),
       plotlyOutput(ns('plotly')),
       br(),hr(),br(),
       fluidRow(
@@ -78,31 +84,45 @@ pHPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
     dat <- mutate(oneStation(),top = `pH Max`, bottom = `pH Min`)
     dat$SampleDate <- as.POSIXct(dat$FDT_DATE_TIME, format="%m/%d/%y")
     
-    box1 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(9, 14, 14, 9))
-    box2 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(6, 9, 9, 6))
-    box3 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(0, 6, 6, 0))
-    
-    plot_ly(data=dat)%>%
-      add_polygons(data = box1, x = ~x, y = ~y, fillcolor = "#F0E442",opacity=0.6, line = list(width = 0),
-                   hoverinfo="text", name =paste('Medium Probability of Stress to Aquatic Life')) %>%
-      add_polygons(data = box2, x = ~x, y = ~y, fillcolor = "#009E73",opacity=0.6, line = list(width = 0),
-                   hoverinfo="text", name =paste('Low Probability of Stress to Aquatic Life')) %>%
-      add_polygons(data = box3, x = ~x, y = ~y, fillcolor = "#F0E442",opacity=0.6, line = list(width = 0),
-                   hoverinfo="text", name =paste('Medium Probability of Stress to Aquatic Life')) %>%
+    if(input$displayBSAcolors == TRUE){
+      box1 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(9, 14, 14, 9))
+      box2 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(6, 9, 9, 6))
+      box3 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(0, 6, 6, 0))
       
-      add_lines(data=dat, x=~SampleDate,y=~top, mode='line',line = list(color = 'black'),
-                hoverinfo = "text",text="pH Standard", name="pH Standard") %>%
-      add_lines(data=dat, x=~SampleDate,y=~bottom, mode='line',line = list(color = 'black'),
-                hoverinfo = "text", text="pH Standard", name="pH Standard") %>%
-      add_markers(data=dat, x= ~SampleDate, y= ~FDT_FIELD_PH,mode = 'scatter', name="pH (unitless)",  marker = list(color= '#535559'),
-                  hoverinfo="text",text=~paste(sep="<br>",
-                                               paste("Date: ",SampleDate),
-                                               paste("Depth: ",FDT_DEPTH, "m"),
-                                               paste("pH: ",FDT_FIELD_PH," (unitless)")))%>%
-      layout(showlegend=FALSE,
-             yaxis=list(title="pH (unitless)"),
-             xaxis=list(title="Sample Date",tickfont = list(size = 10)))
-  })
+      plot_ly(data=dat)%>%
+        add_polygons(data = box1, x = ~x, y = ~y, fillcolor = "#F0E442",opacity=0.6, line = list(width = 0),
+                     hoverinfo="text", name =paste('Medium Probability of Stress to Aquatic Life')) %>%
+        add_polygons(data = box2, x = ~x, y = ~y, fillcolor = "#009E73",opacity=0.6, line = list(width = 0),
+                     hoverinfo="text", name =paste('Low Probability of Stress to Aquatic Life')) %>%
+        add_polygons(data = box3, x = ~x, y = ~y, fillcolor = "#F0E442",opacity=0.6, line = list(width = 0),
+                     hoverinfo="text", name =paste('Medium Probability of Stress to Aquatic Life')) %>%
+        
+        add_lines(data=dat, x=~SampleDate,y=~top, mode='line',line = list(color = 'black'),
+                  hoverinfo = "text",text="pH Standard", name="pH Standard") %>%
+        add_lines(data=dat, x=~SampleDate,y=~bottom, mode='line',line = list(color = 'black'),
+                  hoverinfo = "text", text="pH Standard", name="pH Standard") %>%
+        add_markers(data=dat, x= ~SampleDate, y= ~FDT_FIELD_PH,mode = 'scatter', name="pH (unitless)",  marker = list(color= '#535559'),
+                    hoverinfo="text",text=~paste(sep="<br>",
+                                                 paste("Date: ",SampleDate),
+                                                 paste("Depth: ",FDT_DEPTH, "m"),
+                                                 paste("pH: ",FDT_FIELD_PH," (unitless)")))%>%
+        layout(showlegend=FALSE,
+               yaxis=list(title="pH (unitless)"),
+               xaxis=list(title="Sample Date",tickfont = list(size = 10)))
+    } else {
+      plot_ly(data=dat)%>%
+        add_lines(data=dat, x=~SampleDate,y=~top, mode='line',line = list(color = 'black'),
+                  hoverinfo = "text",text="pH Standard", name="pH Standard") %>%
+        add_lines(data=dat, x=~SampleDate,y=~bottom, mode='line',line = list(color = 'black'),
+                  hoverinfo = "text", text="pH Standard", name="pH Standard") %>%
+        add_markers(data=dat, x= ~SampleDate, y= ~FDT_FIELD_PH,mode = 'scatter', name="pH (unitless)",  marker = list(color= '#535559'),
+                    hoverinfo="text",text=~paste(sep="<br>",
+                                                 paste("Date: ",SampleDate),
+                                                 paste("Depth: ",FDT_DEPTH, "m"),
+                                                 paste("pH: ",FDT_FIELD_PH," (unitless)")))%>%
+        layout(showlegend=FALSE,
+               yaxis=list(title="pH (unitless)"),
+               xaxis=list(title="Sample Date",tickfont = list(size = 10)))    }  })
   
   output$rangeTableSingleSite <- renderDataTable({
     req(oneStation())

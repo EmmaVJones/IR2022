@@ -7,6 +7,8 @@ temperaturePlotlySingleStationUI <- function(id){
       fluidRow(column(4,uiOutput(ns('oneStationSelectionUI'))),
                column(4,uiOutput(ns('changeWQSUI'))),
                column(4,actionButton(ns('reviewData'),"Review Raw Parameter Data",class='btn-block', width = '250px'))),
+      helpText('All data presented in the interactive plot is raw data. Rounding rules are appropriately applied to the 
+               assessment functions utilized by the application.'),
       plotlyOutput(ns('plotly')),
       br(),hr(),br(),
       fluidRow(

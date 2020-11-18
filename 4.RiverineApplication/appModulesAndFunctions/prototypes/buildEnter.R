@@ -7,6 +7,8 @@ EnteroPlotlySingleStationUI <- function(id){
       h4(strong('Single Station Data Visualization')),
       fluidRow(column(6, helpText('Station used for this module is the station selected above to expedite app rendering.')),#uiOutput(ns('oneStationSelectionUI'))),
                column(6,actionButton(ns('reviewData'),"Review Raw Parameter Data",class='btn-block', width = '250px'))),
+      helpText('All data presented in the interactive plot is raw data. Rounding rules are appropriately applied to the 
+               assessment functions utilized by the application.'),
       #verbatimTextOutput(ns('test')),
       plotlyOutput(ns('plotly')),
       br(),hr(),br(),

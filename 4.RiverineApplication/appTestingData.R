@@ -85,35 +85,35 @@ stationInfo <- filter(stationTable, STATION_ID == stationSelection) %>%
 
 
 #stationMap
-point <- dplyr::select(stationData[1,],  FDT_STA_ID, starts_with('ID305B'), Latitude, Longitude ) %>%
-    st_as_sf(coords = c("Longitude", "Latitude"), 
-             remove = F, # don't remove these lat/lon cols from df
-             crs = 4269) # add projection, needs to be geographic for now bc entering lat/lng
-segmentChoices <- dplyr::select(point, starts_with('ID305B')) %>% st_drop_geometry() %>% as.character()  
-segment <- filter(regionalAUs, ID305B %in% segmentChoices)
-map1 <- mapview(segment,zcol = 'ID305B', label= segment$ID305B, layer.name = 'Assessment Unit (ID305B_1)',
-                popup= leafpop::popupTable(segment, zcol=c("ID305B","MILES","CYCLE","WATER_NAME")), legend= FALSE) + 
-  mapview(point, color = 'yellow', lwd = 5, label= point$FDT_STA_ID, layer.name = c('Selected Station'),
-          popup=NULL, legend= FALSE)
-map1@map %>% setView(point$Longitude, point$Latitude, zoom = 12)
+#point <- dplyr::select(stationData[1,],  FDT_STA_ID, starts_with('ID305B'), Latitude, Longitude ) %>%
+#    st_as_sf(coords = c("Longitude", "Latitude"), 
+#             remove = F, # don't remove these lat/lon cols from df
+#             crs = 4269) # add projection, needs to be geographic for now bc entering lat/lng
+#segmentChoices <- dplyr::select(point, starts_with('ID305B')) %>% st_drop_geometry() %>% as.character()  
+#segment <- filter(regionalAUs, ID305B %in% segmentChoices)
+#map1 <- mapview(segment,zcol = 'ID305B', label= segment$ID305B, layer.name = 'Assessment Unit (ID305B_1)',
+#                popup= leafpop::popupTable(segment, zcol=c("ID305B","MILES","CYCLE","WATER_NAME")), legend= FALSE) + 
+#  mapview(point, color = 'yellow', lwd = 5, label= point$FDT_STA_ID, layer.name = c('Selected Station'),
+#          popup=NULL, legend= FALSE)
+#map1@map %>% setView(point$Longitude, point$Latitude, zoom = 12)
 
   
   
   
 # Station Table Output
 #run longer analyses first
-ecoli1 <- bacteriaAssessmentDecision(stationData, 'E.COLI', 'ECOLI_RMK', 10, 410, 126)
-enter1 <- bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35)
+#ecoli1 <- bacteriaAssessmentDecision(stationData, 'E.COLI', 'ECOLI_RMK', 10, 410, 126)
+#enter1 <- bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35)
 
-stationTableOutput <- cbind(StationTableStartingData(stationData()),
-                                     tempExceedances(stationData()) %>% quickStats('TEMP'),
-                                     DOExceedances_Min(stationData()) %>% quickStats('DO'), 
-                                     pHExceedances(stationData()) %>% quickStats('PH'),
-                                     ecoli %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),
-                                     enter %>% dplyr::select(ENTER_EXC:ENTER_STAT)) %>%
-  mutate(COMMENTS = NA) %>%
-  dplyr::select(-ends_with('exceedanceRate')) %>% # to match Bulk Upload template but helpful to keep visible til now for testing
-  dplyr::select(STATION_ID:COMMENTS) # for now bc bacteria needs help still
+#stationTableOutput <- cbind(StationTableStartingData(stationData()),
+#                                     tempExceedances(stationData()) %>% quickStats('TEMP'),
+#                                     DOExceedances_Min(stationData()) %>% quickStats('DO'), 
+#                                     pHExceedances(stationData()) %>% quickStats('PH'),
+#                                     ecoli %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),
+#                                     enter %>% dplyr::select(ENTER_EXC:ENTER_STAT)) %>%
+#  mutate(COMMENTS = NA) %>%
+#  dplyr::select(-ends_with('exceedanceRate')) %>% # to match Bulk Upload template but helpful to keep visible til now for testing
+#  dplyr::select(STATION_ID:COMMENTS) # for now bc bacteria needs help still
 
 
 
