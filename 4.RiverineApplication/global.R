@@ -10,6 +10,7 @@ library(leaflet)
 library(mapview)
 library(DT)
 library(plotly)
+library(readxl)
 
 
 # Bring in assessment Functions and app modules
@@ -44,9 +45,13 @@ board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_K
 
 
 # Helpful lookup table to ease data filtering
-subbasinToVAHU6 <- read_csv('data/subbasinToVAHU6conversion.csv')
-historicalStationsTable <- read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
+subbasinToVAHU6 <- read_csv('data/subbasinToVAHU6conversion.csv') 
 
+
+# this is a placeholder until final 2020 stations database is released
+#historicalStationsTable <- st_read('data/GIS/2020_wqms.shp') %>%
+#  st_drop_geometry()#read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
+historicalStationsTable2 <- read_excel('data/tbl_ir_mon_stations2018IRfinal.xlsx')
 
 # Loading screen
 load_data <- function() {

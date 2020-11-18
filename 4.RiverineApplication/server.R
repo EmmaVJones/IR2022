@@ -227,10 +227,16 @@ shinyServer(function(input, output, session) {
   
   
   # Historical Station Information need last cycle stations table final
-  output$stationHistoricalInfo <- DT::renderDataTable({ req(nrow(stationInfo()) >0)
+  output$stationHistoricalInfo1 <- DT::renderDataTable({ req(nrow(stationInfo()) >0)
     z <- suppressWarnings(filter(historicalStationsTable, STATION_ID %in% input$stationSelection) %>% 
                             select(STATION_ID:COMMENTS) %>%
-                            t() %>% as.data.frame() %>% rename(`Station Information From Last Cycle` = 'V1'))
+                            t() %>% as.data.frame() %>% rename(`Station Information From 2020 Cycle` = 'V1')) # need to update each rebuild
+    DT::datatable(z, options= list(pageLength = nrow(z), scrollY = "250px", dom='t'))  })
+  
+  output$stationHistoricalInfo2 <- DT::renderDataTable({ req(nrow(stationInfo()) >0)
+    z <- suppressWarnings(filter(historicalStationsTable2, STATION_ID %in% input$stationSelection) %>% 
+                            select(STATION_ID:COMMENTS) %>%
+                            t() %>% as.data.frame() %>% rename(`Station Information From 2018 Cycle` = 'V1')) # need to update each rebuild
     DT::datatable(z, options= list(pageLength = nrow(z), scrollY = "250px", dom='t'))  })
   
   

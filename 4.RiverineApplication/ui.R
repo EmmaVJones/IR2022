@@ -61,7 +61,8 @@ shinyUI(fluidPage(theme="yeti.css",
                                  ),
                                  
                                  tabPanel('Assessment Unit Review',
-                                          fluidRow(column(9, DT::dataTableOutput('selectedVAHU6'))),#,
+                                          #fluidRow(column(9, 
+                                          DT::dataTableOutput('selectedVAHU6'),#)),#,
                                           #column(3,br(),actionButton('pullVAHU6data','Select Watershed for analysis'),
                                           #      helpText('If the button above is disabled, there are no AUs in the selected VAHU6 watershed.'))),
                                           hr(),
@@ -73,7 +74,12 @@ shinyUI(fluidPage(theme="yeti.css",
                                                    column(4, leafletOutput('stationMap', height = 300, width = 300),
                                                           helpText("The AUs displayed on the map above represent all AUs associated with the selected
                                                                   station (listed in a station's ID305B_1:ID305B_10 fields) for context. ")),
-                                                   column(4, DT::dataTableOutput('stationHistoricalInfo'))),
+                                                   column(4, 
+                                                          tabsetPanel(
+                                                            tabPanel('2020 Station Table',
+                                                                     DT::dataTableOutput('stationHistoricalInfo1')),
+                                                            tabPanel('2018 Station Table',
+                                                                     DT::dataTableOutput('stationHistoricalInfo2'))))),
                                           hr(),
                                           h3('Station Results for Review'),
                                           helpText('This table outputs the site specific results for direct export to the Station Table. It also serves to highlight
@@ -84,6 +90,9 @@ shinyUI(fluidPage(theme="yeti.css",
                                                   violation of a standard. When BENTHIC_STAT is highlighed, it indicates there is benthic data present for that site
                                                   and the assessor should review that information with the Regional Biologist. Parameters highlighted in red exceed the 10.5% exceedance rate. Both scenarios warrant further
                                                   investigation and may requre comments in the Station Table and ADB.'),
+                                          h5(strong('If no station table appears, then there is no data within the assessment window for the selected station.'), 
+                                             'Please investigate the Historical Station Information table above for information as to why this station is
+                                             included in the application.'),
                                           DT::dataTableOutput('stationTableDataSummary'), br(),
                                           h4('PWS violations'),
                                           helpText("Any PWS violations should noted in a station's COMMENT field of the Stations Table. The table below organizes 
