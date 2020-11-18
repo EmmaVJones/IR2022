@@ -98,7 +98,8 @@ WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 stationTable <- reactive({
  req(input$stationsTable)
   inFile <- input$stationsTable
-  stationTable <- read_csv(inFile$datapath) %>%
+  stationTable <- read_csv(inFile$datapath,
+                           col_types = cols(COMMENTS = col_character())) %>% # force to character bc parsing can incorrectly guess logical based on top 1000 rows
     #fix periods in column names from excel
     as_tibble()
   # Remove stations that don't apply to application
@@ -118,7 +119,8 @@ stationTable <- reactive({
 })
 # for testing
 stationTable <- reactive({
-  stationTable <-  read_csv('userDataToUpload/processedStationData/stationTableResults.csv')
+  stationTable <-  read_csv('userDataToUpload/processedStationData/stationTableResults.csv',
+                            col_types = cols(COMMENTS = col_character()))  # force to character bc parsing can incorrectly guess logical based on top 1000 rows
   # Remove stations that don't apply to application
   lakeStations <- filter_at(stationTable, vars(starts_with('TYPE')), any_vars(. == 'L'))
   stationTable <- filter(stationTable, !STATION_ID %in% lakeStations$STATION_ID) %>%

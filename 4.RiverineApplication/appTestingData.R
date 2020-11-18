@@ -2,8 +2,8 @@
 source('global.R')
 
 DEQregionSelection <- 'BRRO'
-basinSelection <- "James-Middle"#"Roanoke"#
-HUC6Selection <- "JM01"#'JM16'#'RU09'#
+basinSelection <- 'James-Upper'#"James-Middle"#"Roanoke"#
+HUC6Selection <- 'JU52'#"JM01"#'JM16'#'RU09'#
 
 
 conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
@@ -12,7 +12,8 @@ vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
 WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 
 
-stationTable <- read_csv('userDataToUpload/processedStationData/stationTableResults.csv')
+stationTable <- read_csv('userDataToUpload/processedStationData/stationTableResults.csv',
+                         col_types = cols(COMMENTS = col_character())) # force to character bc parsing can incorrectly guess logical based on top 1000 rows
 # Remove stations that don't apply to application
 lakeStations <- filter_at(stationTable, vars(starts_with('TYPE')), any_vars(. == 'L'))
 stationTable <- filter(stationTable, !STATION_ID %in% lakeStations$STATION_ID) %>%
@@ -52,6 +53,10 @@ stationSummary <- filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>%
       ifelse(FDT_STA_ID %in% unique(stationTable$STATION_ID), 'yes','no'))
 
 
+# Stations carried over
+carryoverStations <- filter(stationTable, VAHU6 %in% huc6_filter$VAHU6 & str_detect(COMMENTS, "This station has no data"))  
+
+
 
 
 ## Assessment Unit Review Tab
@@ -64,7 +69,9 @@ conventionals_HUC <- filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>
     filter(!is.na(ID305B_1)) %>%
   pHSpecialStandardsCorrection()
 
-AUselection <- unique(conventionals_HUC$ID305B_1)[2]
+AUselection <- unique(c(conventionals_HUC$ID305B_1, 
+                        dplyr::select(carryoverStations, ID305B_1:ID305B_10) %>% as.character()))
+AUselection <- AUselection[!is.na(AUselection) & !(AUselection %in% c("NA", "character(0)", "logical(0)"))][3]
 
 #selectedAU <-  filter(regionalAUs, ID305B %in% AUselection) %>% st_set_geometry(NULL) %>% as.data.frame()
 stationSelection <- filter(conventionals_HUC, ID305B_1 %in% AUselection | ID305B_2 %in% AUselection | 
@@ -73,6 +80,7 @@ stationSelection <- filter(conventionals_HUC, ID305B_1 %in% AUselection | ID305B
                 ID305B_9 %in% AUselection | ID305B_10 %in% AUselection) %>%
     distinct(FDT_STA_ID) %>%
   pull()
+stationSelection <- c(stationSelection, carryoverStations$STATION_ID)
 stationSelection <- stationSelection[1]
 
 AUData <- filter_at(conventionals_HUC, vars(starts_with("ID305B")), any_vars(. %in% AUselection) ) 
@@ -89,12 +97,18 @@ stationInfo <- filter(stationTable, STATION_ID == stationSelection) %>%
 #    st_as_sf(coords = c("Longitude", "Latitude"), 
 #             remove = F, # don't remove these lat/lon cols from df
 #             crs = 4269) # add projection, needs to be geographic for now bc entering lat/lng
-#segmentChoices <- dplyr::select(point, starts_with('ID305B')) %>% st_drop_geometry() %>% as.character()  
-#segment <- filter(regionalAUs, ID305B %in% segmentChoices)
-#map1 <- mapview(segment,zcol = 'ID305B', label= segment$ID305B, layer.name = 'Assessment Unit (ID305B_1)',
-#                popup= leafpop::popupTable(segment, zcol=c("ID305B","MILES","CYCLE","WATER_NAME")), legend= FALSE) + 
-#  mapview(point, color = 'yellow', lwd = 5, label= point$FDT_STA_ID, layer.name = c('Selected Station'),
-#          popup=NULL, legend= FALSE)
+point <- dplyr::select(stationInfo,  STATION_ID, starts_with('ID305B'), LATITUDE, LONGITUDE ) %>%
+  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
+           remove = F, # don't remove these lat/lon cols from df
+           crs = 4269) # add projection, needs to be geographic for now bc entering lat/lng
+segmentChoices <- dplyr::select(point, starts_with('ID305B')) %>% st_drop_geometry() %>% as.character()  
+segment <- filter(regionalAUs, ID305B %in% segmentChoices)
+map1 <- mapview(segment,zcol = 'ID305B', label= segment$ID305B, layer.name = 'Assessment Unit (ID305B_1)',
+                popup= leafpop::popupTable(segment, zcol=c("ID305B","MILES","CYCLE","WATER_NAME")), legend= FALSE) + 
+  mapview(point, color = 'yellow', lwd = 5, label= point$STATION_ID, layer.name = c('Selected Station'),
+  #mapview(point, color = 'yellow', lwd = 5, label= point$FDT_STA_ID, layer.name = c('Selected Station'),
+          popup=NULL, legend= FALSE)
+map1@map %>% setView(point$LONGITUDE, point$LATITUDE, zoom = 12)
 #map1@map %>% setView(point$Longitude, point$Latitude, zoom = 12)
 
   

@@ -8,10 +8,6 @@ source('global.R')
 
 
 # Pull data from server
-conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
-  filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 UTC" )
-vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
-WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 
 
 
@@ -27,13 +23,10 @@ shinyServer(function(input, output, session) {
   
   ################################ Data Upload Tab ################################################# 
   
-  # real
+  # for testing
   stationTable <- reactive({
-    req(input$stationsTable)
-    inFile <- input$stationsTable
-    stationTable <- read_csv(inFile$datapath) %>%
-      #fix periods in column names from excel
-      as_tibble()
+    stationTable <-  read_csv('userDataToUpload/processedStationData/stationTableResults.csv',
+                              col_types = cols(COMMENTS = col_character()))  # force to character bc parsing can incorrectly guess logical based on top 1000 rows
     # Remove stations that don't apply to application
     lakeStations <- filter_at(stationTable, vars(starts_with('TYPE')), any_vars(. == 'L'))
     stationTable <- filter(stationTable, !STATION_ID %in% lakeStations$STATION_ID) %>%
@@ -48,7 +41,8 @@ shinyServer(function(input, output, session) {
     # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
     
     return(stationTable)
-  })
+  }) #for testing
+  
   
   
 
@@ -59,11 +53,12 @@ shinyServer(function(input, output, session) {
   
 
   # Pull AU data from server
+  # for testing
+  # Pull AU data from server
   regionalAUs <- reactive({ 
     req(input$pullAUs)
     withProgress(message = 'Reading in Large Spatial File',
-                 st_zm(st_as_sf(pin_get(paste0(input$DEQregionSelection, 'workingAUriverine'), board = 'rsconnect')) )) })
-  
+                 regionalAUsForTesting ) }) # for testing
   
   
   
@@ -108,6 +103,18 @@ shinyServer(function(input, output, session) {
     
     DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "300px", dom='Bti')) %>%
       DT::formatStyle('Analyzed By App', target = 'row', backgroundColor = styleEqual(c('yes','no'), c('lightgray', 'yellow'))) })
+  
+  # Table of stations that were carried over from last cycle that have no data in current window
+  carryoverStations <- reactive({req(huc6_filter(), stationTable())
+    filter(stationTable(), VAHU6 %in% huc6_filter()$VAHU6 & str_detect(COMMENTS, "This station has no data")) })
+  
+  output$carryoverStationSummary <- DT::renderDataTable({
+    req(carryoverStations())
+    z <- carryoverStations() %>%  dplyr::select(STATION_ID:VAHU6, COMMENTS)
+
+    DT::datatable(z, rownames = FALSE, 
+                  options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "300px", dom='Bti',
+                                autoWidth = TRUE, columnDefs = list(list(width = '400px', targets = c(29))))) })
   
   # Button to visualize modal map of AUs in selected VAHU6
   observeEvent(input$reviewAUs,{
@@ -161,7 +168,11 @@ shinyServer(function(input, output, session) {
       pHSpecialStandardsCorrection() }) #correct pH to special standards where necessary
   
   output$AUselection_ <- renderUI({ req(conventionals_HUC())
-    selectInput('AUselection', 'Assessment Unit Selection', choices = unique(conventionals_HUC()$ID305B_1))  })
+    # AUs from data in conventionals and carryoverStations
+    AUselectionOptions <- unique(c(conventionals_HUC()$ID305B_1, 
+                            dplyr::select(carryoverStations(), ID305B_1:ID305B_10) %>% as.character()))
+    AUselectionOptions <- AUselectionOptions[!is.na(AUselectionOptions) & !(AUselectionOptions %in% c("NA", "character(0)", "logical(0)"))]
+    selectInput('AUselection', 'Assessment Unit Selection', choices = AUselectionOptions)  })
   
   output$selectedAU <- DT::renderDataTable({req(conventionals_HUC(),input$AUselection)
     z <- filter(regionalAUs(), ID305B %in% input$AUselection) %>% st_set_geometry(NULL) %>% as.data.frame()
@@ -173,53 +184,61 @@ shinyServer(function(input, output, session) {
                   ID305B_3 %in% input$AUselection | ID305B_4 %in% input$AUselection | ID305B_5 %in% input$AUselection | 
                   ID305B_6 %in% input$AUselection | ID305B_7 %in% input$AUselection | ID305B_8 %in% input$AUselection | 
                   ID305B_9 %in% input$AUselection | ID305B_10 %in% input$AUselection) %>%
-      distinct(FDT_STA_ID)
-    fluidRow(selectInput('stationSelection', 'Station Selection', choices = unique(z$FDT_STA_ID)),
+      distinct(FDT_STA_ID) %>%
+      pull()
+    # add in carryover stations
+    if(nrow(carryoverStations()) >0 ){
+      z <- c(z, carryoverStations()$STATION_ID)   }
+    
+    fluidRow(selectInput('stationSelection', 'Station Selection', choices = sort(unique(z))),
              helpText("The stations available in the drop down are limited to stations with an ID305B_1:ID305B_10 designation equal 
                       to the selected AU. All AU's associated with the selected station can be viewed in the map below."))})
   
-  AUData <- eventReactive( input$AUselection, {
+  AUData <- reactive({req(input$AUselection)#eventReactive( input$AUselection, {
     filter_at(conventionals_HUC(), vars(starts_with("ID305B")), any_vars(. %in% input$AUselection) ) }) 
   
-  stationData <- eventReactive( input$stationSelection, {
+  stationData <- reactive({req(input$stationSelection)#eventReactive( input$stationSelection, {
     filter(AUData(), FDT_STA_ID %in% input$stationSelection) })
   
-  output$stationInfo <- DT::renderDataTable({ req(stationData())
-    z <- filter(stationTable(), STATION_ID == input$stationSelection) %>% 
-      select(STATION_ID:VAHU6, WQS_ID:Trout) %>% 
+  stationInfo <- reactive({req(input$stationSelection, AUData())
+    filter(stationTable(), STATION_ID == input$stationSelection) %>% 
+      select(STATION_ID:VAHU6, WQS_ID:Trout)})
+  
+  output$stationInfo <- DT::renderDataTable({ req(stationInfo())#req(stationData())
+    z <- stationInfo() %>%
+      #filter(stationTable(), STATION_ID == input$stationSelection) %>% 
+      #select(STATION_ID:VAHU6, WQS_ID:Trout) %>% 
       t() %>% as.data.frame() %>% rename(`Station and WQS Information` = 1)
     DT::datatable(z, options= list(pageLength = nrow(z), scrollY = "250px", dom='t'))  })
-
-
-  output$stationMap <- renderLeaflet({req(nrow(stationData()) >0) # to prevent having no lat/lng data for that half second app is catching up after station change
-    point <- dplyr::select(stationData()[1,],  FDT_STA_ID, starts_with('ID305B'), Latitude, Longitude ) %>%
-      st_as_sf(coords = c("Longitude", "Latitude"), 
+  
+  
+  output$stationMap <- renderLeaflet({req(nrow(stationInfo()) >0) # to prevent having no lat/lng data for that half second app is catching up after station change
+    point <- dplyr::select(stationInfo(),  STATION_ID, starts_with('ID305B'), LATITUDE, LONGITUDE ) %>%
+      st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
                remove = F, # don't remove these lat/lon cols from df
                crs = 4269) # add projection, needs to be geographic for now bc entering lat/lng
     segmentChoices <- dplyr::select(point, starts_with('ID305B')) %>% st_drop_geometry() %>% as.character()  
     segment <- filter(regionalAUs(), ID305B %in% segmentChoices)
     map1 <- mapview(segment,zcol = 'ID305B', label= segment$ID305B, layer.name = 'Assessment Unit (ID305B_1)',
                     popup= leafpop::popupTable(segment, zcol=c("ID305B","MILES","CYCLE","WATER_NAME")), legend= FALSE) + 
-      mapview(point, color = 'yellow', lwd = 5, label= point$FDT_STA_ID, layer.name = c('Selected Station'),
+      mapview(point, color = 'yellow', lwd = 5, label= point$STATION_ID, layer.name = c('Selected Station'),
               popup=NULL, legend= FALSE)
-    map1@map %>% setView(point$Longitude, point$Latitude, zoom = 11) })
+    map1@map %>% setView(point$LONGITUDE, point$LATITUDE, zoom = 12) })
   
   
   # Historical Station Information need last cycle stations table final
-  output$stationHistoricalInfo <- DT::renderDataTable({ req(nrow(stationData()) >0)
+  output$stationHistoricalInfo <- DT::renderDataTable({ req(nrow(stationInfo()) >0)
     z <- suppressWarnings(filter(historicalStationsTable, STATION_ID %in% input$stationSelection) %>% 
-      select(STATION_ID:COMMENTS) %>%
-      t() %>% as.data.frame() %>% rename(`Station Information From Last Cycle` = 'V1'))
+                            select(STATION_ID:COMMENTS) %>%
+                            t() %>% as.data.frame() %>% rename(`Station Information From Last Cycle` = 'V1'))
     DT::datatable(z, options= list(pageLength = nrow(z), scrollY = "250px", dom='t'))  })
+  
+  
   
   
   ## Station Table View Section
   
-#  observe({#run longer analyses first
-#    siteData$ecoli <- bacteriaAssessmentDecision(stationData(), 'E.COLI', 'ECOLI_RMK', 10, 410, 126)
-#    siteData$enter <- bacteriaAssessmentDecision(stationData(), 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35)})
-  
-  # try as reactive instead
+  # Run longer analyses first
   ecoli <- reactive({req(stationData())
     bacteriaAssessmentDecision(stationData(), 'E.COLI', 'ECOLI_RMK', 10, 410, 126)})
   enter <- reactive({req(stationData())
@@ -227,7 +246,6 @@ shinyServer(function(input, output, session) {
   
   observe({
     req(nrow(ecoli()) > 0, nrow(enter()) > 0)# need to tell the app to wait for data to exist in these objects before smashing data together or will bomb out when switching between VAHU6's on the Watershed Selection Page
-    #req(nrow(siteData$ecoli)>0, nrow(siteData$enter)>0) # need to tell the app to wait for data to exist in these objects before smashing data together or will bomb out when switching between VAHU6's on the Watershed Selection Page
     siteData$stationTableOutput <- cbind(StationTableStartingData(stationData()),
                                          tempExceedances(stationData()) %>% quickStats('TEMP'),
                                          DOExceedances_Min(stationData()) %>% quickStats('DO'), 
@@ -239,13 +257,12 @@ shinyServer(function(input, output, session) {
   })
   
   #output$testOutside <- renderPrint({ecoli()})#siteData$ecoli})
-
+  
   output$stationTableDataSummary <- DT::renderDataTable({
-    req(stationData(),siteData$stationTableOutput)
+    req(stationData()$FDT_STA_ID == input$stationSelection, siteData$stationTableOutput)
     datatable(siteData$stationTableOutput, extensions = 'Buttons', escape=F, rownames = F, editable = TRUE,
               options= list(scrollX = TRUE, pageLength = nrow(siteData$stationTableOutput),
                             # hide certain columns
-                            #columnDefs = list(list(targets = 6, visible = FALSE)),
                             dom='Bt', buttons=list('copy',
                                                    list(extend='csv',filename=paste('AssessmentResults_',paste(assessmentCycle,input$stationSelection, collapse = "_"),Sys.Date(),sep='')),
                                                    list(extend='excel',filename=paste('AssessmentResults_',paste(assessmentCycle,input$stationSelection, collapse = "_"),Sys.Date(),sep=''))))) %>% 
@@ -298,5 +315,5 @@ shinyServer(function(input, output, session) {
   ## Enteroccoci Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(EnteroPlotlySingleStation,'Entero', AUData, stationSelected, enter)#siteData$enter)
   
-
- })
+  
+})
