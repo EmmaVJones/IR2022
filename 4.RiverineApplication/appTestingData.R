@@ -3,7 +3,7 @@ source('global.R')
 
 DEQregionSelection <- 'BRRO'
 basinSelection <- 'James-Upper'#"James-Middle"#"Roanoke"#
-HUC6Selection <- 'JU52'#"JM01"#'JM16'#'RU09'#
+HUC6Selection <- 'JU08'#"JM01"#'JM16'#'RU09'#
 
 
 conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
@@ -45,8 +45,8 @@ huc6_filter <- filter(basin_filter, VAHU6 %in% HUC6Selection)
 AUs <- suppressWarnings(st_intersection(regionalAUs,  huc6_filter)) #filter(vahu6, VAHU6 %in% huc6_filter()$VAHU6)))})
 
 stationSummary <- filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>%
-  distinct(FDT_STA_ID, .keep_all = TRUE) %>%
-  select(FDT_STA_ID:FDT_SPG_CODE, STA_LV2_CODE:STA_CBP_NAME) %>% 
+  distinct(FDT_STA_ID, .keep_all = TRUE) %>% 
+  dplyr::select(FDT_STA_ID:FDT_SPG_CODE, STA_LV2_CODE:STA_CBP_NAME, Latitude, Longitude) %>% 
   mutate(#`In Stations Table` = ifelse(FDT_STA_ID %in% unique(stationTable$STATION_ID), 'yes','no'),
          #`In Selected Region` = ifelse(FDT_STA_ID %in% filter(stationTable, REGION %in% DEQregionSelection)$STATION_ID, 'yes','no'),
     `Analyzed By App` = #ifelse(`In Stations Table` == 'yes'# && `In Selected Region` == 'yes', 'yes','no'))
@@ -90,6 +90,36 @@ stationData <- filter(AUData, FDT_STA_ID %in% stationSelection)
 stationInfo <- filter(stationTable, STATION_ID == stationSelection) %>% 
     select(STATION_ID:VAHU6, WQS_ID:Trout) %>% 
     t() %>% as.data.frame() %>% rename(`Station and WQS Information` = 'V1')
+
+
+
+
+# AU preview map
+stations <- filter(stationTable, VAHU6 %in% huc6_filter$VAHU6) %>%
+  dplyr::select(STATION_ID, LATITUDE, LONGITUDE) %>%
+  left_join(dplyr::select(stationSummary, STATION_ID = FDT_STA_ID, `Analyzed By App`), by = "STATION_ID") %>%
+  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
+           remove = F, # don't remove these lat/lon cols from df
+           crs = 4269) # add projection, needs to be geographic for now bc entering lat/lng
+
+stations <- dplyr::select(stationSummary, STATION_ID = FDT_STA_ID, LATITUDE = Latitude, LONGITUDE = Longitude, `Analyzed By App`) %>%
+  bind_rows(filter(stationTable, VAHU6 %in% huc6_filter$VAHU6 & !STATION_ID %in% stationSummary$FDT_STA_ID) %>%
+              dplyr::select(STATION_ID, LATITUDE, LONGITUDE) %>%
+              mutate(`Analyzed By App` = 'IM carryover with no data in window')) %>%
+  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
+           remove = F, # don't remove these lat/lon cols from df
+           crs = 4269) # add projection, needs to be geographic for now bc entering lat/lng
+
+z <- AUs
+z$ID305B <- factor(z$ID305B) # drop extra factor levels so colors come out right
+
+m <- mapview(huc6_filter, color = 'yellow',lwd= 5, label= NULL, layer.name = c('Selected HUC6'),
+             popup= leafpop::popupTable(huc6_filter, zcol=c('VAHU6',"VaName","VAHU5","ASSESS_REG")), legend= FALSE) + 
+  mapview(z, label= z$ID305B, layer.name = c('AUs in Selected HUC6'), zcol = "ID305B", 
+          popup= leafpop::popupTable(z, zcol=c("ID305B","MILES","CYCLE","WATER_NAME","LOCATION" )), legend= FALSE) +
+  mapview(stations, label = stations$STATION_ID, layer.name = c('Stations in Selected HUC6'), zcol = "Analyzed By App", 
+          popup= leafpop::popupTable(stations, zcol=c("STATION_ID", "Analyzed By App")), legend= FALSE) 
+m@map 
 
 
 #stationMap

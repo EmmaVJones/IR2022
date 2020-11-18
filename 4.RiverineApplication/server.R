@@ -90,19 +90,19 @@ shinyServer(function(input, output, session) {
                   options= list(scrollX = TRUE, pageLength = nrow(AUs()), scrollY = "300px", dom='Bti'))   })
 
   # Table of Stations within Selected VAHU6
-  output$stationSummary <- DT::renderDataTable({
-    req(huc6_filter())
-    z <- filter(conventionals, Huc6_Vahu6 %in% huc6_filter()$VAHU6) %>%
-      distinct(FDT_STA_ID, .keep_all = TRUE) %>%
-      select(FDT_STA_ID:FDT_SPG_CODE, STA_LV2_CODE:STA_CBP_NAME) %>% 
-      mutate(#`In Stations Table` = ifelse(FDT_STA_ID %in% unique(stationTable()$STATION_ID), 'yes','no'),
-             #`In Selected Region` = ifelse(FDT_STA_ID %in% filter(stationTable(), REGION %in% input$DEQregionSelection)$FDT_STA_ID, 'yes','no'),
-             `Analyzed By App` = #ifelse(`In Stations Table` == 'yes'# && `In Selected Region` == 'yes', 'yes','no'))
-               ifelse(FDT_STA_ID %in% unique(stationTable()$STATION_ID), 'yes','no'))
-    
-    
-    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "300px", dom='Bti')) %>%
+  stationSummary <- reactive({req(huc6_filter())
+    filter(conventionals, Huc6_Vahu6 %in% huc6_filter()$VAHU6) %>%
+      distinct(FDT_STA_ID, .keep_all = TRUE)  %>% 
+      dplyr::select(FDT_STA_ID:FDT_SPG_CODE, STA_LV2_CODE:STA_CBP_NAME, Latitude, Longitude) %>% 
+      mutate(#`In Stations Table` = ifelse(FDT_STA_ID %in% unique(stationTable$STATION_ID), 'yes','no'),
+        #`In Selected Region` = ifelse(FDT_STA_ID %in% filter(stationTable, REGION %in% DEQregionSelection)$STATION_ID, 'yes','no'),
+        `Analyzed By App` = #ifelse(`In Stations Table` == 'yes'# && `In Selected Region` == 'yes', 'yes','no'))
+          ifelse(FDT_STA_ID %in% unique(stationTable()$STATION_ID), 'yes','no')) })
+  
+  output$stationSummary <- DT::renderDataTable({req(stationSummary())
+    DT::datatable(stationSummary(), rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(stationSummary()), scrollY = "300px", dom='Bti')) %>%
       DT::formatStyle('Analyzed By App', target = 'row', backgroundColor = styleEqual(c('yes','no'), c('lightgray', 'yellow'))) })
+     
   
   # Table of stations that were carried over from last cycle that have no data in current window
   carryoverStations <- reactive({req(huc6_filter(), stationTable())
@@ -126,6 +126,21 @@ shinyServer(function(input, output, session) {
   # modal map
   output$AUmap <- renderLeaflet({
     req(AUs(), huc6_filter())
+    #stations <- filter(stationTable(), VAHU6 %in% huc6_filter()$VAHU6) %>%
+    #  dplyr::select(STATION_ID, LATITUDE, LONGITUDE) %>%
+    #  left_join(dplyr::select(stationSummary(), STATION_ID = FDT_STA_ID, `Analyzed By App`), by = "STATION_ID") %>%
+    #  mutate(`Station Details` = ifelse(`Analyzed By App` == 'yes', 'Data in window for analysis',
+    #                                    'Station in VAHU6 but no data in window for analysis')) %>%
+    #  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
+    #           remove = F, # don't remove these lat/lon cols from df
+    #           crs = 4269) # add projection, needs to be geographic for now bc entering lat/lng
+    stations <- dplyr::select(stationSummary(), STATION_ID = FDT_STA_ID, LATITUDE = Latitude, LONGITUDE = Longitude, `Analyzed By App`) %>%
+      bind_rows(filter(stationTable(), VAHU6 %in% huc6_filter()$VAHU6 & !STATION_ID %in% stationSummary()$FDT_STA_ID) %>%
+                  dplyr::select(STATION_ID, LATITUDE, LONGITUDE) %>%
+                  mutate(`Analyzed By App` = 'IM carryover with no data in window')) %>%
+      st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
+               remove = F, # don't remove these lat/lon cols from df
+               crs = 4269) # add projection, needs to be geographic for now bc entering lat/lng
     
     z <- AUs()
     z$ID305B <- factor(z$ID305B) # drop extra factor levels so colors come out right
@@ -133,7 +148,11 @@ shinyServer(function(input, output, session) {
     m <- mapview(huc6_filter(), color = 'yellow',lwd= 5, label= NULL, layer.name = c('Selected HUC6'),
                  popup= leafpop::popupTable(huc6_filter(), zcol=c('VAHU6',"VaName","VAHU5","ASSESS_REG")), legend= FALSE) + 
       mapview(z, label= z$ID305B, layer.name = c('AUs in Selected HUC6'), zcol = "ID305B", 
-              popup= leafpop::popupTable(z, zcol=c("ID305B","MILES","CYCLE","WATER_NAME","LOCATION" )), legend= FALSE)
+              popup= leafpop::popupTable(z, zcol=c("ID305B","MILES","CYCLE","WATER_NAME","LOCATION" )), legend= FALSE) +
+      mapview(stations, label = stations$STATION_ID, layer.name = c('Stations in Selected HUC6'), zcol = "Analyzed By App", 
+              popup= leafpop::popupTable(stations, zcol=c("STATION_ID", "Analyzed By App")), legend= FALSE) 
+      #mapview(stations, label = stations$STATION_ID, layer.name = c('Stations in Selected HUC6'), zcol = "Station Details", 
+      #        popup= leafpop::popupTable(stations, zcol=c("STATION_ID", "Station Details")), legend= TRUE) 
     m@map })
   
   
