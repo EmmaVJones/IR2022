@@ -8,6 +8,13 @@ source('global.R')
 
 
 # Pull data from server
+conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
+  filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 UTC" )
+vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
+WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
+# placeholder for now, shouldn't be a spatial file
+historicalStationsTable <- st_read('data/GIS/2020_wqms.shp') %>%
+  st_drop_geometry()#read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
 
 
 
@@ -23,10 +30,14 @@ shinyServer(function(input, output, session) {
   
   ################################ Data Upload Tab ################################################# 
   
-  # for testing
+  # real
   stationTable <- reactive({
-    stationTable <-  read_csv('userDataToUpload/processedStationData/stationTableResults.csv',
-                              col_types = cols(COMMENTS = col_character()))  # force to character bc parsing can incorrectly guess logical based on top 1000 rows
+    req(input$stationsTable)
+    inFile <- input$stationsTable
+    stationTable <- read_csv(inFile$datapath,
+                             col_types = cols(COMMENTS = col_character())) %>% # force to character bc parsing can incorrectly guess logical based on top 1000 rows
+      #fix periods in column names from excel
+      as_tibble()
     # Remove stations that don't apply to application
     lakeStations <- filter_at(stationTable, vars(starts_with('TYPE')), any_vars(. == 'L'))
     stationTable <- filter(stationTable, !STATION_ID %in% lakeStations$STATION_ID) %>%
@@ -41,7 +52,7 @@ shinyServer(function(input, output, session) {
     # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
     
     return(stationTable)
-  }) #for testing
+  })
   
   
   
@@ -53,12 +64,10 @@ shinyServer(function(input, output, session) {
   
 
   # Pull AU data from server
-  # for testing
-  # Pull AU data from server
   regionalAUs <- reactive({ 
     req(input$pullAUs)
     withProgress(message = 'Reading in Large Spatial File',
-                 regionalAUsForTesting ) }) # for testing
+                 st_zm(st_as_sf(pin_get(paste0(input$DEQregionSelection, 'workingAUriverine'), board = 'rsconnect')) )) })
   
   
   
@@ -126,14 +135,6 @@ shinyServer(function(input, output, session) {
   # modal map
   output$AUmap <- renderLeaflet({
     req(AUs(), huc6_filter())
-    #stations <- filter(stationTable(), VAHU6 %in% huc6_filter()$VAHU6) %>%
-    #  dplyr::select(STATION_ID, LATITUDE, LONGITUDE) %>%
-    #  left_join(dplyr::select(stationSummary(), STATION_ID = FDT_STA_ID, `Analyzed By App`), by = "STATION_ID") %>%
-    #  mutate(`Station Details` = ifelse(`Analyzed By App` == 'yes', 'Data in window for analysis',
-    #                                    'Station in VAHU6 but no data in window for analysis')) %>%
-    #  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
-    #           remove = F, # don't remove these lat/lon cols from df
-    #           crs = 4269) # add projection, needs to be geographic for now bc entering lat/lng
     stations <- dplyr::select(stationSummary(), STATION_ID = FDT_STA_ID, LATITUDE = Latitude, LONGITUDE = Longitude, `Analyzed By App`) %>%
       bind_rows(filter(stationTable(), VAHU6 %in% huc6_filter()$VAHU6 & !STATION_ID %in% stationSummary()$FDT_STA_ID) %>%
                   dplyr::select(STATION_ID, LATITUDE, LONGITUDE) %>%
@@ -334,11 +335,31 @@ shinyServer(function(input, output, session) {
   ## DO Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(DOPlotlySingleStation,'DO', AUData, stationSelected)
   
+  ## Specific Conductivity Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(SpCondPlotlySingleStation,'SpCond', AUData, stationSelected)
+  
+  ## Salinity Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(salinityPlotlySingleStation,'salinity', AUData, stationSelected)
+  
+  ## Total Nitrogen Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(TNPlotlySingleStation,'TN', AUData, stationSelected)
+  
+  ## Total Phosphorus Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(TPPlotlySingleStation,'TP', AUData, stationSelected)
+  
   ## E.coli Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(EcoliPlotlySingleStation,'Ecoli', AUData, stationSelected, ecoli)#siteData$ecoli)
   
   ## Enteroccoci Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(EnteroPlotlySingleStation,'Entero', AUData, stationSelected, enter)#siteData$enter)
   
+  ## Chlorophyll a Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(chlAPlotlySingleStation,'chlA', AUData, stationSelected)
+ 
+  ## Nitrate Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(NitratePlotlySingleStation,'Nitrate', AUData, stationSelected)
+  
+  ## Chloride Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(ClPlotlySingleStation,'Cl', AUData, stationSelected)
   
 })

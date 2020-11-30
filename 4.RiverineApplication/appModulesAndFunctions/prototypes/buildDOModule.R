@@ -80,6 +80,13 @@ DOPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
     dat <- mutate(oneStation(), bottom = `Dissolved Oxygen Min (mg/L)`)
     dat$SampleDate <- as.POSIXct(dat$FDT_DATE_TIME, format="%m/%d/%y")
     
+    # Fix look of single measure
+    if(nrow(dat) == 1){
+      print('yes')
+      dat <- bind_rows(dat,
+                       tibble(SampleDate = c(dat$SampleDate- days(5), dat$SampleDate + days(5))))
+    }
+    
     maxheight <- ifelse(max(dat$DO, na.rm=T) < 10, 12, max(dat$DO, na.rm=T)* 1.2)
     
     if(input$displayBSAcolors == TRUE){

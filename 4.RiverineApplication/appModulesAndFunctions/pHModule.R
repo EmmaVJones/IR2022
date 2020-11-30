@@ -82,6 +82,13 @@ pHPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
     dat <- mutate(oneStation(),top = `pH Max`, bottom = `pH Min`)
     dat$SampleDate <- as.POSIXct(dat$FDT_DATE_TIME, format="%m/%d/%y")
     
+    # Fix look of single measure
+    if(nrow(dat) == 1){
+      print('yes')
+      dat <- bind_rows(dat,
+                       tibble(SampleDate = c(dat$SampleDate- days(5), dat$SampleDate + days(5))))
+    }
+    
     if(input$displayBSAcolors == TRUE){
       box1 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(9, 14, 14, 9))
       box2 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(6, 9, 9, 6))

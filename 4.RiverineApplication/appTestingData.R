@@ -2,8 +2,8 @@
 source('global.R')
 
 DEQregionSelection <- 'BRRO'
-basinSelection <- 'James-Upper'#"James-Middle"#"Roanoke"#
-HUC6Selection <- 'JU08'#"JM01"#'JM16'#'RU09'#
+basinSelection <- "Roanoke"#'James-Upper'#"James-Middle"#
+HUC6Selection <- 'RL12'#"JM01"#'JM16'#'RU09'#
 
 
 conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
@@ -244,3 +244,53 @@ map1@map %>% setView(point$LONGITUDE, point$LATITUDE, zoom = 12)
 #                                    'ENTEROCOCCI', 35) %>%
 #  dplyr::select(FDT_DATE_TIME, ENTEROCOCCI, sampleMonthYear, geoMeanCalendarMonth, limit, samplesPerMonth) %>%
 #  filter(samplesPerMonth > 4, geoMeanCalendarMonth > limit) # minimum sampling rule for geomean to apply
+
+
+# PWS data stuff
+oneStation <- filter(conventionals, Huc6_Vahu6 %in% c('JM01','JM02', 'JM03', 'JM04', 'JM05', 'JM06')) %>%
+  left_join(dplyr::select(stationTable, STATION_ID:VAHU6,
+                          WQS_ID:CLASS_DESCRIPTION),
+            #WQS_ID:`Max Temperature (C)`), 
+            by = c('FDT_STA_ID' = 'STATION_ID')) %>%
+  filter(!is.na(ID305B_1)) %>%
+  pHSpecialStandardsCorrection() %>%
+  filter(!is.na(CHLORIDE)) %>% #NITRATE)) %>%
+  filter(FDT_STA_ID == '2-POL020.03')#'2-RED003.65')#
+  mutate(PWSlimit = 250)
+defaultPWS <- unique(oneStation$PWS) %in% c("Yes")
+
+
+
+dat <- oneStation %>% mutate(PWSlimit = 250)
+dat$SampleDate <-  as.POSIXct(dat$FDT_DATE_TIME, format="%m/%d/%y")
+         
+if(nrow(dat) == 1){
+  dat <- bind_rows(dat,
+    tibble(SampleDate = c(dat$SampleDate- days(5), dat$SampleDate + days(5)),
+           PWSlimit = c(250, 250)))
+}
+
+box1 <- data.frame(SampleDate = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(50, maxheight, maxheight, 50))
+box2 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(25, 50, 50, 25))
+box3 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(10, 25, 25, 10))
+box4 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(0, 10, 10, 0))
+
+plot_ly(data=dat)%>%
+  add_polygons(x = ~SampleDate, y = ~y, data = box1, fillcolor = "firebrick",opacity=0.6, line = list(width = 0),
+               hoverinfo="text", name =paste('High Probability of Stress to Aquatic Life')) %>%
+  add_polygons(data = box2, x = ~x, y = ~y, fillcolor = "#F0E442",opacity=0.6, line = list(width = 0),
+               hoverinfo="text", name =paste('Medium Probability of Stress to Aquatic Life')) %>%
+  add_polygons(data = box3, x = ~x, y = ~y, fillcolor = "#009E73",opacity=0.6, line = list(width = 0),
+               hoverinfo="text", name =paste('Low Probability of Stress to Aquatic Life')) %>%
+  add_polygons(data = box4, x = ~x, y = ~y, fillcolor = "#0072B2",opacity=0.6, line = list(width = 0),
+               hoverinfo="text", name =paste('No Probability of Stress to Aquatic Life')) %>%
+  add_lines(data=dat, x=~SampleDate,y=~PWSlimit, mode='line', line = list(color = 'black'),
+            hoverinfo = "text", text= "PWS Criteria (250 mg/L)", name="PWS Criteria (250 mg/L)") %>%
+  add_markers(data=dat, x= ~SampleDate, y= ~CHLORIDE,mode = 'scatter', name="Dissolved Chloride (mg/L)",marker = list(color= '#535559'),
+              hoverinfo="text",text=~paste(sep="<br>",
+                                           paste("Date: ",SampleDate),
+                                           paste("Depth: ",FDT_DEPTH, "m"),
+                                           paste("Dissolved Chloride: ",CHLORIDE,"mg/L")))%>%
+  layout(showlegend=FALSE,
+         yaxis=list(title="Dissolved Chloride (mg/L)"),
+         xaxis=list(title="Sample Date",tickfont = list(size = 10)))

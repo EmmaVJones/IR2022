@@ -179,3 +179,18 @@ metalsExceedances <- function(x, metalType){
   names(x) <- paste(metalType,names(x), sep='_')
   return(x)
 }
+
+
+
+#### Nitrate PWS Assessment Functions ---------------------------------------------------------------------------------------------------
+
+nitratePWS <- function(x){
+  if(unique(x$PWS) %in% c("Yes")){
+    nitrate <- dplyr::select(x, FDT_DATE_TIME, FDT_DEPTH, NITRATE) %>%
+      filter(!is.na(NITRATE)) %>% #get rid of NA's
+      mutate(`Parameter Rounded to WQS Format` = round(NITRATE, digits = 0),  # round to WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
+             limit = 10) %>%
+      rename(parameter = !!names(.[4])) %>% # rename columns to make functions easier to apply
+      mutate(exceeds = ifelse(parameter > limit, T, F)) # Identify where above NH3 WQS limit
+    return(quickStats(nitrate, 'PWS_Nitrate') %>% dplyr::select(-PWS_Nitrate_STAT))  }  
+}
