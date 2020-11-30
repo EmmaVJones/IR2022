@@ -179,7 +179,7 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
       chloride <- dplyr::select(oneStation(), FDT_DATE_TIME, FDT_DEPTH, CHLORIDE) %>%
         filter(!is.na(CHLORIDE)) %>% #get rid of NA's
         mutate(`Parameter Rounded to WQS Format` = round(CHLORIDE, digits = 0),  # round to WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
-               limit = 2500) %>%
+               limit = 250) %>%
         rename(parameter = !!names(.[4])) %>% # rename columns to make functions easier to apply
         mutate(exceeds = ifelse(parameter > limit, T, F)) # Identify where above NH3 WQS limit
       z <- quickStats(chloride, 'PWS_Chloride') %>% dplyr::select(-PWS_Chloride_STAT) 

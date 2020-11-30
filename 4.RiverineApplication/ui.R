@@ -237,7 +237,9 @@ shinyUI(fluidPage(theme="yeti.css",
                                                        tabPanel("Chloride",
                                                                 helpText('Review each site using the single site visualization section. Chloride criteria only apply to stations with PWS designation.'),
                                                                 NitratePlotlySingleStationUI('Cl')),
-                                                       tabPanel("Sulfate")
+                                                       tabPanel("Sulfate",
+                                                                helpText('Review each site using the single site visualization section. Total Sulfate criteria only apply to stations with PWS designation.'),
+                                                                DSulfatePlotlySingleStationUI('DSulfate'))
                                                      )),
                                             tabPanel('EDAS Data'),
                                             tabPanel('Metals Data')#,
