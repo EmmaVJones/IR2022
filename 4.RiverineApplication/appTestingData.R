@@ -81,7 +81,7 @@ stationSelection <- filter(conventionals_HUC, ID305B_1 %in% AUselection | ID305B
     distinct(FDT_STA_ID) %>%
   pull()
 stationSelection <- c(stationSelection, carryoverStations$STATION_ID)
-stationSelection <- stationSelection[2]
+stationSelection <- stationSelection[3]
 
 AUData <- filter_at(conventionals_HUC, vars(starts_with("ID305B")), any_vars(. %in% AUselection) ) 
 

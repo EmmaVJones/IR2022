@@ -246,7 +246,10 @@ shinyUI(fluidPage(theme="yeti.css",
                                                                 DSulfatePlotlySingleStationUI('DSulfate'))
                                                      )),
                                             tabPanel('EDAS Data'),
-                                            tabPanel('Metals Data')#,
+                                            tabPanel('Metals Data',
+                                                     helpText('Review each site using the single site visualization section. All analyses were performed outside of the
+                                                              automated assessment scripts, so please direct questions to Roger Stewart (roger.stewart@deq.virginia.gov).'),
+                                                     metalsTableSingleStationUI('metals'))#,
                                             #tabPanel('Toxics Data', 
                                             #          tabsetPanel(
                                             #            tabPanel('Fish Tissue Data'),

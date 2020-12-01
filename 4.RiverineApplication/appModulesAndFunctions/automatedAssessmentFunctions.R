@@ -224,3 +224,16 @@ countNutrients <- function(x, fieldName, commentName, nutrientLimit){
 #countNutrients(x, CHLOROPHYLL, RMK_CHLOROPHYLL, NA)  %>% quickStats('NUT_CHLA')
 
 
+
+
+# Metals exceedances
+
+metalsExceedances <- function(x, metalType){
+  # if any data given to function
+  if(nrow(x) > 0){ EXC <- length(which(x == 'NSP' | x == 'OE')) 
+  }else { EXC <- NA  }
+  
+  x <- tibble(EXC = EXC, STAT = ifelse(EXC > 0, 'Review', 'S'))
+  names(x) <- paste(metalType,names(x), sep='_')
+  return(x)
+}

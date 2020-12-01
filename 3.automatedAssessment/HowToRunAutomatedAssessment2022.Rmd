@@ -157,41 +157,52 @@ for(i in 1:nrow(stationTable)){
   # If data exists for station, run it, otherwise just output what last cycle said and comment
   if(nrow(stationData) > 0){
     results <- cbind(
-    StationTableStartingData(stationData),
-    tempExceedances(stationData) %>% quickStats('TEMP'),
-    DOExceedances_Min(stationData) %>% quickStats('DO'), 
-    pHExceedances(stationData) %>% quickStats('PH'),
-    bacteriaAssessmentDecision(stationData, 'E.COLI', 'ECOLI_RMK', 10, 410, 126) %>%
-      dplyr::select(ECOLI_EXC:ECOLI_STAT),
-    bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35) %>%
-      dplyr::select(ENTER_EXC:ENTER_STAT)#,
+      StationTableStartingData(stationData),
+      tempExceedances(stationData) %>% quickStats('TEMP'),
+      DOExceedances_Min(stationData) %>% quickStats('DO'), 
+      pHExceedances(stationData) %>% quickStats('PH'),
+      bacteriaAssessmentDecision(stationData, 'E.COLI', 'ECOLI_RMK', 10, 410, 126) %>%
+        dplyr::select(ECOLI_EXC:ECOLI_STATECOLI_VERBOSE), # add verbose comment to COMMENT field
+        #dplyr::select(ECOLI_EXC:ECOLI_STAT), # don't add verbose comment to COMMENT field
+      bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_ENTEROCOCCI', 10, 130, 35) %>%
+        dplyr::select(ENTER_EXC:ENTER_STATENTER_VERBOSE), # add verbose comment to COMMENT field
+        #dplyr::select(ENTER_EXC:ENTER_STAT), # don't add verbose comment to COMMENT field
     
-    # Ammonia needs to go here
-    # AMMONIA_EXC, AMMONIA_STAT
+      # Ammonia needs to go here
+      # AMMONIA_EXC, AMMONIA_STAT
     
-    # Need more clarification on water column metals, what comes in, what desired in columns
-    # WAT_MET_EXC, WAT_MET_STAT, WAT_TOX_EXC, WAT_TOX_STAT
-    #metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData$FDT_STA_ID) %>% 
-    #                                 dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
+      # Exact copy of last cycle's scripts for WAT_MET_EXC, WAT_MET_STAT, 
+      metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData$FDT_STA_ID) %>% 
+                                       dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
+      # Need more clarification on water column metals, what comes in, what desired in columns
+      # WAT_TOX_EXC, WAT_TOX_STAT
     
-    # Need more clarification on sediment metals, what comes in, what desired in columns
-    # SED_MET_EXC, SED_MET_STAT, SED_TOX_EXC, SED_TOX_STAT
+      # Exact copy of last cycle's scripts for SED_MET_EXC, SED_MET_STAT
+      metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData$FDT_STA_ID) %>% 
+                                      dplyr::select(ARSENIC:ZINC), 'SED_MET'), 
+      # Need more clarification on sediment metals, what comes in, what desired in columns
+      # SED_TOX_EXC, SED_TOX_STAT
     
-    # Need more clarification on Fish, what comes in, what desired in columns
-    # FISH_MET_EXC, FISH_MET_STAT, FISH_TOX_EXC, FISH_TOX_STAT
+      # Need more clarification on Fish, what comes in, what desired in columns
+      # FISH_MET_EXC, FISH_MET_STAT, FISH_TOX_EXC, FISH_TOX_STAT
     
-    # Benthics 
-    # BENTHIC_STAT, BENTHIC_WOE_CAT, BIBI_SCORE
+      # Benthics 
+      # BENTHIC_STAT, BENTHIC_WOE_CAT, BIBI_SCORE
     
-    # Nutrient: TP (lakes)
-    # NUT_TP_EXC, NUT_TP_SAMP, NUT_TP_STAT
+      # Nutrient: TP (lakes have real standards but riverine uses 0.2 mg/L as an observed effect for Aquatic life use)
+      # NUT_TP_EXC, NUT_TP_SAMP, NUT_TP_STAT
+      countNutrients(stationData, PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP') %>% 
+        mutate(NUT_TP_STAT = ifelse(NUT_TP_STAT != "S", "Review", NA)), # flag OE but don't show a real assessment decision
     
-    # Nutrients: Chl a (lakes)
-    #NUT_CHLA_EXC, NUT_CHLA_SAMP, NUT_CHLA_STAT
+      # Nutrients: Chl a (lakes)
+      #NUT_CHLA_EXC, NUT_CHLA_SAMP, NUT_CHLA_STAT
+      countNutrients(stationData, CHLOROPHYLL, RMK_CHLOROPHYLL, NA) %>% quickStats('NUT_CHLA') %>%
+        mutate(NUT_CHLA_STAT = NA)) %>% # don't show a real assessment decision
     
-    # COMMENTS
-    ) %>%
-    dplyr::select(-ends_with('exceedanceRate')) # to match Bulk Upload template but helpful to keep visible til now for testing
+      # COMMENTS
+      mutate(COMMENTS = paste0('E.COLI Comment: ', ECOLI_STATECOLI_VERBOSE,
+                               ' | ENTEROCOCCI Comment: ', ENTER_STATENTER_VERBOSE)) %>%
+      dplyr::select(-ends_with(c('exceedanceRate', 'VERBOSE'))) # to match Bulk Upload template but helpful to keep visible til now for testing
   } else {# pull what you can from last cycle and flag as carry over
     results <- filter(stationTable, STATION_ID == stationTable$STATION_ID[i]) %>%
       dplyr::select(STATION_ID:VAHU6, COMMENTS) %>%
@@ -201,6 +212,7 @@ for(i in 1:nrow(stationTable)){
   }
   
   stationTableResults <- bind_rows(stationTableResults,results)
+    
 }
 
 

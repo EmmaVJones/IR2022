@@ -179,3 +179,61 @@ metalsExceedances <- function(x, metalType){
   names(x) <- paste(metalType,names(x), sep='_')
   return(x)
 }
+
+
+
+
+#### PWS Assessment Functions ---------------------------------------------------------------------------------------------------
+# The app doesn't use this function for modules because you need to be able to toggle assessment on/off with WQS adjustment on the
+# fly, but the automated functions need PWS filter programmed in to ease automating over thousands of sites
+
+assessPWS <- function(x, fieldName, commentName, PWSlimit, outputName){
+  if(unique(x$PWS) %in% c("Yes")){
+    fieldName_ <- enquo(fieldName)
+    commentName_ <- enquo(commentName)
+    parameterData <- dplyr::select(x, FDT_DATE_TIME, !! fieldName_, !! commentName_) %>%
+      filter(!( !! commentName_ %in% c('Level II', 'Level I'))) %>% # get lower levels out
+      filter(!is.na(!!fieldName_ )) %>% #get rid of NA's
+      mutate(`Parameter Rounded to WQS Format` = round(!! fieldName_, digits = 0),  # round to WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
+             limit =  PWSlimit) %>%
+      rename(parameter = !!names(.[4])) %>% # rename columns to make functions easier to apply
+      mutate(exceeds = ifelse(parameter > limit, T, F)) # Identify where above WQS limit
+    return(quickStats(parameterData, outputName)) #%>% dplyr::select(-ends_with('STAT')))    
+  } }
+
+#assessPWS(x, NITRATE, RMK_NITRATE, 10, 'PWS_Nitrate')
+#assessPWS(x, CHLORIDE, RMK_CHLORIDE, 250, 'PWS_Chloride')
+#assessPWS(x, SULFATE_TOTAL, RMK_SULFATE_TOTAL, 250, 'PWS_Total_Sulfate')
+
+
+# Nutrients pseudo-assessment functions (for Riverine applications)
+
+# Count samples
+countNutrients <- function(x, fieldName, commentName, nutrientLimit){
+  fieldName_ <- enquo(fieldName)
+  commentName_ <- enquo(commentName)
+  
+  dplyr::select(x,FDT_STA_ID,FDT_DATE_TIME, !! fieldName_, !! commentName_)%>% # Just get relevant columns
+    filter(!( !! commentName_ %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    filter(!is.na(!!fieldName_ )) %>% #get rid of NA's
+    rename(parameter = !!names(.[3])) %>% # rename columns to make functions easier to apply
+    mutate(limit = nutrientLimit, 
+           exceeds = ifelse(parameter > limit, T, F)) # Identify where above WQS limit
+}
+#countNutrients(x, PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP')
+#countNutrients(x, CHLOROPHYLL, RMK_CHLOROPHYLL, NA)  %>% quickStats('NUT_CHLA')
+
+
+
+
+# Metals exceedances
+
+metalsExceedances <- function(x, metalType){
+  # if any data given to function
+  if(nrow(x) > 0){ EXC <- length(which(x == 'NSP' | x == 'OE')) 
+  }else { EXC <- NA  }
+  
+  x <- tibble(EXC = EXC, STAT = ifelse(EXC > 0, 'Review', 'S'))
+  names(x) <- paste(metalType,names(x), sep='_')
+  return(x)
+}

@@ -91,6 +91,8 @@ WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 # placeholder for now, shouldn't be a spatial file
 historicalStationsTable <- st_read('data/GIS/2020_wqms.shp') %>%
   st_drop_geometry()#read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
+WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
+Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
 
 
 

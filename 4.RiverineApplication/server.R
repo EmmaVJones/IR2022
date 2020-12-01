@@ -15,6 +15,9 @@ WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 # placeholder for now, shouldn't be a spatial file
 historicalStationsTable <- st_read('data/GIS/2020_wqms.shp') %>%
   st_drop_geometry()#read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
+WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
+Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
+
 
 
 
@@ -277,7 +280,11 @@ shinyServer(function(input, output, session) {
                                          DOExceedances_Min(stationData()) %>% quickStats('DO'), 
                                          pHExceedances(stationData()) %>% quickStats('PH'),
                                          ecoli() %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),#siteData$ecoli %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),
-                                         enter() %>% dplyr::select(ENTER_EXC:ENTER_STAT)) %>%#siteData$enter %>% dplyr::select(ENTER_EXC:ENTER_STAT)) %>%
+                                         enter() %>% dplyr::select(ENTER_EXC:ENTER_STAT), #siteData$enter %>% dplyr::select(ENTER_EXC:ENTER_STAT)) %>%
+                                         metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
+                                                             dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
+                                         metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
+                                                             dplyr::select(ARSENIC:ZINC), 'SED_MET')) %>%
       mutate(COMMENTS = NA) %>%
       dplyr::select(-ends_with('exceedanceRate'))
   })
@@ -296,7 +303,10 @@ shinyServer(function(input, output, session) {
       formatStyle(c('DO_EXC','DO_SAMP','DO_STAT'), 'DO_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
       formatStyle(c('PH_EXC','PH_SAMP','PH_STAT'), 'PH_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
       formatStyle(c('ECOLI_EXC','ECOLI_SAMP','ECOLI_GM_EXC','ECOLI_GM_SAMP','ECOLI_STAT'), 'ECOLI_STAT', backgroundColor = styleEqual(c('IM'), c('red'))) %>%
-      formatStyle(c('ENTER_SAMP','ENTER_EXC',"ENTER_GM_EXC","ENTER_GM_SAMP",'ENTER_STAT'), 'ENTER_STAT', backgroundColor = styleEqual(c('IM'), c('red')))
+      formatStyle(c('ENTER_SAMP','ENTER_EXC',"ENTER_GM_EXC","ENTER_GM_SAMP",'ENTER_STAT'), 'ENTER_STAT', backgroundColor = styleEqual(c('IM'), c('red'))) %>%
+      formatStyle(c('WAT_MET_EXC','WAT_MET_STAT'), 'WAT_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+      formatStyle(c('SED_MET_EXC','SED_MET_STAT'), 'SED_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) 
+      
   })
   
   
@@ -376,6 +386,9 @@ shinyServer(function(input, output, session) {
   ## Chlorophyll a Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(chlAPlotlySingleStation,'chlA', AUData, stationSelected)
  
+  ## Suspended Sediments Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(SSCPlotlySingleStation,'SSC', AUData, stationSelected)
+  
   ## Nitrate Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(NitratePlotlySingleStation,'Nitrate', AUData, stationSelected)
   
@@ -384,4 +397,15 @@ shinyServer(function(input, output, session) {
   
   ## Sulfate Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(DSulfatePlotlySingleStation,'DSulfate', AUData, stationSelected)
+  
+  
+  
+  # Other Data Sources
+  
+  #### Benthics Sub Tab ####---------------------------------------------------------------------------------------------------
+  
+  
+  #### Metals Sub Tab ####---------------------------------------------------------------------------------------------------
+  callModule(metalsTableSingleStation,'metals', AUData, WCmetals ,Smetals, stationSelected)
+  
 })
