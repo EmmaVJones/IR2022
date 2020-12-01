@@ -17,7 +17,19 @@ historicalStationsTable <- st_read('data/GIS/2020_wqms.shp') %>%
   st_drop_geometry()#read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
 WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
 Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
-
+WQMstationFull <- pin_get("WQM-Station-Full", board = "rsconnect")
+VSCIresults <- pin_get("VSCIresults", board = "rsconnect") %>%
+  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) %>% # get ecoregion info
+  left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
+              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('StationID' = 'WQM_STA_ID'))
+VCPMI63results <- pin_get("VCPMI63results", board = "rsconnect") %>%
+  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) %>% # get ecoregion info
+  left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
+              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('StationID' = 'WQM_STA_ID'))
+VCPMI65results <- pin_get("VCPMI65results", board = "rsconnect") %>%
+  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) %>% # get ecoregion info
+  left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
+              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('StationID' = 'WQM_STA_ID'))
 
 
 

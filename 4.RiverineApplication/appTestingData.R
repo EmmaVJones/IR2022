@@ -10,6 +10,26 @@ conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
   filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 UTC" )
 vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
 WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
+# placeholder for now, shouldn't be a spatial file
+historicalStationsTable <- st_read('data/GIS/2020_wqms.shp') %>%
+  st_drop_geometry()#read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
+WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
+Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
+WQMstationFull <- pin_get("WQM-Station-Full", board = "rsconnect")
+VSCIresults <- pin_get("VSCIresults", board = "rsconnect") %>%
+  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) %>% # get ecoregion info
+  left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
+              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('StationID' = 'WQM_STA_ID'))
+VCPMI63results <- pin_get("VCPMI63results", board = "rsconnect") %>%
+  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) %>% # get ecoregion info
+  left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
+              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('StationID' = 'WQM_STA_ID'))
+VCPMI65results <- pin_get("VCPMI65results", board = "rsconnect") %>%
+  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) %>% # get ecoregion info
+  left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
+              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('StationID' = 'WQM_STA_ID'))
+
+
 
 
 stationTable <- read_csv('userDataToUpload/processedStationData/stationTableResults.csv',
