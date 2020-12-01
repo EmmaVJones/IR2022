@@ -210,7 +210,8 @@ shinyUI(fluidPage(theme="yeti.css",
                                                        tabPanel("Total Nitrogen",
                                                                 helpText('Review each site using the single site visualization section. There are no WQS for Total Nitrogen.'),
                                                                 TNPlotlySingleStationUI('TN')),
-                                                       tabPanel("Ammonia"),
+                                                       tabPanel("Ammonia",
+                                                                br(), h4('Hang tight, module still in development.'), br(), br(), br(), br(), br(), br()),
                                                        tabPanel("Total Phosphorus",
                                                                 helpText('Review each site using the single site visualization section. There are no WQS for Total Nitrogen.'),
                                                                 TPPlotlySingleStationUI('TP')),
@@ -245,16 +246,20 @@ shinyUI(fluidPage(theme="yeti.css",
                                                                 helpText('Review each site using the single site visualization section. Total Sulfate criteria only apply to stations with PWS designation.'),
                                                                 DSulfatePlotlySingleStationUI('DSulfate'))
                                                      )),
-                                            tabPanel('EDAS Data'),
+                                            tabPanel('EDAS Data',
+                                                     br(), h4('Hang tight, module still in development.'), br(), br(), br(), br(), br(), br()),
                                             tabPanel('Metals Data',
                                                      helpText('Review each site using the single site visualization section. All analyses were performed outside of the
                                                               automated assessment scripts, so please direct questions to Roger Stewart (roger.stewart@deq.virginia.gov).'),
-                                                     metalsTableSingleStationUI('metals'))#,
-                                            #tabPanel('Toxics Data', 
-                                            #          tabsetPanel(
-                                            #            tabPanel('Fish Tissue Data'),
-                                            #            tabPanel('Water Column Toxics'),
-                                            #            tabPanel('Sediment Toxics')))
+                                                     metalsTableSingleStationUI('metals')),
+                                            tabPanel('Toxics Data', 
+                                                      tabsetPanel(
+                                                        tabPanel('Fish Tissue Data',
+                                                                 br(), h4('Hang tight, module still in development.'), br(), br(), br(), br(), br(), br()),
+                                                        tabPanel('Water Column Toxics',
+                                                                 br(), h4('Hang tight, module still in development.'), br(), br(), br(), br(), br(), br()),
+                                                        tabPanel('Sediment Toxics',
+                                                                 br(), h4('Hang tight, module still in development.'), br(), br(), br(), br(), br(), br())))
                                             
                                           ))        
                                           
