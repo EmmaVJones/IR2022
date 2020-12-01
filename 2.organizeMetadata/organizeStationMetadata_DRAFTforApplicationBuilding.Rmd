@@ -52,15 +52,22 @@ conventionals <- read_csv('data/final2020data/CEDSWQM_2020_IR_DATA-CONVENTIONALS
          "NITROGEN" = "NITROGEN_mg/L" ,                    
          "AMMONIA" ="AMMONIA_mg/L",
          "PHOSPHORUS" =  "PHOSPHORUS_mg/L",
+         "HARDNESS" = "HARDNESS_TOTAL_00900_mg/L",
+         "RMK_HARDNESS" = "RMK_00900",
          "FECAL_COLI" = "FECAL_COLIFORM_31616_NO/100mL" ,
+         "RMK_FECAL_COLI" = "RMK_31616",
          "E.COLI" = "ECOLI_CFU/100mL",                       
          "ENTEROCOCCI" =  "ENTEROCOCCI_31649_NO/100mL",
-         "CHLOROPHYLL" ="CHLOROPHYLL_32211_ug/L",                
+         "RMK_ENTEROCOCCI" =  "RMK_31649",
+         "CHLOROPHYLL" ="CHLOROPHYLL_32211_ug/L", 
+         "RMK_CHLOROPHYLL" = "RMK_32211",
          "SSC" ="SSC-TOTAL_00530_mg/L" , 
          "NITRATE" ="NITRATE_mg/L", 
          "CHLORIDE" ="CHLORIDE_mg/L",
-         "SULFATE_TOTAL" ="SULFATE_TOTAL_00945_mg/L",              
-         "SULFATE_DISS" ="SULFATE_DISSOLVED_00946_mg/L") %>%
+         "SULFATE_TOTAL" = "SULFATE_TOTAL_00945_mg/L",  
+         "RMK_SULFATE_TOTAL" = "RMK_00945",
+         "SULFATE_DISS" ="SULFATE_DISSOLVED_00946_mg/L",
+         "RMK_SULFATE_DISS" = "RMK_00946") %>%
   mutate(FDT_DATE_TIME = as.POSIXct(FDT_DATE_TIME, format="%m/%d/%Y %H:%M")) # fix date time
   
 ```

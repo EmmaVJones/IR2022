@@ -177,6 +177,7 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
     req(input$oneStationSelection, oneStation())
     if(input$changeWQS == TRUE){
       chloride <- dplyr::select(oneStation(), FDT_DATE_TIME, FDT_DEPTH, CHLORIDE) %>%
+        filter(!(RMK_CHLORIDE %in% c('Level II', 'Level I'))) %>% # get lower levels out
         filter(!is.na(CHLORIDE)) %>% #get rid of NA's
         mutate(`Parameter Rounded to WQS Format` = round(CHLORIDE, digits = 0),  # round to WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
                limit = 250) %>%

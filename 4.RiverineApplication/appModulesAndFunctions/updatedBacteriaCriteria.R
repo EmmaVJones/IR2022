@@ -23,7 +23,7 @@
 #bacteriaField <- 'E.COLI' #
 ##  'ENTEROCOCCI'
 #bacteriaRemark <- 'ECOLI_RMK' #  
-##  'RMK_31649'
+##  'RMK_ENTEROCOCCI'
 #sampleRequirement <- 10
 #STV <- 410 #
 ##130

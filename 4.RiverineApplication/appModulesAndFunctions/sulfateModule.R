@@ -67,12 +67,12 @@ DSulfatePlotlySingleStation <- function(input,output,session, AUdata, stationSel
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, SULFATE_DISS, RMK_00946, SULFATE_TOTAL, RMK_00945)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, SULFATE_DISS, RMK_SULFATE_DISS, SULFATE_TOTAL, RMK_SULFATE_TOTAL)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
-      formatStyle(c('SULFATE_DISS','RMK_00946'), 'RMK_00946', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray')) %>%
-      formatStyle(c('SULFATE_TOTAL','RMK_00945'), 'RMK_00945', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))  })
+      formatStyle(c('SULFATE_DISS','RMK_SULFATE_DISS'), 'RMK_SULFATE_DISS', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray')) %>%
+      formatStyle(c('SULFATE_TOTAL','RMK_SULFATE_TOTAL'), 'RMK_SULFATE_TOTAL', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))  })
   
   
   output$plotly <- renderPlotly({
@@ -160,7 +160,7 @@ DSulfatePlotlySingleStation <- function(input,output,session, AUdata, stationSel
     req(oneStation())
     if(input$changeWQS == TRUE){
       z <- filter(oneStation(), `Parameter Rounded to WQS Format` > PWSlimit) %>%
-        dplyr::select(FDT_DATE_TIME, SULFATE_TOTAL, RMK_00945, Criteria = PWSlimit, `Parameter Rounded to WQS Format`) 
+        dplyr::select(FDT_DATE_TIME, SULFATE_TOTAL, RMK_SULFATE_TOTAL, Criteria = PWSlimit, `Parameter Rounded to WQS Format`) 
     } else { z <- NULL}
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t')) })
   

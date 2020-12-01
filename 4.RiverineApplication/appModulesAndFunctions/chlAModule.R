@@ -43,11 +43,11 @@ chlAPlotlySingleStation <- function(input,output,session, AUdata, stationSelecte
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, CHLOROPHYLL, RMK_32211)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, CHLOROPHYLL, RMK_CHLOROPHYLL)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
-      formatStyle(c('CHLOROPHYLL','RMK_32211'), 'RMK_32211', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
+      formatStyle(c('CHLOROPHYLL','RMK_CHLOROPHYLL'), 'RMK_CHLOROPHYLL', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
   

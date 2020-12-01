@@ -268,7 +268,7 @@ shinyServer(function(input, output, session) {
   ecoli <- reactive({req(stationData())
     bacteriaAssessmentDecision(stationData(), 'E.COLI', 'ECOLI_RMK', 10, 410, 126)})
   enter <- reactive({req(stationData())
-    bacteriaAssessmentDecision(stationData(), 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35)})
+    bacteriaAssessmentDecision(stationData(), 'ENTEROCOCCI', 'RMK_ENTEROCOCCI', 10, 130, 35)})
   
   observe({
     req(nrow(ecoli()) > 0, nrow(enter()) > 0)# need to tell the app to wait for data to exist in these objects before smashing data together or will bomb out when switching between VAHU6's on the Watershed Selection Page
@@ -301,7 +301,24 @@ shinyServer(function(input, output, session) {
   
   
   ## PWS table
-  
+  output$PWStable <- DT::renderDataTable({
+    req(stationData())
+    if(is.na(unique(stationData()$PWS))){
+      PWSconcat <- tibble(STATION_ID = unique(stationData()$FDT_STA_ID),
+                          PWS= 'PWS Standards Do Not Apply To Station')
+      DT::datatable(PWSconcat, escape=F, rownames = F, options= list(scrollX = TRUE, pageLength = nrow(PWSconcat), dom='t'))
+      
+    } else {
+      PWSconcat <- cbind(tibble(STATION_ID = unique(stationData()$FDT_STA_ID)),
+                         assessPWS(stationData(), NITRATE, RMK_NITRATE, 10, 'PWS_Nitrate'),
+                         assessPWS(stationData(), CHLORIDE, RMK_CHLORIDE, 250, 'PWS_Chloride'),
+                         assessPWS(stationData(), SULFATE_TOTAL, SULFATE_TOTAL, 250, 'PWS_Total_Sulfate')) %>%
+        dplyr::select(-ends_with('exceedanceRate')) 
+      
+      DT::datatable(PWSconcat, escape=F, rownames = F, options= list(scrollX = TRUE, pageLength = nrow(PWSconcat), dom='t')) %>% 
+        formatStyle(c("PWS_Nitrate_EXC","PWS_Nitrate_SAMP","PWS_Nitrate_STAT"), "PWS_Nitrate_STAT", backgroundColor = styleEqual(c('Review'), c('red'))) %>%
+        formatStyle(c("PWS_Chloride_EXC","PWS_Chloride_SAMP","PWS_Chloride_STAT"), "PWS_Chloride_STAT", backgroundColor = styleEqual(c('Review'), c('red'))) %>%
+        formatStyle(c("PWS_Total_Sulfate_EXC","PWS_Total_Sulfate_SAMP","PWS_Total_Sulfate_STAT"), "PWS_Total_Sulfate_STAT", backgroundColor = styleEqual(c('Review'), c('red'))) } })
   
   
   #### Data Sub Tab ####---------------------------------------------------------------------------------------------------
@@ -346,6 +363,9 @@ shinyServer(function(input, output, session) {
   
   ## Total Phosphorus Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(TPPlotlySingleStation,'TP', AUData, stationSelected)
+  
+  ## Fecal Coliform Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(fecalPlotlySingleStation,'fecal', AUData, stationSelected)
   
   ## E.coli Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(EcoliPlotlySingleStation,'Ecoli', AUData, stationSelected, ecoli)#siteData$ecoli)

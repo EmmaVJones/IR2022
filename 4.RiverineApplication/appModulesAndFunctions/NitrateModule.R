@@ -173,6 +173,7 @@ NitratePlotlySingleStation <- function(input,output,session, AUdata, stationSele
     req(input$oneStationSelection, oneStation())
     if(input$changeWQS == TRUE){
       nitrate <- dplyr::select(oneStation(), FDT_DATE_TIME, FDT_DEPTH, NITRATE) %>%
+        filter(!(RMK_NITRATE %in% c('Level II', 'Level I'))) %>% # get lower levels out
         filter(!is.na(NITRATE)) %>% #get rid of NA's
         mutate(`Parameter Rounded to WQS Format` = round(NITRATE, digits = 0),  # round to WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
                limit = 10) %>%
