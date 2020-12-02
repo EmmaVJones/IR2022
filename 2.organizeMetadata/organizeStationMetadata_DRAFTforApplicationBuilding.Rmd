@@ -36,40 +36,47 @@ The following sections will detail bringing in these necessary data sources and 
 
 This dataset was pulled by Roger Stewart in November 2019 and serves as the best replacement for actual conventionals data. I smashed this new pull from Roger with the 2020 final IR data pull to get a dataset from 2013-2019 for use in various data products.
 
-```{r conventionals (draft)}
-conventionals <- read_csv('data/final2020data/CEDSWQM_2020_IR_DATA-CONVENTIONALS_20190305.csv') %>%
-  # change to naming system 
-  rename("FDT_TEMP_CELCIUS"  ="TEMPERATURE_00010_DEGREES CENTIGRADE",
-         #"FDT_TEMP_CELCIUS_RMK" = "FDT_TEMP_CELCIUS_RMK",  
-         "FDT_FIELD_PH" = "pH_00400_STD_UNITS" ,          
-         #"FDT_FIELD_PH_RMK"  ="FDT_FIELD_PH_RMK", 
-         "DO" =  "DO_mg/L",       
-         #"DO_RMK"  ="DO_RMK",    
-         "FDT_SPECIFIC_CONDUCTANCE"="SPECIFIC_CONDUCTANCE_00095_UMHOS/CM @ 25C",    
-         #"FDT_SPECIFIC_CONDUCTANCE_RMK" ="FDT_SPECIFIC_CONDUCTANCE_RMK" ,
-         "FDT_SALINITY" = "SALINITY_00480_PPT" ,            
-         #"FDT_SALINITY_RMK"  ="FDT_SALINITY_RMK",  
-         "NITROGEN" = "NITROGEN_mg/L" ,                    
-         "AMMONIA" ="AMMONIA_mg/L",
-         "PHOSPHORUS" =  "PHOSPHORUS_mg/L",
-         "HARDNESS" = "HARDNESS_TOTAL_00900_mg/L",
-         "RMK_HARDNESS" = "RMK_00900",
-         "FECAL_COLI" = "FECAL_COLIFORM_31616_NO/100mL" ,
-         "RMK_FECAL_COLI" = "RMK_31616",
-         "E.COLI" = "ECOLI_CFU/100mL",                       
-         "ENTEROCOCCI" =  "ENTEROCOCCI_31649_NO/100mL",
-         "RMK_ENTEROCOCCI" =  "RMK_31649",
-         "CHLOROPHYLL" ="CHLOROPHYLL_32211_ug/L", 
-         "RMK_CHLOROPHYLL" = "RMK_32211",
-         "SSC" ="SSC-TOTAL_00530_mg/L" , 
-         "NITRATE" ="NITRATE_mg/L", 
-         "CHLORIDE" ="CHLORIDE_mg/L",
-         "SULFATE_TOTAL" = "SULFATE_TOTAL_00945_mg/L",  
-         "RMK_SULFATE_TOTAL" = "RMK_00945",
-         "SULFATE_DISS" ="SULFATE_DISSOLVED_00946_mg/L",
-         "RMK_SULFATE_DISS" = "RMK_00946") %>%
-  mutate(FDT_DATE_TIME = as.POSIXct(FDT_DATE_TIME, format="%m/%d/%Y %H:%M")) # fix date time
-  
+New method, matching Roland's citmon/nonagency database.
+
+```{r}
+source('updateConventionalsSchema.R')
+```
+
+
+Old method.
+```{r conventionals (draft), eval = FALSE}
+#conventionals <- read_csv('data/final2020data/CEDSWQM_2020_IR_DATA-CONVENTIONALS_20190305.csv') %>%
+#  # change to naming system 
+#  rename("FDT_TEMP_CELCIUS"  ="TEMPERATURE_00010_DEGREES CENTIGRADE",
+#         #"FDT_TEMP_CELCIUS_RMK" = "FDT_TEMP_CELCIUS_RMK",  
+#         "FDT_FIELD_PH" = "pH_00400_STD_UNITS" ,          
+#         #"FDT_FIELD_PH_RMK"  ="FDT_FIELD_PH_RMK", 
+#         "DO" =  "DO_mg/L",       
+#         #"DO_RMK"  ="DO_RMK",    
+#         "FDT_SPECIFIC_CONDUCTANCE"="SPECIFIC_CONDUCTANCE_00095_UMHOS/CM @ 25C",    
+#         #"FDT_SPECIFIC_CONDUCTANCE_RMK" ="FDT_SPECIFIC_CONDUCTANCE_RMK" ,
+#         "FDT_SALINITY" = "SALINITY_00480_PPT" ,            
+#         #"FDT_SALINITY_RMK"  ="FDT_SALINITY_RMK",  
+#         "NITROGEN" = "NITROGEN_mg/L" ,                    
+#         "AMMONIA" ="AMMONIA_mg/L",
+#         "PHOSPHORUS" =  "PHOSPHORUS_mg/L",
+#         "HARDNESS" = "HARDNESS_TOTAL_00900_mg/L",
+#         "RMK_HARDNESS" = "RMK_00900",
+#         "FECAL_COLI" = "FECAL_COLIFORM_31616_NO/100mL" ,
+#         "RMK_FECAL_COLI" = "RMK_31616",
+#         "E.COLI" = "ECOLI_CFU/100mL",                       
+#         "ENTEROCOCCI" =  "ENTEROCOCCI_31649_NO/100mL",
+#         "RMK_ENTEROCOCCI" =  "RMK_31649",
+#         "CHLOROPHYLL" ="CHLOROPHYLL_32211_ug/L", 
+#         "RMK_CHLOROPHYLL" = "RMK_32211",
+#         "SSC" ="SSC-TOTAL_00530_mg/L" , 
+#         "NITRATE" ="NITRATE_mg/L", 
+#         "CHLORIDE" ="CHLORIDE_mg/L",
+#         "SULFATE_TOTAL" = "SULFATE_TOTAL_00945_mg/L",  
+#         "RMK_SULFATE_TOTAL" = "RMK_00945",
+#         "SULFATE_DISS" ="SULFATE_DISSOLVED_00946_mg/L",
+#         "RMK_SULFATE_DISS" = "RMK_00946") %>%
+#  mutate(FDT_DATE_TIME = as.POSIXct(FDT_DATE_TIME, format="%m/%d/%Y %H:%M")) # fix date time
 ```
 
 Filter draft conventionals (2013-2019) to current cycle (2015-2020).
@@ -94,7 +101,7 @@ And now let's make a dataset of all the unique stations that we need to organize
 conventionals_distinct <- conventionals %>%
   distinct(FDT_STA_ID, .keep_all = T) %>%
   # remove any data to avoid confusion
-  dplyr::select(FDT_STA_ID:FDT_COMMENT, Latitude:STA_CBP_NAME) %>%
+  dplyr::select(FDT_STA_ID:FDT_COMMENT, Latitude:Data_Source) %>%
   filter(!is.na(FDT_STA_ID))
 
 # and make a spatial version
@@ -145,7 +152,7 @@ lastCycleStation_keep <- filter_at(lastCycleStation_sf, vars(contains("_STAT")),
 lastCycleStation_keepers <- filter(lastCycleStation_sf, STATION_ID %in% conventionals_distinct$FDT_STA_ID) %>%
   st_drop_geometry() %>%
   bind_rows(lastCycleStation_keep) %>% 
-  distinct(STATION_ID, ID305B_1, ID305B_2, ID305B_3, .keep_all = T) # run distict on STATION_ID and AUs because there are still stations assessed with more than on method and thus require 2 rows to accurately represent station in cycle (e.g. 9-PKC004.65, 4AROA004.54)
+  distinct(STATION_ID, ID305B_1, ID305B_2, ID305B_3, .keep_all = T) # run distinct on STATION_ID and AUs because there are still stations assessed with more than on method and thus require 2 rows to accurately represent station in cycle (e.g. 9-PKC004.65, 4AROA004.54)
 
 # find problem stations
 View(

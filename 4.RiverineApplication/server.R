@@ -117,7 +117,7 @@ shinyServer(function(input, output, session) {
   stationSummary <- reactive({req(huc6_filter())
     filter(conventionals, Huc6_Vahu6 %in% huc6_filter()$VAHU6) %>%
       distinct(FDT_STA_ID, .keep_all = TRUE)  %>% 
-      dplyr::select(FDT_STA_ID:FDT_SPG_CODE, STA_LV2_CODE:STA_CBP_NAME, Latitude, Longitude) %>% 
+      dplyr::select(FDT_STA_ID:FDT_SPG_CODE, STA_LV2_CODE:Data_Source, Latitude, Longitude) %>% 
       mutate(#`In Stations Table` = ifelse(FDT_STA_ID %in% unique(stationTable$STATION_ID), 'yes','no'),
         #`In Selected Region` = ifelse(FDT_STA_ID %in% filter(stationTable, REGION %in% DEQregionSelection)$STATION_ID, 'yes','no'),
         `Analyzed By App` = #ifelse(`In Stations Table` == 'yes'# && `In Selected Region` == 'yes', 'yes','no'))
@@ -281,7 +281,7 @@ shinyServer(function(input, output, session) {
   
   # Run longer analyses first
   ecoli <- reactive({req(stationData())
-    bacteriaAssessmentDecision(stationData(), 'E.COLI', 'ECOLI_RMK', 10, 410, 126)})
+    bacteriaAssessmentDecision(stationData(), 'ECOLI', 'RMK_ECOLI', 10, 410, 126)})
   enter <- reactive({req(stationData())
     bacteriaAssessmentDecision(stationData(), 'ENTEROCOCCI', 'RMK_ENTEROCOCCI', 10, 130, 35)})
   
@@ -296,7 +296,11 @@ shinyServer(function(input, output, session) {
                                          metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
                                                              dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
                                          metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
-                                                             dplyr::select(ARSENIC:ZINC), 'SED_MET')) %>%
+                                                             dplyr::select(ARSENIC:ZINC), 'SED_MET'),
+                                         countNutrients(stationData(), PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP') %>% 
+                                           mutate(NUT_TP_STAT = ifelse(NUT_TP_STAT != "S", "Review", NA)), # flag OE but don't show a real assessment decision
+                                         countNutrients(stationData(), CHLOROPHYLL, RMK_CHLOROPHYLL, NA) %>% quickStats('NUT_CHLA') %>%
+                                           mutate(NUT_CHLA_STAT = NA)) %>% # don't show a real assessment decision) %>%
       mutate(COMMENTS = NA) %>%
       dplyr::select(-ends_with('exceedanceRate'))
   })
@@ -317,7 +321,9 @@ shinyServer(function(input, output, session) {
       formatStyle(c('ECOLI_EXC','ECOLI_SAMP','ECOLI_GM_EXC','ECOLI_GM_SAMP','ECOLI_STAT'), 'ECOLI_STAT', backgroundColor = styleEqual(c('IM'), c('red'))) %>%
       formatStyle(c('ENTER_SAMP','ENTER_EXC',"ENTER_GM_EXC","ENTER_GM_SAMP",'ENTER_STAT'), 'ENTER_STAT', backgroundColor = styleEqual(c('IM'), c('red'))) %>%
       formatStyle(c('WAT_MET_EXC','WAT_MET_STAT'), 'WAT_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
-      formatStyle(c('SED_MET_EXC','SED_MET_STAT'), 'SED_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) 
+      formatStyle(c('SED_MET_EXC','SED_MET_STAT'), 'SED_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+      formatStyle(c('NUT_TP_EXC','NUT_TP_SAMP'), 'NUT_TP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) 
+    
       
   })
   
@@ -389,7 +395,7 @@ shinyServer(function(input, output, session) {
   ## Fecal Coliform Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(fecalPlotlySingleStation,'fecal', AUData, stationSelected)
   
-  ## E.coli Sub Tab ##------------------------------------------------------------------------------------------------------
+  ## ECOLI Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(EcoliPlotlySingleStation,'Ecoli', AUData, stationSelected, ecoli)#siteData$ecoli)
   
   ## Enteroccoci Sub Tab ##------------------------------------------------------------------------------------------------------

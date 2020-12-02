@@ -75,7 +75,7 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
   
   oneStation <- reactive({
     filter(AUdata(), FDT_STA_ID %in% as.character(stationSelectedAbove())) %>% #input$oneStationSelection) %>%
-      filter(!is.na(E.COLI))})
+      filter(!is.na(ECOLI))})
   
   # Bring in pre analyzed data to expedite process
   oneStationAnalysis <- reactive({analyzedData()})# bc not updating in full app unless this is reactive
@@ -99,11 +99,11 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, E.COLI, ECOLI_RMK)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, ECOLI, RMK_ECOLI)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
-      formatStyle(c('E.COLI','ECOLI_RMK'), 'ECOLI_RMK', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
+      formatStyle(c('ECOLI','RMK_ECOLI'), 'RMK_ECOLI', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
   output$plotly <- renderPlotly({
@@ -112,17 +112,17 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
       mutate(newSTV = 410, geomean = 126, oldSTV = 235)
     dat$SampleDate <- as.POSIXct(dat$FDT_DATE_TIME, format="%m/%d/%y")
     plot_ly(data=dat) %>%
-      add_markers(x= ~SampleDate, y= ~E.COLI,mode = 'scatter', name="E. coli (CFU / 100 mL)", marker = list(color= '#535559'),
+      add_markers(x= ~SampleDate, y= ~ECOLI,mode = 'scatter', name="E. coli (CFU / 100 mL)", marker = list(color= '#535559'),
                   hoverinfo="text",text=~paste(sep="<br>",
                                                paste("Date: ",SampleDate),
                                                paste("Depth: ",FDT_DEPTH, "m"),
-                                               paste("E. coli: ",E.COLI,"CFU / 100 mL")))%>%
+                                               paste("E. coli: ",ECOLI,"CFU / 100 mL")))%>%
       add_lines(data=dat, x=~SampleDate,y=~newSTV, mode='line', line = list(color = '#484a4c',dash = 'dot'),
                 hoverinfo = "text", text= "New STV: 410 CFU / 100 mL", name="New STV: 410 CFU / 100 mL") %>%
       add_lines(data=dat, x=~SampleDate,y=~oldSTV, mode='line', line = list(color = 'black'),
                 hoverinfo = "text", text= "Old SSM: 235 CFU / 100 mL", name="Old SSM: 235 CFU / 100 mL") %>%
       add_lines(data=dat, x=~SampleDate,y=~geomean, mode='line', line = list(color = 'black', dash= 'dash'),
-                hoverinfo = "text", text= "Geomean: 126 CFU / 100 mL", name="Geomean: 126 CFU / 100 mL") %>%
+                hoverinfo = "text", text= "Geomean Criteria: 126 CFU / 100 mL", name="Geomean Criteria: 126 CFU / 100 mL") %>%
       layout(showlegend=FALSE,
              yaxis=list(title="E. coli (CFU / 100 mL)"),
              xaxis=list(title="Sample Date",tickfont = list(size = 10))) 
@@ -152,32 +152,32 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
   #### Old Standard ---------------------------------------------------------------------------------
   output$exceedancesOldStdTableSingleSiteSTV <- DT::renderDataTable({req(oneStation())
     z <- bacteria_ExceedancesSTV_OLD(oneStation() %>%
-                                       dplyr::select(FDT_DATE_TIME, E.COLI)%>% # Just get relevant columns, 
-                                       filter(!is.na(E.COLI)) #get rid of NA's
+                                       dplyr::select(FDT_DATE_TIME, ECOLI)%>% # Just get relevant columns, 
+                                       filter(!is.na(ECOLI)) #get rid of NA's
                                      , 235 ) %>%
       filter(exceeds == T) %>%
-      mutate(FDT_DATE_TIME = as.Date(FDT_DATE_TIME), E.COLI = parameter) %>%
-      dplyr::select(FDT_DATE_TIME, E.COLI, limit, exceeds)
+      mutate(FDT_DATE_TIME = as.Date(FDT_DATE_TIME), ECOLI = parameter) %>%
+      dplyr::select(FDT_DATE_TIME, ECOLI, limit, exceeds)
     DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "150px", dom='ti')) })
   
   output$exceedancesOldStdTableSingleSitegeomean <- DT::renderDataTable({    req(oneStation())
     z <- bacteria_ExceedancesGeomeanOLD(oneStation() %>% 
-                                          dplyr::select(FDT_DATE_TIME,E.COLI) %>% # Just get relavent columns, 
-                                          filter(!is.na(E.COLI)), #get rid of NA's
-                                        'E.COLI', 126) 
+                                          dplyr::select(FDT_DATE_TIME,ECOLI) %>% # Just get relavent columns, 
+                                          filter(!is.na(ECOLI)), #get rid of NA's
+                                        'ECOLI', 126) 
     if(!is.null(z)){
       z <- z %>%
-        dplyr::select(FDT_DATE_TIME, E.COLI, sampleMonthYear, geoMeanCalendarMonth, limit, samplesPerMonth) %>%
+        dplyr::select(FDT_DATE_TIME, ECOLI, sampleMonthYear, geoMeanCalendarMonth, limit, samplesPerMonth) %>%
         filter(samplesPerMonth > 4, geoMeanCalendarMonth > limit) # minimum sampling rule for geomean to apply
-    } else {z <- tibble(FDT_DATE_TIME = NA, `E.COLI` = NA, sampleMonthYear= NA, geoMeanCalendarMonth= NA, limit= NA, samplesPerMonth= NA)}
+    } else {z <- tibble(FDT_DATE_TIME = NA, `ECOLI` = NA, sampleMonthYear= NA, geoMeanCalendarMonth= NA, limit= NA, samplesPerMonth= NA)}
       
     DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "100px", dom='t')) })
   
   output$oldStdTableSingleSite <- DT::renderDataTable({req(oneStation())
     #get rid of citizen data
-    z1 <- filter(oneStation(), !(ECOLI_RMK %in% c('Level II', 'Level I')))
+    z1 <- filter(oneStation(), !(RMK_ECOLI %in% c('Level II', 'Level I')))
     if(nrow(z1) > 1){
-      z <- bacteria_Assessment_OLD(z1,  'E.COLI', 126, 235)
+      z <- bacteria_Assessment_OLD(z1,  'ECOLI', 126, 235)
       if(nrow(z) > 0 ){
         z <- dplyr::select(z, `Assessment Method`,everything()) }
       DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'))
@@ -189,7 +189,7 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
   
   output$rawData <- DT::renderDataTable({
     req(oneStation())
-    z <- dplyr::select(oneStation(), FDT_STA_ID, FDT_DATE_TIME, E.COLI, RMK_ECOLI) %>% 
+    z <- dplyr::select(oneStation(), FDT_STA_ID, FDT_DATE_TIME, ECOLI, RMK_ECOLI) %>% 
       mutate(FDT_DATE_TIME = as.Date(FDT_DATE_TIME, format = '%Y-%m-%D %H:%M:S'))
     DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "400px", dom='ti'))  })
   
@@ -208,8 +208,15 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
     windowData <- filter(oneStationDecisionData(), as.character(`Date Window Starts`) %in% input$windowChoice_) %>%
       dplyr::select( associatedData) %>%
       unnest(cols = c(associatedData)) %>%
-      mutate(newSTV = 410, geomean = 126,
+      mutate(newSTV = 410, geomeanLimit = 126,
              `Date Time` = as.POSIXct(strptime(FDT_DATE_TIME, format="%Y-%m-%d")))#as.POSIXct(windowData$`Date Time`, format="%Y-%m-%d", tz='GMT') + as.difftime(1, units="days")
+    
+    # Fix look of single measure
+    if(nrow(windowData) == 1){
+      windowData <- bind_rows(windowData,
+                       tibble(`Date Time` = c(windowData$`Date Time`- days(5), windowData$`Date Time` + days(5))))
+    }
+    
     
     plot_ly(data=windowData) %>%
       add_markers(x= ~`Date Time`, y= ~Value,mode = 'scatter', name="E. coli (CFU / 100 mL)", marker = list(color= '#535559'),
@@ -221,8 +228,8 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
                 name="Window Geomean") %>%
       add_lines(data=windowData, x=~`Date Time`,y=~newSTV, mode='line', line = list(color = '#484a4c',dash = 'dot'),
                 hoverinfo = "text", text= "New STV: 410 CFU / 100 mL", name="New STV: 410 CFU / 100 mL") %>%
-      add_lines(data=windowData, x=~`Date Time`,y=~geomean, mode='line', line = list(color = 'black', dash= 'dash'),
-                hoverinfo = "text", text= "Geomean: 126 CFU / 100 mL", name="Geomean: 126 CFU / 100 mL") %>%
+      add_lines(data=windowData, x=~`Date Time`,y=~geomeanLimit, mode='line', line = list(color = 'black', dash= 'dash'),
+                hoverinfo = "text", text= "Geomean Criteria: 126 CFU / 100 mL", name="Geomean Criteria: 126 CFU / 100 mL") %>%
       layout(showlegend=FALSE,
              yaxis=list(title="E. coli (CFU / 100 mL)"),
              xaxis=list(title="Sample Date",tickfont = list(size = 10))) 
@@ -275,7 +282,7 @@ server <- function(input,output,session){
                  regionalAUsForTesting ) }) # for testing
   
   conventionals_HUC <- reactive({#eventReactive( input$pullHUCdata, {
-    filter(conventionals, Huc6_Vahu6 %in% 'JM01') %>%
+    filter(conventionals, Huc6_Vahu6 %in% 'JU11') %>%
       left_join(dplyr::select(stationTable(), STATION_ID:VAHU6,
                               WQS_ID:CLASS_DESCRIPTION),
                 #WQS_ID:`Max Temperature (C)`), 
@@ -309,7 +316,7 @@ server <- function(input,output,session){
   
   stationSelected <- reactive({input$stationSelection})
   ecoli <- reactive({req(stationData())
-    bacteriaAssessmentDecision(stationData(), 'E.COLI', 'ECOLI_RMK', 10, 410, 126)})
+    bacteriaAssessmentDecision(stationData(), 'ECOLI', 'RMK_ECOLI', 10, 410, 126)})
   
   callModule(EcoliPlotlySingleStation,'Ecoli', AUData, stationSelected, ecoli)#siteData$ecoli)
   

@@ -161,7 +161,7 @@ for(i in 1:nrow(stationTable)){
       tempExceedances(stationData) %>% quickStats('TEMP'),
       DOExceedances_Min(stationData) %>% quickStats('DO'), 
       pHExceedances(stationData) %>% quickStats('PH'),
-      bacteriaAssessmentDecision(stationData, 'E.COLI', 'ECOLI_RMK', 10, 410, 126) %>%
+      bacteriaAssessmentDecision(stationData, 'ECOLI', 'RMK_ECOLI', 10, 410, 126) %>%
         dplyr::select(ECOLI_EXC:ECOLI_STATECOLI_VERBOSE), # add verbose comment to COMMENT field
         #dplyr::select(ECOLI_EXC:ECOLI_STAT), # don't add verbose comment to COMMENT field
       bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_ENTEROCOCCI', 10, 130, 35) %>%
@@ -200,7 +200,7 @@ for(i in 1:nrow(stationTable)){
         mutate(NUT_CHLA_STAT = NA)) %>% # don't show a real assessment decision
     
       # COMMENTS
-      mutate(COMMENTS = paste0('E.COLI Comment: ', ECOLI_STATECOLI_VERBOSE,
+      mutate(COMMENTS = paste0('ECOLI Comment: ', ECOLI_STATECOLI_VERBOSE,
                                ' | ENTEROCOCCI Comment: ', ENTER_STATENTER_VERBOSE)) %>%
       dplyr::select(-ends_with(c('exceedanceRate', 'VERBOSE'))) # to match Bulk Upload template but helpful to keep visible til now for testing
   } else {# pull what you can from last cycle and flag as carry over
@@ -228,10 +228,12 @@ timeDiff = Sys.time()- startTime
 Now this is the starting point for the app.
 
 ```{r}
-write_csv(stationTableResults, 'processedStationData/stationTableResults.csv')
+write_csv(stationTableResults, 'processedStationData/stationTableResults.csv',
+          na = "") # dont write out a character NA in csv
 
 stationTableResults1 <- filter(stationTableResults, STATION_ID %in% filter(stationTable, REGION == "BRRO")$STATION_ID)
-write_csv(stationTableResults1, 'processedStationData/stationTableResultsBRRO.csv')
+write_csv(stationTableResults1, 'processedStationData/stationTableResultsBRRO.csv',
+          na = "") # dont write out a character NA in csv
 
 ```
 

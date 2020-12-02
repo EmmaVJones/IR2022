@@ -48,11 +48,11 @@ SpCondPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, FDT_SPECIFIC_CONDUCTANCE, FDT_SPECIFIC_CONDUCTANCE_RMK)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, FDT_SPECIFIC_CONDUCTANCE, RMK_FDT_SPECIFIC_CONDUCTANCE)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
-      formatStyle(c('FDT_SPECIFIC_CONDUCTANCE','FDT_SPECIFIC_CONDUCTANCE_RMK'), 'FDT_SPECIFIC_CONDUCTANCE_RMK', 
+      formatStyle(c('FDT_SPECIFIC_CONDUCTANCE','RMK_FDT_SPECIFIC_CONDUCTANCE'), 'RMK_FDT_SPECIFIC_CONDUCTANCE', 
                   backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   

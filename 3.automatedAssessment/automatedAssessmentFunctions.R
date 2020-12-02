@@ -90,8 +90,8 @@ StationTableStartingData <- function(x){
 
 #Max Temperature Exceedance Function
 tempExceedances <- function(x){
-  dplyr::select(x,FDT_DATE_TIME,FDT_TEMP_CELCIUS, FDT_TEMP_CELCIUS_RMK, `Max Temperature (C)`)%>% # Just get relevant columns, 
-    filter(!(FDT_TEMP_CELCIUS_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
+  dplyr::select(x,FDT_DATE_TIME,FDT_TEMP_CELCIUS, RMK_FDT_TEMP_CELCIUS, `Max Temperature (C)`)%>% # Just get relevant columns, 
+    filter(!(RMK_FDT_TEMP_CELCIUS %in% c('Level II', 'Level I'))) %>% # get lower levels out
     filter(!is.na(FDT_TEMP_CELCIUS))%>% #get rid of NA's
     rename(parameter = !!names(.[2]), limit = !!names(.[4])) %>% # rename columns to make functions easier to apply
     # Round to Even Rule
@@ -104,8 +104,8 @@ tempExceedances <- function(x){
 
 # Minimum DO Exceedance function
 DOExceedances_Min <- function(x){
-  dplyr::select(x,FDT_DATE_TIME,DO,DO_RMK,`Dissolved Oxygen Min (mg/L)`)%>% # Just get relevant columns, 
-    filter(!(DO_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
+  dplyr::select(x,FDT_DATE_TIME,DO,RMK_DO,`Dissolved Oxygen Min (mg/L)`)%>% # Just get relevant columns, 
+    filter(!(RMK_DO %in% c('Level II', 'Level I'))) %>% # get lower levels out
     filter(!is.na(DO)) %>% 
     rename(parameter = !!names(.[2]), limit = !!names(.[4])) %>% # rename columns to make functions easier to apply
     # Round to Even Rule
@@ -117,8 +117,8 @@ DOExceedances_Min <- function(x){
 
 # Daily Average exceedance function
 DO_Assessment_DailyAvg <- function(x){ 
-  dplyr::select(x,FDT_STA_ID,FDT_DATE_TIME, FDT_DATE_TIME,FDT_DEPTH,DO,DO_RMK,`Dissolved Oxygen Min (mg/L)`,`Dissolved Oxygen Daily Avg (mg/L)`)%>% # Just get relevant columns, 
-    filter(!(DO_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
+  dplyr::select(x,FDT_STA_ID,FDT_DATE_TIME, FDT_DATE_TIME,FDT_DEPTH,DO,RMK_DO,`Dissolved Oxygen Min (mg/L)`,`Dissolved Oxygen Daily Avg (mg/L)`)%>% # Just get relevant columns, 
+    filter(!(RMK_DO %in% c('Level II', 'Level I'))) %>% # get lower levels out
     filter(!is.na(DO)) %>% #get rid of NA's
     mutate(date = as.Date(FDT_DATE_TIME, format="%m/%d/%Y"), 
            limit = `Dissolved Oxygen Daily Avg (mg/L)`) %>% 
@@ -144,8 +144,8 @@ pHSpecialStandardsCorrection <- function(x){
 }
 
 pHExceedances <- function(x){
-  pH <- dplyr::select(x,FDT_DATE_TIME,FDT_DEPTH,FDT_FIELD_PH,FDT_FIELD_PH_RMK,`pH Min`,`pH Max`)%>% # Just get relevant columns, 
-    filter(!(FDT_FIELD_PH_RMK %in% c('Level II', 'Level I'))) %>% # get lower levels out
+  pH <- dplyr::select(x,FDT_DATE_TIME,FDT_DEPTH,FDT_FIELD_PH,RMK_FDT_FIELD_PH,`pH Min`,`pH Max`)%>% # Just get relevant columns, 
+    filter(!(RMK_FDT_FIELD_PH %in% c('Level II', 'Level I'))) %>% # get lower levels out
     filter(!is.na(FDT_FIELD_PH)) #get rid of NA's
     
   # only run analysis if WQS exist for station

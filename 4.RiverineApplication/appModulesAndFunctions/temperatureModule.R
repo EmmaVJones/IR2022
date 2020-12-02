@@ -63,11 +63,11 @@ temperaturePlotlySingleStation <- function(input,output,session, AUdata, station
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, FDT_TEMP_CELCIUS, FDT_TEMP_CELCIUS_RMK)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, FDT_TEMP_CELCIUS, RMK_FDT_TEMP_CELCIUS)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
-      formatStyle(c( 'FDT_TEMP_CELCIUS', 'FDT_TEMP_CELCIUS_RMK'), 'FDT_TEMP_CELCIUS_RMK', 
+      formatStyle(c( 'FDT_TEMP_CELCIUS', 'RMK_FDT_TEMP_CELCIUS'), 'RMK_FDT_TEMP_CELCIUS', 
                   backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))  })
   
   

@@ -43,11 +43,11 @@ salinityPlotlySingleStation <- function(input,output,session, AUdata, stationSel
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, FDT_SALINITY, FDT_SALINITY_RMK)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, FDT_SALINITY, RMK_FDT_SALINITY)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
-      formatStyle(c('FDT_SALINITY','FDT_SALINITY_RMK'), 'FDT_SALINITY_RMK', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
+      formatStyle(c('FDT_SALINITY','RMK_FDT_SALINITY'), 'RMK_FDT_SALINITY', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
   output$plotly <- renderPlotly({

@@ -12,12 +12,15 @@ TPPlotlySingleStationUI <- function(id){
                column(2,actionButton(ns('reviewData'),"Review Raw Parameter Data",class='btn-block', width = '250px'))),
       helpText('All data presented in the interactive plot is raw data. Rounding rules are appropriately applied to the 
                assessment functions utilized by the application.'),
-      plotlyOutput(ns('plotly')) )#,
-      #h5('Total Phosphorus exceedances of 0.2 mg/L for the ',span(strong('selected site')),' are highlighted below.'),
-      #fluidRow(
-      #  column(6, h6('If there is no data listed below then none of the measures exceeded 0.2 mg/L Total Phosphorus.'), tableOutput(ns("stationTPExceedance"))),
-      #  column(6, h6('Total Phosphorus > 0.2 mg/L exceedance rate'),tableOutput(ns("stationTPExceedanceRate")))))  
-  )
+      plotlyOutput(ns('plotly')) ,
+      h5('Total Phosphorus exceedances above 0.2 mg/L for the ',span(strong('selected site')),' are highlighted below to highlight
+         potenial observed effects for Aquatic Life Use.'),
+      fluidRow(
+        column(6, h6('If there is no data listed below then none of the measures exceeded 0.2 mg/L Total Phosphorus.'), 
+               dataTableOutput(ns('rangeTableSingleSite'))),
+        column(6, h6('Total Phosphorus > 0.2 mg/L exceedance rate'),
+               dataTableOutput(ns("stationExceedanceRate"))))
+  ) )
 }
 
 
@@ -110,18 +113,22 @@ TPPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
     
   })
   
-  #output$stationTPExceedance <- renderTable({
-  #  req(input$TP_oneStationSelection, TP_oneStation())
-  #  dplyr::select(TP_oneStation(), FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, PHOSPHORUS) %>%
-  #    filter(PHOSPHORUS > 0.2)
-  #})
+  output$rangeTableSingleSite <- renderDataTable({
+    req(oneStation())
+    z <- countNutrients(oneStation(), PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>%
+      filter(exceeds == TRUE) %>%
+      dplyr::select(FDT_DATE_TIME, PHOSPHORUS = parameter, RMK_PHOSPHORUS, LIMIT = limit)
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'))})
   
   
-  #output$stationTPExceedanceRate <- renderTable({
-  #  req(input$TP_oneStationSelection, TP_oneStation())
-  #  TPexceed(TP_oneStation()) %>% dplyr::select(-NUT_TP_STAT)
-  #})
+  output$stationExceedanceRate <- renderDataTable({
+    req(ns(input$oneStationSelection), oneStation())
+    z <- countNutrients(oneStation(), PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP') %>%
+      dplyr::select(-NUT_TP_STAT)
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t')) })
+  
 }
+
 
 
 ui <- fluidPage(
@@ -144,5 +151,4 @@ server <- function(input,output,session){
 }
 
 shinyApp(ui,server)
-
 

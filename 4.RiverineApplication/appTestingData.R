@@ -66,7 +66,7 @@ AUs <- suppressWarnings(st_intersection(regionalAUs,  huc6_filter)) #filter(vahu
 
 stationSummary <- filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>%
   distinct(FDT_STA_ID, .keep_all = TRUE) %>% 
-  dplyr::select(FDT_STA_ID:FDT_SPG_CODE, STA_LV2_CODE:STA_CBP_NAME, Latitude, Longitude) %>% 
+  dplyr::select(FDT_STA_ID:FDT_SPG_CODE, STA_LV2_CODE:Data_Source, Latitude, Longitude) %>% 
   mutate(#`In Stations Table` = ifelse(FDT_STA_ID %in% unique(stationTable$STATION_ID), 'yes','no'),
          #`In Selected Region` = ifelse(FDT_STA_ID %in% filter(stationTable, REGION %in% DEQregionSelection)$STATION_ID, 'yes','no'),
     `Analyzed By App` = #ifelse(`In Stations Table` == 'yes'# && `In Selected Region` == 'yes', 'yes','no'))
@@ -166,7 +166,7 @@ stationInfo <- filter(stationTable, STATION_ID == stationSelection) %>%
   
 # Station Table Output
 #run longer analyses first
-#ecoli1 <- bacteriaAssessmentDecision(stationData, 'E.COLI', 'ECOLI_RMK', 10, 410, 126)
+#ecoli1 <- bacteriaAssessmentDecision(stationData, 'ECOLI', 'RMK_ECOLI', 10, 410, 126)
 #enter1 <- bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_ENTEROCOCCI', 10, 130, 35)
 
 #stationTableOutput <- cbind(StationTableStartingData(stationData()),

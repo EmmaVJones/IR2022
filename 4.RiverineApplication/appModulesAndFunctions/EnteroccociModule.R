@@ -5,9 +5,9 @@ EnteroPlotlySingleStationUI <- function(id){
       h4(strong('Single Station Data Visualization')),
       fluidRow(column(6, helpText('Station used for this module is the station selected above to expedite app rendering.')),#uiOutput(ns('oneStationSelectionUI'))),
                column(6,actionButton(ns('reviewData'),"Review Raw Parameter Data",class='btn-block', width = '250px'))),
-      #verbatimTextOutput(ns('test')),
       helpText('All data presented in the interactive plot is raw data. Rounding rules are appropriately applied to the 
                assessment functions utilized by the application.'),
+      #verbatimTextOutput(ns('test')),
       plotlyOutput(ns('plotly')),
       br(),hr(),br(),
       fluidRow(
@@ -96,11 +96,11 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, ENTEROCOCCI, RMK_31649)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, ENTEROCOCCI, RMK_ENTEROCOCCI)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
-      formatStyle(c('ENTEROCOCCI','RMK_31649'), 'RMK_31649', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
+      formatStyle(c('ENTEROCOCCI','RMK_ENTEROCOCCI'), 'RMK_ENTEROCOCCI', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
   output$plotly <- renderPlotly({
@@ -119,7 +119,7 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
       add_lines(data=dat, x=~SampleDate,y=~oldSTV, mode='line', line = list(color = 'black'),
                 hoverinfo = "text", text= "Old SSM: 104 CFU / 100 mL", name="Old SSM: 104 CFU / 100 mL") %>%
       add_lines(data=dat, x=~SampleDate,y=~geomean, mode='line', line = list(color = 'black', dash= 'dash'),
-                hoverinfo = "text", text= "Geomean: 35 CFU / 100 mL", name="Geomean: 35 CFU / 100 mL") %>%
+                hoverinfo = "text", text= "Geomean Limit: 35 CFU / 100 mL", name="Geomean Limit: 35 CFU / 100 mL") %>%
       layout(showlegend=FALSE,
              yaxis=list(title="Enterococci (CFU / 100 mL)"),
              xaxis=list(title="Sample Date",tickfont = list(size = 10))) 
@@ -171,7 +171,7 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
   
   output$oldStdTableSingleSite <- DT::renderDataTable({req(oneStation())
     #get rid of citizen data
-    z1 <- filter(oneStation(), !(RMK_31649 %in% c('Level II', 'Level I')))
+    z1 <- filter(oneStation(), !(RMK_ENTEROCOCCI %in% c('Level II', 'Level I')))
     if(nrow(z1) > 1){
       z <- bacteria_Assessment_OLD(z1,  'ENTEROCOCCI', 35, 104)
       if(nrow(z) > 0 ){
@@ -184,7 +184,7 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
   
   output$rawData <- DT::renderDataTable({
     req(oneStation())
-    z <- dplyr::select(oneStation(), FDT_STA_ID, FDT_DATE_TIME, ENTEROCOCCI, RMK_31649) %>% 
+    z <- dplyr::select(oneStation(), FDT_STA_ID, FDT_DATE_TIME, ENTEROCOCCI, RMK_ENTEROCOCCI) %>% 
       mutate(FDT_DATE_TIME = as.Date(FDT_DATE_TIME, format = '%Y-%m-%D %H:%M:S'))
     DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "400px", dom='ti'))  })
   
@@ -203,7 +203,7 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
     windowData <- filter(oneStationDecisionData(), as.character(`Date Window Starts`) %in% input$windowChoice_) %>%
       dplyr::select( associatedData) %>%
       unnest(cols = c(associatedData)) %>%
-      mutate(newSTV = 130, geomean = 35,
+      mutate(newSTV = 130, geomeanLimit = 35,
              `Date Time` = as.POSIXct(strptime(FDT_DATE_TIME, format="%Y-%m-%d")))#as.POSIXct(windowData$`Date Time`, format="%Y-%m-%d", tz='GMT') + as.difftime(1, units="days")
     
     plot_ly(data=windowData) %>%
@@ -216,8 +216,8 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
                 name="Window Geomean") %>%
       add_lines(data=windowData, x=~`Date Time`,y=~newSTV, mode='line', line = list(color = '#484a4c',dash = 'dot'),
                 hoverinfo = "text", text= "New STV: 130 CFU / 100 mL", name="New STV: 130 CFU / 100 mL") %>%
-      add_lines(data=windowData, x=~`Date Time`,y=~geomean, mode='line', line = list(color = 'black', dash= 'dash'),
-                hoverinfo = "text", text= "Geomean: 35 CFU / 100 mL", name="Geomean: 35 CFU / 100 mL") %>%
+      add_lines(data=windowData, x=~`Date Time`,y=~geomeanLimit, mode='line', line = list(color = 'black', dash= 'dash'),
+                hoverinfo = "text", text= "Geomean Limit: 35 CFU / 100 mL", name="Geomean Limit: 35 CFU / 100 mL") %>%
       layout(showlegend=FALSE,
              yaxis=list(title="Enterococci (CFU / 100 mL)"),
              xaxis=list(title="Sample Date",tickfont = list(size = 10))) 

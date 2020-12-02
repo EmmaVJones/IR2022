@@ -69,11 +69,11 @@ DOPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   
   # modal parameter data
   output$parameterData <- DT::renderDataTable({  req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, DO, DO_RMK)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, DO, RMK_DO)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
-      formatStyle(c('DO','DO_RMK'), 'DO_RMK',backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray')) })
+      formatStyle(c('DO','RMK_DO'), 'RMK_DO',backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray')) })
   
   output$plotly <- renderPlotly({
     req(input$oneStationSelection, oneStation())
@@ -143,12 +143,12 @@ DOPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   
   output$stationExceedanceRate <- renderDataTable({req(input$oneStationSelection, oneStation())
     z <- DOExceedances_Min(oneStation()) %>% quickStats('DO') %>% dplyr::select(-DO_STAT)
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t')) })
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t')) })
   
   output$stationDailyAverageExceedanceRate <- renderDataTable({
     req(input$oneStationSelection, oneStation())
     z <- DO_Assessment_DailyAvg(oneStation()) %>% quickStats('DO_Daily_Avg') %>% dplyr::select(-DO_Daily_Avg_STAT)
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t')) })
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t')) })
   
 }
 

@@ -15,14 +15,14 @@
 #                           FDT_DATE_TIME= as.POSIXct(c('2019-02-12 10:00:00', '2019-02-13 10:00:00', '2019-02-14 10:00:00', '2019-02-15 10:00:00', '2019-02-16 10:00:00',
 #                                           '2019-02-17 10:00:00', '2019-02-18 10:00:00', '2019-02-19 10:00:00', '2019-02-20 10:00:00', '2019-02-21 10:00:00',
 #                                           '2019-02-22 10:00:00','2019-02-23 10:00:00','2019-02-24 10:00:00')),
-#                          E.COLI = c(22, 33, 44, 55, 66, 77, 88, 99, 100, 800, 450, 400, 430),
-#                          ECOLI_RMK = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA)))
+#                          ECOLI = c(22, 33, 44, 55, 66, 77, 88, 99, 100, 800, 450, 400, 430),
+#                          RMK_ECOLI = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA)))
 
 
 #x <- stationData
-#bacteriaField <- 'E.COLI' #
+#bacteriaField <- 'ECOLI' #
 ##  'ENTEROCOCCI'
-#bacteriaRemark <- 'ECOLI_RMK' #  
+#bacteriaRemark <- 'RMK_ECOLI' #  
 ##  'RMK_ENTEROCOCCI'
 #sampleRequirement <- 10
 #STV <- 410 #
@@ -123,7 +123,7 @@ bacteriaExceedances_NEW <- function(x, # input dataframe with bacteria data
   return(out) 
 }
 
-#y <- bacteriaExceedances_NEW(stationData, 'E.COLI', 'ECOLI_RMK', 10, 410, 126)
+#y <- bacteriaExceedances_NEW(stationData, 'ECOLI', 'RMK_ECOLI', 10, 410, 126)
 
 
 
@@ -149,7 +149,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
                                        geomeanCriteria # unique for ecoli/enter
 ){
     # Rename output columns based on station table template
-    stationTableName <- ifelse(bacteriaField == 'E.COLI', "ECOLI", "ENTER")
+    stationTableName <- ifelse(bacteriaField == 'ECOLI', "ECOLI", "ENTER")
     
     nSamples <- select(x,  Value = {{ bacteriaField }} ) %>% 
       filter(!is.na(Value)) # total n samples taken in assessment window
@@ -300,7 +300,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
   }
 
 # To get just info for station table  
-#xxx <- bacteriaAssessmentDecision(stationData, 'E.COLI', 'ECOLI_RMK', 10, 410, 126) %>%
+#xxx <- bacteriaAssessmentDecision(stationData, 'ECOLI', 'RMK_ECOLI', 10, 410, 126) %>%
 #  dplyr::select(StationID:ECOLI_STAT)
 #xxx <- bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35) %>%
 #  dplyr::select(StationID:ENTER_STAT)
