@@ -237,3 +237,15 @@ metalsExceedances <- function(x, metalType){
   names(x) <- paste(metalType,names(x), sep='_')
   return(x)
 }
+
+
+# Benthic Data flag
+benthicAssessment <- function(x, VSCIresults){
+  # this works because the all SCI options are run on all data, so if there is a VSCI result 
+  # (even if in real life that is not the correct SCI to use), then benthic data exists for
+  # a given station
+  z <- filter(VSCIresults, StationID %in% unique(x$FDT_STA_ID))
+  if(nrow(z) > 0){tibble(BENTHIC_STAT='Review')
+  } else { tibble(BENTHIC_STAT=NA)}
+}
+#benthicAssessment(x, VSCIresults)

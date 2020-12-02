@@ -17,17 +17,18 @@ WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
 Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
 WQMstationFull <- pin_get("WQM-Station-Full", board = "rsconnect")
 VSCIresults <- pin_get("VSCIresults", board = "rsconnect") %>%
-  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) %>% # get ecoregion info
-  left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
-              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('StationID' = 'WQM_STA_ID'))
+  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) )# %>% # get ecoregion info
+  #left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME, WQS_BASIN_CODE) %>%
+  #            distinct(WQM_STA_ID, .keep_all = TRUE), by = c('StationID' = 'WQM_STA_ID'))
 VCPMI63results <- pin_get("VCPMI63results", board = "rsconnect") %>%
-  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) %>% # get ecoregion info
-  left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
-              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('StationID' = 'WQM_STA_ID'))
+  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) #%>% # get ecoregion info
+  #left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME, WQS_BASIN_CODE) %>%
+   #           distinct(WQM_STA_ID, .keep_all = TRUE), by = c('StationID' = 'WQM_STA_ID'))
 VCPMI65results <- pin_get("VCPMI65results", board = "rsconnect") %>%
-  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) %>% # get ecoregion info
-  left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
-              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('StationID' = 'WQM_STA_ID'))
+  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) #%>% # get ecoregion info
+  #left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME, WQS_BASIN_CODE) %>%
+  #            distinct(WQM_STA_ID, .keep_all = TRUE), by = c('StationID' = 'WQM_STA_ID'))
+
 
 
 
@@ -44,7 +45,9 @@ stationTable <- filter(stationTable, !STATION_ID %in% lakeStations$STATION_ID) %
   # Fix for Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard)
   left_join(WQSvalues, by = 'CLASS_BASIN') %>%
   dplyr::select(-c(CLASS.y,CLASS_BASIN)) %>%
-  rename('CLASS' = 'CLASS.x') 
+  rename('CLASS' = 'CLASS.x') %>%
+  left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
+              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('STATION_ID' = 'WQM_STA_ID'))
 # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
 
 
@@ -83,7 +86,7 @@ carryoverStations <- filter(stationTable, VAHU6 %in% huc6_filter$VAHU6 & str_det
 
 conventionals_HUC <- filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>%
     left_join(dplyr::select(stationTable, STATION_ID:VAHU6,
-                            WQS_ID:CLASS_DESCRIPTION),
+                            WQS_ID:EPA_ECO_US_L3NAME),
                             #WQS_ID:`Max Temperature (C)`), 
               by = c('FDT_STA_ID' = 'STATION_ID')) %>%
     filter(!is.na(ID305B_1)) %>%

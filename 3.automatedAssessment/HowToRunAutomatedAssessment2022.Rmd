@@ -50,10 +50,13 @@ Much faster method and makes sure data used by assessors is same for testing.
 conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect")
 conventionals_distinct <- pin_get("conventionals-distinct-draft", board = "rsconnect")
 stations2020IR <- pin_get("stations2020IR-sf-draft", board = "rsconnect")
-VSCIresults <- pin_get("VSCIresults", board = "rsconnect")
-VCPMI63results <- pin_get("VCPMI63results", board = "rsconnect")
-VCPMI65results <- pin_get("VCPMI65results", board = "rsconnect")
-WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
+WQMstationFull <- pin_get("WQM-Station-Full", board = "rsconnect")
+VSCIresults <- pin_get("VSCIresults", board = "rsconnect") %>%
+  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) )
+VCPMI63results <- pin_get("VCPMI63results", board = "rsconnect") %>%
+  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) )
+VCPMI65results <- pin_get("VCPMI65results", board = "rsconnect") %>%
+  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
 Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
 ```
 
@@ -95,7 +98,9 @@ stationTable <- left_join(stationTable, WQSlookup, by = c('STATION_ID'='StationI
   # Fix for Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard)
   left_join(WQSvalues, by = 'CLASS_BASIN') %>%
   dplyr::select(-c(CLASS.y,CLASS_BASIN)) %>%
-  rename('CLASS' = 'CLASS.x') 
+  rename('CLASS' = 'CLASS.x') %>%
+  left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
+              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('STATION_ID' = 'WQM_STA_ID'))
   # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
   
 
@@ -188,6 +193,7 @@ for(i in 1:nrow(stationTable)){
     
       # Benthics 
       # BENTHIC_STAT, BENTHIC_WOE_CAT, BIBI_SCORE
+      benthicAssessment(stationData, VSCIresults),
     
       # Nutrient: TP (lakes have real standards but riverine uses 0.2 mg/L as an observed effect for Aquatic life use)
       # NUT_TP_EXC, NUT_TP_SAMP, NUT_TP_STAT

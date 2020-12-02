@@ -19,17 +19,12 @@ WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
 Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
 WQMstationFull <- pin_get("WQM-Station-Full", board = "rsconnect")
 VSCIresults <- pin_get("VSCIresults", board = "rsconnect") %>%
-  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) %>% # get ecoregion info
-  left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
-              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('StationID' = 'WQM_STA_ID'))
+  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) )
 VCPMI63results <- pin_get("VCPMI63results", board = "rsconnect") %>%
-  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) %>% # get ecoregion info
-  left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
-              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('StationID' = 'WQM_STA_ID'))
+  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) )
 VCPMI65results <- pin_get("VCPMI65results", board = "rsconnect") %>%
-  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) %>% # get ecoregion info
-  left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
-              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('StationID' = 'WQM_STA_ID'))
+  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) 
+
 
 
 
@@ -63,7 +58,9 @@ shinyServer(function(input, output, session) {
       # Fix for Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard)
       left_join(WQSvalues, by = 'CLASS_BASIN') %>%
       dplyr::select(-c(CLASS.y,CLASS_BASIN)) %>%
-      rename('CLASS' = 'CLASS.x') 
+      rename('CLASS' = 'CLASS.x') %>%
+      left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
+                  distinct(WQM_STA_ID, .keep_all = TRUE), by = c('STATION_ID' = 'WQM_STA_ID'))
     # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
     
     return(stationTable)
@@ -196,7 +193,7 @@ shinyServer(function(input, output, session) {
   conventionals_HUC <- reactive({#eventReactive( input$pullHUCdata, {
     filter(conventionals, Huc6_Vahu6 %in% huc6_filter()$VAHU6) %>%
       left_join(dplyr::select(stationTable(), STATION_ID:VAHU6,
-                              WQS_ID:CLASS_DESCRIPTION),
+                              WQS_ID:EPA_ECO_US_L3NAME),
                               #WQS_ID:`Max Temperature (C)`), 
                 by = c('FDT_STA_ID' = 'STATION_ID')) %>%
       filter(!is.na(ID305B_1)) %>%
@@ -297,6 +294,7 @@ shinyServer(function(input, output, session) {
                                                              dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
                                          metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
                                                              dplyr::select(ARSENIC:ZINC), 'SED_MET'),
+                                         benthicAssessment(stationData(), VSCIresults),
                                          countNutrients(stationData(), PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP') %>% 
                                            mutate(NUT_TP_STAT = ifelse(NUT_TP_STAT != "S", "Review", NA)), # flag OE but don't show a real assessment decision
                                          countNutrients(stationData(), CHLOROPHYLL, RMK_CHLOROPHYLL, NA) %>% quickStats('NUT_CHLA') %>%
@@ -322,6 +320,7 @@ shinyServer(function(input, output, session) {
       formatStyle(c('ENTER_SAMP','ENTER_EXC',"ENTER_GM_EXC","ENTER_GM_SAMP",'ENTER_STAT'), 'ENTER_STAT', backgroundColor = styleEqual(c('IM'), c('red'))) %>%
       formatStyle(c('WAT_MET_EXC','WAT_MET_STAT'), 'WAT_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
       formatStyle(c('SED_MET_EXC','SED_MET_STAT'), 'SED_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+      formatStyle(c('BENTHIC_STAT'), 'BENTHIC_STAT', backgroundColor = styleEqual(c('Review'), c('yellow'))) %>%
       formatStyle(c('NUT_TP_EXC','NUT_TP_SAMP'), 'NUT_TP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) 
     
       
@@ -421,7 +420,7 @@ shinyServer(function(input, output, session) {
   # Other Data Sources
   
   #### Benthics Sub Tab ####---------------------------------------------------------------------------------------------------
-  
+  callModule(BenthicsPlotlySingleStation,'Benthics', AUData, stationSelected, VSCIresults, VCPMI63results, VCPMI65results)
   
   #### Metals Sub Tab ####---------------------------------------------------------------------------------------------------
   callModule(metalsTableSingleStation,'metals', AUData, WCmetals ,Smetals, stationSelected)

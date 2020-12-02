@@ -247,7 +247,9 @@ shinyUI(fluidPage(theme="yeti.css",
                                                                 DSulfatePlotlySingleStationUI('DSulfate'))
                                                      )),
                                             tabPanel('EDAS Data',
-                                                     br(), h4('Hang tight, module still in development.'), br(), br(), br(), br(), br(), br()),
+                                                     helpText('Review each site using the single site visualization section. If no benthic information is presented, then there is no macroinvertebrate data for
+                                                             the station. Always review biologist fact sheets to assist assessment decisions.'),
+                                                     BenthicsPlotlySingleStationUI('Benthics')),
                                             tabPanel('Metals Data',
                                                      helpText('Review each site using the single site visualization section. All analyses were performed outside of the
                                                               automated assessment scripts, so please direct questions to Roger Stewart (roger.stewart@deq.virginia.gov).'),

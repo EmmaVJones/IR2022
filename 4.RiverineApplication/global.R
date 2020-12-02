@@ -19,7 +19,7 @@ source('appModulesAndFunctions/multipleDependentSelectizeArguments.R')
 source('appModulesAndFunctions/automatedAssessmentFunctions.R')
 
 modulesToReadIn <- c('temperature','pH','DO','Ecoli', 'Enteroccoci','SpCond','Salinity','TN','chlA','Enteroccoci', 'TP','sulfate',#'Ammonia', 
-                     'Chloride', 'Nitrate','metals', 'fecalColiform','SSC')#,'Benthics')
+                     'Chloride', 'Nitrate','metals', 'fecalColiform','SSC','Benthics')
 for (i in 1:length(modulesToReadIn)){
   source(paste('appModulesAndFunctions/',modulesToReadIn[i],'Module.R',sep=''))
 }
@@ -158,3 +158,58 @@ assessmentDetermination <- function(parameterDF,parameterAssessmentDF,parameter,
 }
 #assessmentDetermination(temp,temp_Assess,"temperature","Aquatic Life")
 
+
+
+
+## Benthics metrics
+benthicResultsMetrics <- function(x, SCIresults, wadeableOnly, rep1Only){
+  z <- filter(SCIresults, StationID %in% unique(x$FDT_STA_ID)) %>%
+    filter(`Target Count` == 110) %>% # removing non rarified samples takes care of removing QA samples
+    {if(wadeableOnly)
+      filter(., Gradient != 'Boatable')
+      else .} %>%
+    {if(rep1Only)
+      filter(., RepNum == 1)
+      else .}
+  out <- list()
+  if(nrow(z) > 0){
+    z1 <- mutate(z, Year = lubridate::year(`Collection Date`))
+    spring <- filter(z1, Season %in% 'Spring' )
+    fall <- filter(z1, Season %in% 'Fall' )
+    # output list with all metrics
+    out$data <- z1
+    out$roundup <- z1 %>%
+      group_by(StationID) %>%
+      summarise(`n Samples` = n(),
+                `Average SCI` = round(mean(`SCI Score`), digits = 0),
+                `Minimum SCI` = round(min(`SCI Score`), digits = 0),
+                `Maximum SCI` = round(max(`SCI Score`), digits = 0)) %>%
+      bind_cols(spring %>%
+                  summarise(`n Spring Samples` = n(),
+                            `Spring Average SCI` = round(mean(`SCI Score`), digits = 0))) %>%
+      bind_cols(fall %>%
+                  summarise(`n Fall Samples` = n(),
+                            `Fall Average SCI` = round(mean(`SCI Score`), digits = 0)))
+    
+    out$yearlyAverage <- z1 %>%
+      group_by(Year) %>%
+      summarise(`Yearly Average` = round(mean(`SCI Score`), digits = 0)) 
+  } else {
+    out$data <- NA
+    out$roundup <- tibble(StationID = NA,  
+                          `n Samples`=NA, `Average SCI` =NA, `Minimum SCI` = NA, `Maximum SCI`= NA,
+                          `n Spring Samples`= NA, `Spring Average SCI`=NA, 
+                          `n Fall Samples` = NA, `Fall Average SCI`= NA)
+    out$yearlyAverage <- tibble(Year= NA, `Yearly Average`=NA)  }
+  return(out)
+}
+#benthicResultsMetrics(x, VCPMI63results, TRUE, TRUE)
+
+SCIchooser <- function(x){
+  if(unique(x$EPA_ECO_US_L3CODE) %in% 63 | 
+     str_detect(unique(x$Basin_Code), 'Chowan')){return('VCPMI 63 + Chowan')}
+  if(unique(x$EPA_ECO_US_L3CODE)  %in% 65  & 
+     !str_detect(unique(x$Basin_Code), 'Chowan')){return('VCPMI 65 - Chowan')}
+  if(unique(x$EPA_ECO_US_L3CODE) %in% c(NA, 45, 64, 66, 67, 69)){return('VSCI')}
+}
+#SCIchooser(x)
