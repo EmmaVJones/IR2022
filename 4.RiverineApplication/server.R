@@ -219,8 +219,15 @@ shinyServer(function(input, output, session) {
       distinct(FDT_STA_ID) %>%
       pull()
     # add in carryover stations
-    if(nrow(carryoverStations()) >0 ){
-      z <- c(z, carryoverStations()$STATION_ID)   }
+    if(nrow(carryoverStations()) > 0){
+      carryoverStationsInAU <- filter(carryoverStations(),  ID305B_1 %in% input$AUselection | ID305B_2 %in% input$AUselection | 
+                                        ID305B_3 %in% input$AUselection | ID305B_4 %in% input$AUselection | ID305B_5 %in% input$AUselection | 
+                                        ID305B_6 %in% input$AUselection | ID305B_7 %in% input$AUselection | ID305B_8 %in% input$AUselection | 
+                                        ID305B_9 %in% input$AUselection | ID305B_10 %in% input$AUselection) %>%
+        distinct(STATION_ID) %>%
+        pull()
+      if(length(carryoverStationsInAU) > 0){
+        z <- c(z, carryoverStationsInAU)  } }
     
     fluidRow(selectInput('stationSelection', 'Station Selection', choices = sort(unique(z))),
              helpText("The stations available in the drop down are limited to stations with an ID305B_1:ID305B_10 designation equal 

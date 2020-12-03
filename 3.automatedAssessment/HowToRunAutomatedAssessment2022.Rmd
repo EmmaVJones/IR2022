@@ -56,7 +56,8 @@ VSCIresults <- pin_get("VSCIresults", board = "rsconnect") %>%
 VCPMI63results <- pin_get("VCPMI63results", board = "rsconnect") %>%
   filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) )
 VCPMI65results <- pin_get("VCPMI65results", board = "rsconnect") %>%
-  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
+  filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) 
+WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
 Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
 ```
 
@@ -128,7 +129,7 @@ stationTable <- filter(stationTable, ! STATION_ID %in% lakeStations$STATION_ID)
 For testing reduce stationTable to just BRRO for now
 
 ```{r}
-stationTable <- filter(stationTable, REGION == "BRRO")
+#stationTable <- filter(stationTable, REGION == "BRRO")
 ```
 
 

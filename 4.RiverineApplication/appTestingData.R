@@ -2,8 +2,8 @@
 source('global.R')
 
 DEQregionSelection <- 'BRRO'
-basinSelection <- 'James-Upper'#"Roanoke"#"James-Middle"#"Roanoke"#'James-Upper'#
-HUC6Selection <- "JU11"#'RL12'#"JM02"#'JM16'#'RU09'#'RL12'#
+basinSelection <- "James-Middle"#'James-Upper'#"Roanoke"#"Roanoke"#'James-Upper'#
+HUC6Selection <- "JM04"#"JU11"#'RL12'#"JM02"#'JM16'#'RU09'#'RL12'#
 
 
 conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
@@ -103,7 +103,16 @@ stationSelection <- filter(conventionals_HUC, ID305B_1 %in% AUselection | ID305B
                 ID305B_9 %in% AUselection | ID305B_10 %in% AUselection) %>%
     distinct(FDT_STA_ID) %>%
   pull()
-stationSelection <- c(stationSelection, carryoverStations$STATION_ID)
+# add in carryover stations
+if(nrow(carryoverStations) > 0){
+  carryoverStationsInAU <- filter(carryoverStations,  ID305B_1 %in% AUselection | ID305B_2 %in% AUselection | 
+                                    ID305B_3 %in% AUselection | ID305B_4 %in% AUselection | ID305B_5 %in% AUselection | 
+                                    ID305B_6 %in% AUselection | ID305B_7 %in% AUselection | ID305B_8 %in% AUselection | 
+                                    ID305B_9 %in% AUselection | ID305B_10 %in% AUselection) %>%
+    distinct(STATION_ID) %>%
+    pull()
+  if(length(carryoverStationsInAU) > 0){
+    stationSelection <- c(stationSelection, carryoverStationsInAU)  } }
 stationSelection <- stationSelection[3]
 
 AUData <- filter_at(conventionals_HUC, vars(starts_with("ID305B")), any_vars(. %in% AUselection) ) 
