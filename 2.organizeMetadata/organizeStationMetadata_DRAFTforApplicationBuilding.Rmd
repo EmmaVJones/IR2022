@@ -143,8 +143,11 @@ We want to drop stations that did not get sampled in 2022 cycle (**based on conv
 
 ```{r stations with data or carryover stations}
 # Stations that should be kept even though they don't have data in window
-lastCycleStation_keep <- filter_at(lastCycleStation_sf, vars(contains("_STAT")), any_vars(. %in% c("IM"))) %>% # maybe more? not sure c("W", "IN", "O", "IM", "IN/O")))
+lastCycleStation_keep <- filter_at(lastCycleStation_sf, vars(contains("_STAT")), any_vars(. %in% c("IM"))) %>% # find stations that had data in last window that need to carry over %>%
+  rbind(filter(lastCycleStation_sf, str_detect(COMMENTS, 'carr'))) %>% # search for text about things 'carr'ying over, not perfect but will catch a lot
+  distinct(STATION_ID, .keep_all = T) %>%
   st_drop_geometry()
+
 
 # things could get difficult with bacteria carry over rules that are TBD, Stay tuned
   
@@ -322,7 +325,23 @@ First, take the most recent WQSlookup table and upload to server. This should be
 
 ```{r wqs information}
 # most recent version taken from ..\1.preprocessData\WQSlookupTable
-WQSlookup <- read_csv('data/WQSlookupTable/20200925_115058_WQSlookup.csv')
+WQSlookup <- read_csv('data/WQSlookupTable/20201207_092616_WQSlookup.csv')
+
+# find number of WQS_ID linked to each station
+WQSlookup1 <- WQSlookup %>% 
+  group_by(StationID) %>%
+  summarise(distinctWQS = n_distinct(WQS_ID))
+
+
+# these need to be sorted out 
+moreThan1WQS <- filter(WQSlookup, StationID %in% filter(WQSlookup1, distinctWQS != 1)$StationID) %>%
+  arrange(StationID)
+write_csv(moreThan1WQS, 'multipleWQS.csv')
+
+rm(moreThan1WQS); rm(WQSlookup1)
+
+
+
 pin(WQSlookup, description = "WQS lookup table from metadata attribution application", board = "rsconnect")
 ```
 
@@ -349,19 +368,36 @@ rm(estuarinePolys)
 
 To speed up the applications and assessment calculations, we will first join the actual WQS information to the lookup table now in the preprocessing steps and pin that information as a starting point for apps.
 
+But to speed this process up, we will first pull down the data that exists on the server as to not run spatial joins more than necessary.
+
+```{r}
+WQSlookup_withStandards <- pin_get('WQSlookup-withStandards', board = "rsconnect")
+
+# cheater step, find sites I know have issues and remove from archived version
+WQStableKnownIssues <- readRDS('./data/WQStable12072020.RDS')
+WQSlookup_withStandards <- filter(WQSlookup_withStandards, ! StationID %in% WQStableKnownIssues$StationID)
+
+
+WQSlookupToDo <- filter(WQSlookup, ! StationID %in% WQSlookup_withStandards$StationID)
+
+```
+
+
+
+
 ```{r WQS information joins, eval = FALSE}
 #bring in Riverine layers, valid for the assessment window
 riverine <- st_read('C:/HardDriveBackup/GIS/WQS/WQS_layers_05082020.gdb', layer = 'riverine_05082020') %>%
   st_drop_geometry() # only care about data not geometry
 
-WQSlookupFull <- left_join(WQSlookup, riverine) %>%
+WQSlookupFull <- left_join(WQSlookupToDo, riverine) %>%
   filter(!is.na(CLASS))
 rm(riverine)
 
 lacustrine <- st_read('C:/HardDriveBackup/GIS/WQS/WQS_layers_05082020.gdb', layer = 'lakes_reservoirs_05082020') %>%
   st_drop_geometry() # only care about data not geometry
 
-WQSlookupFull <- left_join(WQSlookup, lacustrine) %>%
+WQSlookupFull <- left_join(WQSlookupToDo, lacustrine) %>%
   filter(!is.na(CLASS)) %>%
   bind_rows(WQSlookupFull)
 rm(lacustrine)
@@ -369,7 +405,7 @@ rm(lacustrine)
 estuarineLines <- st_read('C:/HardDriveBackup/GIS/WQS/WQS_layers_05082020.gdb', layer = 'estuarinelines_05082020') %>%
   st_drop_geometry() # only care about data not geometry
 
-WQSlookupFull <- left_join(WQSlookup, estuarineLines) %>%
+WQSlookupFull <- left_join(WQSlookupToDo, estuarineLines) %>%
   filter(!is.na(CLASS)) %>%
   bind_rows(WQSlookupFull)
 rm(estuarineLines)
@@ -377,25 +413,38 @@ rm(estuarineLines)
 estuarinePolys <- st_read('C:/HardDriveBackup/GIS/WQS/WQS_layers_05082020.gdb', layer = 'estuarinepolygons_05082020') %>%
   st_drop_geometry() # only care about data not geometry
 
-WQSlookupFull <- left_join(WQSlookup, estuarinePolys) %>%
+WQSlookupFull <- left_join(WQSlookupToDo, estuarinePolys) %>%
   filter(!is.na(CLASS)) %>%
   bind_rows(WQSlookupFull)
 rm(estuarinePolys)
 
-WQSlookup_withStandards <- WQSlookupFull # for pin
+WQSlookup_withStandards_pin <- bind_rows(WQSlookup_withStandards, WQSlookupFull) # for pin
+
+# Find duplicates 
+WQSlookup_withStandards_issues <- WQSlookup_withStandards_pin %>% 
+  group_by(StationID) %>% 
+  mutate(totCount = n()) %>% 
+  filter(totCount > 1)
+# write out and fix
+write_csv(WQSlookup_withStandards_issues %>% arrange(StationID), 'data/fixMe.csv')
+fixed <- read_csv('data/fixMe.csv') %>%
+  mutate(GNIS_ID = as.factor(as.character(GNIS_ID)))
+
+WQSlookup_withStandards <- filter(WQSlookup_withStandards_pin, ! StationID %in% fixed$StationID) %>%
+  bind_rows(fixed)
 
 # What stations still need WQS?
-z <- filter(WQSlookup, ! StationID %in% WQSlookupFull$StationID) %>%
-  filter(StationID %in% conventionals_distinct$FDT_STA_ID)
+#z <- filter(WQSlookup, ! StationID %in% WQSlookupFull$StationID) %>%
+#  filter(StationID %in% conventionals_distinct$FDT_STA_ID)
 
 # fix user issues
-test <- readRDS('C:/HardDriveBackup/R/GitHub/IR2022/1.preprocessData/data/WQStable.RDS')
-y <- left_join(z, test, by = 'StationID') %>%
-  rename("WQS_ID Saved on the server" = "WQS_ID.x",
-         "WQS_ID Suggested To User" = "WQS_ID.y",
-         "Buffer Distance" = "Buffer Distance.y") %>%
-  dplyr::select(StationID, `Buffer Distance`, `WQS_ID Saved on the server`, `WQS_ID Suggested To User`, Comments)
-write.csv(y,'missingWQSforReview.csv')
+#test <- readRDS('C:/HardDriveBackup/R/GitHub/IR2022/1.preprocessData/data/WQStable.RDS')
+#y <- left_join(z, test, by = 'StationID') %>%
+#  rename("WQS_ID Saved on the server" = "WQS_ID.x",
+#         "WQS_ID Suggested To User" = "WQS_ID.y",
+#         "Buffer Distance" = "Buffer Distance.y") %>%
+#  dplyr::select(StationID, `Buffer Distance`, `WQS_ID Saved on the server`, `WQS_ID Suggested To User`, Comments)
+#write.csv(y,'missingWQSforReview.csv')
 
 ```
 

@@ -30,7 +30,7 @@ if(nrow(distinctSites_sf) < nrow(distinctSites)){
       dplyr::select(FDT_STA_ID, everything())
   }
   
-  missingSites <- left_join(missingSites, closest %>%st_drop_geometry(),
+  missingSites <- left_join(missingSites, closest %>% st_drop_geometry(),
                             by = 'FDT_STA_ID') %>%
     st_join(dplyr::select(subbasinLayer, BASIN_NAME, BASIN_CODE, SUBBASIN), join = st_intersects) %>%
     dplyr::select(-c(geometry), geometry) %>%
@@ -55,3 +55,4 @@ if(nrow(distinctSites_sf) < nrow(distinctSites)){
 }
 
 rm(closest); rm(missingSites); rm(i)
+saveRDS(distinctSites_sf, './data/distinctSites_sf.RDS')

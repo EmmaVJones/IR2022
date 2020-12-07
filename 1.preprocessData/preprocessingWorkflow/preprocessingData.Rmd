@@ -5,6 +5,11 @@ date: "5/6/2020"
 output: html_document
 ---
 
+After an update to lwgeom, this entire script needs to be run in R4.0.3 or you run into 'C Stack limit' errors at geospatial processes. Likely this has to do with updates to geospatial operations in underlying system dependencies with sf0.8 to sf 0.9, but not entirely sure.
+
+All other scripts should be performed in R 3.6.2 to ensure they work on the server (which is still running GDAL 2.2X and PROJ4)
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 
@@ -64,6 +69,13 @@ This version of the method smashed together a fully QAed version of the conventi
 #source('./preprocessingModules/conventionalsSmashing2013-2019.R')
 ```
 
+And we will make updates to this schema to match Roland's citmon database and keep with db best practices.
+
+```{r}
+source('./preprocessingModules/updateConventionalsSchema.R')
+```
+
+
 So we will use this as a pretend dataset to simulate what one could expect from 2022 IR, e.g. some attributed (AU and WQS) stations as well as some new stuff. This exercise will be conducted for BRRO, but the methods will apply statewide.
 
 ### Other data: Citizen Monitoring and Non Agency
@@ -72,69 +84,10 @@ Stations pulled from other sources with Lat/Lng info could be run through the WQ
 
 Working with Roland's first data reorganization attempt using just CMC data.
 
-```{r citmon data}
-citmon <- read_excel('data/CitMonNonAgency/CitMonNonAgencyMonData22IR_test.xlsx') %>%
-  # change to naming system 
-  rename("FDT_TEMP_CELCIUS"  ="TEMPERATURE_00010_DEGREES CENTIGRADE",
-         #"FDT_TEMP_CELCIUS_RMK" = "FDT_TEMP_CELCIUS_RMK",  
-         "FDT_FIELD_PH" = "pH_00400_STD_UNITS" ,          
-         #"FDT_FIELD_PH_RMK"  ="FDT_FIELD_PH_RMK", 
-         "DO" =  "DO_mg/L",       
-         #"DO_RMK"  ="DO_RMK",    
-         "FDT_SPECIFIC_CONDUCTANCE"="SPECIFIC_CONDUCTANCE_00095_UMHOS/CM @ 25C",    
-         #"FDT_SPECIFIC_CONDUCTANCE_RMK" ="FDT_SPECIFIC_CONDUCTANCE_RMK" ,
-         "FDT_SALINITY" = "SALINITY_00480_PPT" ,            
-         #"FDT_SALINITY_RMK"  ="FDT_SALINITY_RMK",  
-         "NITROGEN" = "NITROGEN_mg/L" ,                    
-         "AMMONIA" ="AMMONIA_mg/L",
-         "PHOSPHORUS" =  "PHOSPHORUS_mg/L",
-         "FECAL_COLI" = "FECAL_COLIFORM_31616_NO/100mL" ,
-         "E.COLI" = "ECOLI_CFU/100mL",                       
-         "ENTEROCOCCI" =  "ENTEROCOCCI_31649_NO/100mL",
-         "CHLOROPHYLL" ="CHLOROPHYLL_32211_ug/L",                
-         "SSC" ="SSC-TOTAL_00530_mg/L" , 
-         "NITRATE" ="NITRATE_mg/L", 
-         "CHLORIDE" ="CHLORIDE_mg/L",
-         "SULFATE_TOTAL" ="SULFATE_TOTAL_00945_mg/L",              
-         "SULFATE_DISS" ="SULFATE_DISSOLVED_00946_mg/L") %>%
-  mutate(FDT_DATE_TIME = as.POSIXct(FDT_DATE_TIME, format="%m/%d/%Y %H:%M")) %>%# fix date time
-   mutate_at(c('FDT_DEPTH', 'FDT_PERCENT_FRB', 'FDT_FIELD_PH'), as.numeric)
-         
 
 
 
 
-
-conventionals <- read_csv('data/CEDSWQM_2020_IR_DATA-CONVENTIONALS_20190305.csv') %>%
-  # change to naming system 
-  rename("FDT_TEMP_CELCIUS"  ="TEMPERATURE_00010_DEGREES CENTIGRADE",
-         #"FDT_TEMP_CELCIUS_RMK" = "FDT_TEMP_CELCIUS_RMK",  
-         "FDT_FIELD_PH" = "pH_00400_STD_UNITS" ,          
-         #"FDT_FIELD_PH_RMK"  ="FDT_FIELD_PH_RMK", 
-         "DO" =  "DO_mg/L",       
-         #"DO_RMK"  ="DO_RMK",    
-         "FDT_SPECIFIC_CONDUCTANCE"="SPECIFIC_CONDUCTANCE_00095_UMHOS/CM @ 25C",    
-         #"FDT_SPECIFIC_CONDUCTANCE_RMK" ="FDT_SPECIFIC_CONDUCTANCE_RMK" ,
-         "FDT_SALINITY" = "SALINITY_00480_PPT" ,            
-         #"FDT_SALINITY_RMK"  ="FDT_SALINITY_RMK",  
-         "NITROGEN" = "NITROGEN_mg/L" ,                    
-         "AMMONIA" ="AMMONIA_mg/L",
-         "PHOSPHORUS" =  "PHOSPHORUS_mg/L",
-         "FECAL_COLI" = "FECAL_COLIFORM_31616_NO/100mL" ,
-         "E.COLI" = "ECOLI_CFU/100mL",                       
-         "ENTEROCOCCI" =  "ENTEROCOCCI_31649_NO/100mL",
-         "CHLOROPHYLL" ="CHLOROPHYLL_32211_ug/L",                
-         "SSC" ="SSC-TOTAL_00530_mg/L" , 
-         "NITRATE" ="NITRATE_mg/L", 
-         "CHLORIDE" ="CHLORIDE_mg/L",
-         "SULFATE_TOTAL" ="SULFATE_TOTAL_00945_mg/L",              
-         "SULFATE_DISS" ="SULFATE_DISSOLVED_00946_mg/L") %>%
-  mutate(FDT_DATE_TIME = as.POSIXct(FDT_DATE_TIME, format="%m/%d/%Y %H:%M")) # fix date time
-
-together <- bind_rows(conventionals, citmon)
-names(conventionals) == names(citmon)
-
-```
 
 
 
@@ -144,7 +97,8 @@ No matter where you are pulling data in from, you need to limit these computatio
 
 ```{r distinct sites}
 #conventionals_D <- distinct(conventionals, FDT_STA_ID, .keep_all = T) %>%
-#  select(FDT_STA_ID:FDT_SPG_CODE, Latitude:STA_CBP_NAME, -FDT_DATE_TIME) # drop data to avoid any confusion 
+#  select(FDT_STA_ID:FDT_SPG_CODE, Latitude:Data_Source, -FDT_DATE_TIME) # drop data to avoid any confusion 
+#conventionals_D <- filter(conventionals_D, ! is.na(Latitude) | ! is.na(Longitude)) # get rid of 1 weird blank entry
 #rm(conventionals) # remove full conventionals dataset to save memory
 
 distinctSites <- readRDS('./data/conventionals_D.RDS') # for some reason doesn't work in chunk but does in console
@@ -154,8 +108,11 @@ distinctSites <- readRDS('./data/conventionals_D.RDS') # for some reason doesn't
 
 Assessment region is important for processing each region through a loop, AU connection, and WQS attachment. Subbasin information is important for WQS processing.
 
+lwgeom needs sf >= 0.9.3, so this operation needs to happen in R 4.0.3. Unless you have changed any inputs prior to this point, just keep with 4.6.2 and read in data already processed.
+
 ```{r assessment and subbasin join}
-source('preprocessingModules/assessmentLayerSubbasinJoin.R') # for some reason doesn't work in chunk but does in console
+#source('preprocessingModules/assessmentLayerSubbasinJoin.R') # lwgeom needs sf >= 0.9.3, so this operation needs to happen in R 4.0.3
+distinctSites_sf <- readRDS('./data/distinctSites_sf.RDS')
 distinctSitesToDo <- distinctSites_sf 
 # keep a copy of original distinct sites to check that no one was lost at the end
 ``` 
@@ -168,6 +125,81 @@ Save missingSites data for app. This is critical for those sites that fall out o
 ```{r missingSites for app}
 saveRDS(missingSites, 'data/missingSites.RDS')
 ```
+
+
+### Remove stations that have WQS information from "to do" list
+
+Bring in WQS information we have on file and take these away from 'to do' list.
+
+Skip this if you haven't pulled anything from the server recently.
+
+```{r existing WQS_ID information}
+
+loadData <- function(outputDir) {
+  # Read all the files into a list
+  files <- list.files(outputDir, full.names = TRUE)
+  # Concatenate all data together into one data.frame
+  if(outputDir == 'WQSlookupTable' | outputDir == './WQSlookupTable'){
+    data <- lapply(files, read_csv) 
+    data <- do.call(rbind, data) %>%
+      distinct(StationID, WQS_ID, .keep_all = T)
+  } else {
+    data <- lapply(files, read_csv) # read_csv produces parsing errors
+    data <- do.call(rbind, data) %>%
+      distinct(FDT_STA_ID, ID305B_1,  .keep_all = T)
+  }
+ 
+  data
+}
+
+WQStableExisting <- loadData("./WQSlookupTable") # run in console
+
+
+
+saveData <- function(data,outputDir) {
+  #data <- t(data)
+  # Create a unique file name
+  if(outputDir == 'WQSlookupTable' | outputDir == './WQSlookupTable'){
+    fileName <- sprintf("%s_%s.csv", format(Sys.time(), "%Y%m%d_%H%M%S"), 'WQSlookup')
+  } else {
+    fileName <- sprintf("%s_%s.csv", format(Sys.time(), "%Y%m%d_%H%M%S"), 'AUlookup')
+  }
+  # Write the file to the local system
+  write.csv(
+    x = data,
+    file = file.path(outputDir, fileName), 
+    row.names = FALSE, quote = TRUE
+  )
+}
+
+saveData(WQStableExisting, './WQSlookupTable')
+
+```
+
+If just pulling from previous version.
+
+```{r}
+WQStableExisting <- loadData("./WQSlookupTable") # run in console
+# quick snap check previous WQS attributed data from assessors bc some issues have been noticed
+tooMany_WQStableExisting <- snapCheck(WQStableExisting)
+
+# manually correct and dumb user errors. If more than one WQS_ID remains after this correction then we will send that back to the user for review after we tack on any new stations to be looked at
+
+```
+
+Identify real number of sites that need spatial joining.
+
+```{r find where spatial joins have already happened}
+distinctSitesToDo <- filter(distinctSitesToDo, ! FDT_STA_ID  %in% WQStableExisting$StationID)
+
+# bring in very original spatial join information to see why there are still stations that need to be spatially snapped
+WQStableOG <- readRDS('./data/WQStable.RDS')
+
+distinctSitesToDo <- filter(distinctSitesToDo, ! FDT_STA_ID  %in% WQStableOG$StationID)
+```
+
+
+
 
 
 ### Spatially Join WQS
@@ -251,6 +283,7 @@ source('snappingFunctions/snapWQS.R')
 riverine <- st_read('GIS/WQS_layers_05082020.gdb', layer = 'riverine_05082020' , fid_column_name = "OBJECTID") %>%
   st_transform(102003) # forcing to albers from start bc such a huge layer
   #st_transform(4326)
+#12/7/2020 had to run analysis in NAD_1983_Lambert_Conformal_Conic bc albers was not recognized with new sf
 
 WQStable <- snapAndOrganizeWQS(distinctSitesToDo, 'FDT_STA_ID', riverine, 
                                bufferDistances = seq(20,80,by=20),  # buffering by 20m from 20 - 80 meters
@@ -331,7 +364,7 @@ missingSites$FDT_STA_ID[!(missingSites$FDT_STA_ID %in% unique(WQStable$StationID
 
 We don't want to give everyone all the stations that didn't snap to something, so we need to at least partially assign a WQS_ID so the stations get into the correct subbasin on initial filter.
 
-If a station snapped to nothing, we will assing it a RL WQS_ID and subbasin it falls into by default.
+If a station snapped to nothing, we will assigning it a RL WQS_ID and subbasin it falls into by default.
 
 ```{r blank WQS_ID partially filled in}
 WQStableMissing <- filter(WQStable, is.na(WQS_ID)) %>%
@@ -364,6 +397,13 @@ See how many sites snapped to too many WQS segments
 ```{r snapCheck}
 tooMany <- snapCheck(WQStable)
 
+# quick snap check previous WQS attributed data from assessors bc some issues have been noticed
+tooMany_WQStableExisting <- snapCheck(WQStableExisting) %>%
+  dplyr::select(-Comments) # delete this so we can sent it back to user to be fixed
+
+WQStable <- bind_rows(WQStable, tooMany_WQStableExisting)
+
+
 fine <- filter(WQStable, ! (StationID %in% tooMany$StationID)) %>% 
   filter(`Buffer Distance` %in% c(NA,  "20 m", "40 m", "60 m" ,"80 m"))
 none <- filter(WQStable, ! StationID %in% tooMany$StationID) %>%
@@ -379,31 +419,41 @@ rm(fine);rm(none);rm(tooMany)
 
 
 
-
+Skip this bc proved useless -------------------------------------------------------------------------------------------------------
 
 ### Attach any free data available from previous assessment cycles
 
 This data is smashed together from the regions who returned their preprocessing steps from the 2020IR. This procedure also updates existing WQS designations to updated WQS.
 
 ```{r 2020IR preprocessing data statewide}
-source('preprocessingModules/2020IRpreprocessingDataStatewide.R')
+#source('preprocessingModules/2020IRpreprocessingDataStatewide.R')
 
-WQStableCheck <- filter(WQStable, StationID %in% existingData$FDT_STA_ID)
+#WQStableCheck <- filter(WQStable, StationID %in% existingData$FDT_STA_ID)
 ```
 
 
 ### Use UID to attach standards for sites were existing data occurs
 
 ```{r get standards based on UID}
-source('preprocessingModules/wqsQA.R')
-WQStableChecked <- humanQA(WQStableCheck)
+#source('preprocessingModules/wqsQA.R')
+#WQStableChecked <- humanQA(WQStableCheck)
 ```
 So the above object WQStableChecked isn't perfect in that where we have a site that has human QAed data we now have the associated WQS_ID, but we have weeded out sites that don't have the same WQS as the human QAed sites. There are still duplicated sites in this dataset for a human to go through.
 
+End Skip ----------------------------------------------------------------------------------------------------------------------------
+
+
+
 That QA step got us practically nowhere so saving out the WQStable object as the official dataset for application building.
 ```{r data for app}
-saveRDS(WQStable, 'data/processedWQS/WQStable.RDS')
-write.csv(WQStable, 'data/processedWQS/WQStable.csv', row.names = F)
+saveRDS(WQStable, './data/WQStable12072020.RDS')
+write.csv(WQStable, './data/WQStable12072020.csv', row.names = F)
+
+
+# and make sure you remove any Stations that are sent back to assessor for review
+WQStableExisting_out <- filter(WQStableExisting, ! StationID %in% WQStable$StationID)
+
+write_csv(WQStableExisting_out, './WQSlookupTable/20201207_092616_WQSlookup.csv')
 ```
 
 

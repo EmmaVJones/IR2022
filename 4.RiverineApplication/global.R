@@ -31,18 +31,7 @@ conn <- config::get("connectionSettings") # get configuration settings
 board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_KEY"),
                          server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
 
-# Pull data from server
-#conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect")
-#vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
-#conventionals_distinct <- pin_get("conventionals-distinct-draft", board = "rsconnect")
-#stations2020IR <- pin_get("stations2020IR-sf-draft", board = "rsconnect")
-#VSCIresults <- pin_get("VSCIresults", board = "rsconnect")
-#VCPMI63results <- pin_get("VCPMI63results", board = "rsconnect")
-#VCPMI65results <- pin_get("VCPMI65results", board = "rsconnect")
-#WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
-#Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
-
-
+template <- read_csv('userDataToUpload/processedStationData/stationTableResults.csv')
 
 # Helpful lookup table to ease data filtering
 subbasinToVAHU6 <- read_csv('data/subbasinToVAHU6conversion.csv') 

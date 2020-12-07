@@ -1,7 +1,7 @@
 ### lake methods- polygon
 
 lakePolygonJoin <- function(lakePolys,
-                            disinctSites_sf,
+                            distinctSites_sf,
                             WQStable){
   
   # first make sure everyone in same crs

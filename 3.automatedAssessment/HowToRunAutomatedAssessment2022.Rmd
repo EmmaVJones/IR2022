@@ -105,6 +105,7 @@ stationTable <- left_join(stationTable, WQSlookup, by = c('STATION_ID'='StationI
   # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
   
 
+
 missingWQS <- filter(stationTable, is.na(CLASS))
 ```
 
@@ -112,7 +113,7 @@ missingWQS <- filter(stationTable, is.na(CLASS))
 We only want to run riverine methods on riverine stations right now, so drop all stations that have lake AU designations
 
 ```{r}
- lakeStations <- filter(stationTable, str_detect(ID305B_1, 'L_') | str_detect(ID305B_2, 'L_') | str_detect(ID305B_3, 'L_') | str_detect(ID305B_4, 'L_') |
+lakeStations <- filter(stationTable, str_detect(ID305B_1, 'L_') | str_detect(ID305B_2, 'L_') | str_detect(ID305B_3, 'L_') | str_detect(ID305B_4, 'L_') |
                           str_detect(ID305B_5, 'L_') | str_detect(ID305B_6, 'L_') | str_detect(ID305B_7, 'L_') | str_detect(ID305B_8, 'L_') | 
                           str_detect(ID305B_9, 'L_') | str_detect(ID305B_10, 'L_') ) 
  bothTypes <- filter(lakeStations, str_detect(ID305B_1, 'R_') | str_detect(ID305B_2, 'R_') | str_detect(ID305B_3, 'R_') | str_detect(ID305B_4, 'R_') |

@@ -1,7 +1,7 @@
 ### Estuary methods- polygon
 
 estuaryPolygonJoin <- function(estuarinePolys, 
-                               disinctSites_sf, 
+                               distinctSites_sf, 
                                WQStable){
   
   # first make sure everyone in same crs

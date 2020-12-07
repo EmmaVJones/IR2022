@@ -1,4 +1,4 @@
-sudo  ls -l /app/rstudio-connect/apps/43/134/WQSlookupTable
+sudo  ls -l /app/rstudio-connect/apps/43/257/WQSlookupTable
 # 43 is app "name", visible when you click an app from content page in the URL
 # to get version number, either ls into app name and get latest version or see ... next
 # to gear on app content page to find active version number

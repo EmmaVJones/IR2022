@@ -67,8 +67,8 @@ shinyUI(fluidPage(theme="yeti.css",
                                                    dataset for use in the assessment applications. Users should also alter the assessment unit name
                                                    attributed to the station(s) in the Station Table to ensure the assessment applications can appropriately
                                                    reorganize data according to the user's changes."),
-                                          fileInput('stationsTable','Upload your Regional Stations Table.',
-                                                    accept = c(".csv")),
+                                          fileInput('stationsTable','Upload your Regional Stations Table.', accept = c(".csv")),
+                                          downloadButton('downloadTemplate',"Download statewide example dataset to upload to the tool."),
                                           h5('Regional Assessment Units'),
                                           helpText(span('This shapefile is the current working copy of the regional assessment units.',
                                                         strong('It will be uploaded to the app on startup for you to expedite application rendering

@@ -40,6 +40,12 @@ shinyServer(function(input, output, session) {
   
   ################################ Data Upload Tab ################################################# 
   
+  # Download data template
+  output$downloadTemplate <- downloadHandler(filename=function(){'stationTableStatewideExample.csv'},
+                                             content=function(file){write.csv(template,file,row.names=FALSE)})
+  
+  
+  
   # real
   stationTable <- reactive({
     req(input$stationsTable)

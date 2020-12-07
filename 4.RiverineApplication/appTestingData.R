@@ -3,7 +3,7 @@ source('global.R')
 
 DEQregionSelection <- 'BRRO'
 basinSelection <- "James-Middle"#'James-Upper'#"Roanoke"#"Roanoke"#'James-Upper'#
-HUC6Selection <- "JM04"#"JU11"#'RL12'#"JM02"#'JM16'#'RU09'#'RL12'#
+HUC6Selection <- "JM05"#"JU11"#'RL12'#"JM02"#'JM16'#'RU09'#'RL12'#
 
 
 conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
@@ -94,6 +94,13 @@ conventionals_HUC <- filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>
 
 AUselection <- unique(c(conventionals_HUC$ID305B_1, 
                         dplyr::select(carryoverStations, ID305B_1:ID305B_10) %>% as.character()))
+
+dplyr::select(carryoverStations, STATION_ID, ID305B_1:ID305B_10) %>%
+  #group_by(STATION_ID) %>%
+  rowwise() %>%
+  #pivot_longer(names_to = 'Value', )
+  as.character()
+
 AUselection <- AUselection[!is.na(AUselection) & !(AUselection %in% c("NA", "character(0)", "logical(0)"))][3]
 
 #selectedAU <-  filter(regionalAUs, ID305B %in% AUselection) %>% st_set_geometry(NULL) %>% as.data.frame()

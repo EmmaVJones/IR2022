@@ -28,5 +28,6 @@ conventionalsAll <- bind_rows(conventionals,conventionals2019) %>%
 
 conventionals <- filter(conventionalsAll, !is.na(Latitude)|!is.na(Longitude)) # remove sites without coordinates
 
+write_csv(conventionals, 'data/final2020data/CEDSWQM_2020_IR_DATA-CONVENTIONALS_20190305.csv')
 
 rm(conventionalsAll);rm(conventionals2);rm(conventionals2019)
