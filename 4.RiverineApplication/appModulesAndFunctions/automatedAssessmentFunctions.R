@@ -254,7 +254,7 @@ benthicAssessment <- function(x, VSCIresults){
 #### Ammonia Assessment Functions ---------------------------------------------------------------------------------------------------
 
 
-# Calculate limits and return dataframe with original data and limits
+# Calculate limits and return dataframe with original data and limits 9VAC25-260-155 https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section155/
 freshwaterNH3limit <- function(x, # dataframe with station data
                                trout, # T/F condition
                                mussels,# T/F condition
@@ -263,7 +263,7 @@ freshwaterNH3limit <- function(x, # dataframe with station data
   x <- filter(x, !(RMK_FDT_TEMP_CELCIUS %in% c('Level II', 'Level I')) |
               !(RMK_FDT_FIELD_PH %in% c('Level II', 'Level I'))) %>% # get lower levels out
     filter(!is.na(AMMONIA)) %>% #get rid of NA's
-    dplyr::select(FDT_DATE_TIME, FDT_TEMP_CELCIUS, FDT_FIELD_PH, AMMONIA)
+    dplyr::select(FDT_DATE_TIME, FDT_DEPTH, FDT_TEMP_CELCIUS, FDT_FIELD_PH, AMMONIA)
   # If no data, return nothing
   if(nrow(x)==0){return(NULL)}
   

@@ -355,3 +355,27 @@ stationInfo <- filter(stationTable, STATION_ID == stationSelection) %>%
 
 
 ## Ammonia Calculations
+stationData <- #filter(conventionals, FDT_STA_ID %in% '2-JMS279.41') %>% # good example with lots of data
+  filter(conventionals, FDT_STA_ID %in% '4ABSA000.62') %>% # good example with lots of data, lake station so depth is important and hourly averages
+  left_join(dplyr::select(stationTable, STATION_ID:VAHU6,
+                          WQS_ID:EPA_ECO_US_L3NAME),
+            #WQS_ID:`Max Temperature (C)`), 
+            by = c('FDT_STA_ID' = 'STATION_ID')) %>%
+  #filter(!is.na(ID305B_1)) %>% # 4ABSA000.62 doesn't have an AU?????
+  pHSpecialStandardsCorrection()
+
+x <- freshwaterNH3limit(stationData, trout = TRUE, mussels = TRUE, earlyLife = TRUE)  
+x$AMMONIA[c(1, 3:4)] <- c(4, 16, 18)
+
+# Acute criteria are a one-hour average concentration not to be exceeded more than once every three years on the average
+
+# waiting on clarification on what limit to compare hourly average 
+acuteFreshwaterNH3_1hrAssessment <- function(x){ # x is station run through freshwaterNH3limit()
+  filter(x, AMMONIA > acuteNH3limit) %>%
+    
+}
+
+
+# chronic criteria are 30-day average concentrations not to be exceeded more than once every three years on the average
+# the four-day average concentration of total ammonia nitrogen (in mg N/L) shall not exceed 2.5 times the chronic criterion within a 30-day period more than once every three years on the average.
+
