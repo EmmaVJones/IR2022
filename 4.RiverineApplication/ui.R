@@ -68,7 +68,12 @@ shinyUI(fluidPage(theme="yeti.css",
                                                    attributed to the station(s) in the Station Table to ensure the assessment applications can appropriately
                                                    reorganize data according to the user's changes."),
                                           fileInput('stationsTable','Upload your Regional Stations Table.', accept = c(".csv")),
-                                          downloadButton('downloadTemplate',"Download statewide example dataset to upload to the tool."),
+                                          helpText('If this is your first time using the tool, please download a copy of the latest automated station
+                                                   table output for upload to the tool. You may manipulate this .csv to only reflect your specific region.'),
+                                          fluidRow(
+                                            downloadButton('downloadTemplate',"Download statewide example dataset to upload to the tool."),
+                                            uiOutput('templateLastUpdated_')),
+                                          br(),
                                           h5('Regional Assessment Units'),
                                           helpText(span('This shapefile is the current working copy of the regional assessment units.',
                                                         strong('It will be uploaded to the app on startup for you to expedite application rendering
@@ -117,7 +122,8 @@ shinyUI(fluidPage(theme="yeti.css",
                                             DT::dataTableOutput('stationSummary'),
                                             br(),
                                             h5(strong("Stations in Selected VAHU6 that have no data in the current window but were carried 
-                                                      over from last cycle due to an IM designation in one of the 2020IR status fields.")),
+                                                      over from last cycle due to an IM designation in one of the 2020IR status fields or
+                                                      the 2020 stations table reports the station was carried over from a previous cycle.")),
                                             helpText('These stations can be viewed in the application and stations table, but none of the 
                                                      parameter modules will display data as no data is available in the current window.'),
                                             DT::dataTableOutput('carryoverStationSummary'),

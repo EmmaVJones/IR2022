@@ -2,8 +2,8 @@
 source('global.R')
 
 DEQregionSelection <- 'BRRO'
-basinSelection <- "James-Middle"#'James-Upper'#"Roanoke"#"Roanoke"#'James-Upper'#
-HUC6Selection <- "JM05"#"JU11"#'RL12'#"JM02"#'JM16'#'RU09'#'RL12'#
+basinSelection <- 'James-Upper'#"James-Middle"#"Roanoke"#"Roanoke"#'James-Upper'#
+HUC6Selection <- "JU11"#"JM05"#'RL12'#"JM02"#'JM16'#'RU09'#'RL12'#
 
 
 conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
@@ -92,16 +92,17 @@ conventionals_HUC <- filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>
     filter(!is.na(ID305B_1)) %>%
   pHSpecialStandardsCorrection()
 
-AUselection <- unique(c(conventionals_HUC$ID305B_1, 
-                        dplyr::select(carryoverStations, ID305B_1:ID305B_10) %>% as.character()))
+#AUselection <- unique(c(conventionals_HUC$ID305B_1, 
+#                        dplyr::select(carryoverStations, ID305B_1:ID305B_10) %>% as.character()))
 
-dplyr::select(carryoverStations, STATION_ID, ID305B_1:ID305B_10) %>%
-  #group_by(STATION_ID) %>%
-  rowwise() %>%
-  #pivot_longer(names_to = 'Value', )
-  as.character()
+AUselection <- unique(c(conventionals_HUC$ID305B_1,
+                        dplyr::select(carryoverStations, ID305B_1:ID305B_10) %>% 
+                          mutate_at(vars(starts_with("ID305B")), as.character) %>%
+                          pivot_longer(ID305B_1:ID305B_10, names_to = 'ID305B', values_to = 'keep') %>%
+                          pull(keep) ))
+AUselection <- AUselection[!is.na(AUselection) & !(AUselection %in% c("NA", "character(0)", "logical(0)"))][1]
 
-AUselection <- AUselection[!is.na(AUselection) & !(AUselection %in% c("NA", "character(0)", "logical(0)"))][3]
+
 
 #selectedAU <-  filter(regionalAUs, ID305B %in% AUselection) %>% st_set_geometry(NULL) %>% as.data.frame()
 stationSelection <- filter(conventionals_HUC, ID305B_1 %in% AUselection | ID305B_2 %in% AUselection | 
@@ -120,7 +121,7 @@ if(nrow(carryoverStations) > 0){
     pull()
   if(length(carryoverStationsInAU) > 0){
     stationSelection <- c(stationSelection, carryoverStationsInAU)  } }
-stationSelection <- stationSelection[3]
+stationSelection <- stationSelection[2]
 
 AUData <- filter_at(conventionals_HUC, vars(starts_with("ID305B")), any_vars(. %in% AUselection) ) 
 
@@ -351,3 +352,6 @@ stationInfo <- filter(stationTable, STATION_ID == stationSelection) %>%
 #  formatStyle(c("PWS_Nitrate_EXC","PWS_Nitrate_SAMP","PWS_Nitrate_STAT"), "PWS_Nitrate_STAT", backgroundColor = styleEqual(c('Review'), c('red'))) %>%
 #  formatStyle(c("PWS_Chloride_EXC","PWS_Chloride_SAMP","PWS_Chloride_STAT"), "PWS_Chloride_STAT", backgroundColor = styleEqual(c('Review'), c('red'))) %>%
 #  formatStyle(c("PWS_Total_Sulfate_EXC","PWS_Total_Sulfate_SAMP","PWS_Total_Sulfate_STAT"), "PWS_Total_Sulfate_STAT", backgroundColor = styleEqual(c('Review'), c('red'))) 
+
+
+## Ammonia Calculations

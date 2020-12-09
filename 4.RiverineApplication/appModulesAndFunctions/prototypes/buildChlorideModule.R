@@ -176,12 +176,12 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   output$stationExceedanceRate <- renderDataTable({
     req(input$oneStationSelection, oneStation())
     if(input$changeWQS == TRUE){
-      chloride <- dplyr::select(oneStation(), FDT_DATE_TIME, FDT_DEPTH, CHLORIDE) %>%
+      chloride <- dplyr::select(oneStation(), FDT_DATE_TIME, FDT_DEPTH, CHLORIDE, RMK_CHLORIDE) %>%
         filter(!(RMK_CHLORIDE %in% c('Level II', 'Level I'))) %>% # get lower levels out
         filter(!is.na(CHLORIDE)) %>% #get rid of NA's
         mutate(`Parameter Rounded to WQS Format` = round(CHLORIDE, digits = 0),  # round to WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
                limit = 250) %>%
-        rename(parameter = !!names(.[4])) %>% # rename columns to make functions easier to apply
+        rename(parameter = !!names(.[5])) %>% # rename columns to make functions easier to apply
         mutate(exceeds = ifelse(parameter > limit, T, F)) # Identify where above NH3 WQS limit
       z <- quickStats(chloride, 'PWS_Chloride') %>% dplyr::select(-PWS_Chloride_STAT) 
       datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t')) }}) 

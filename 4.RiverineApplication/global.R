@@ -32,6 +32,7 @@ board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_K
                          server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
 
 template <- read_csv('userDataToUpload/processedStationData/stationTableResults.csv')
+lastUpdated <- as.Date(file.info('userDataToUpload/processedStationData/stationTableResults.csv')$mtime)
 
 # Helpful lookup table to ease data filtering
 subbasinToVAHU6 <- read_csv('data/subbasinToVAHU6conversion.csv') 

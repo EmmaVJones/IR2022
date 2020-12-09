@@ -249,3 +249,74 @@ benthicAssessment <- function(x, VSCIresults){
   } else { tibble(BENTHIC_STAT=NA)}
 }
 #benthicAssessment(x, VSCIresults)
+
+
+#### Ammonia Assessment Functions ---------------------------------------------------------------------------------------------------
+
+
+# Calculate limits and return dataframe with original data and limits
+freshwaterNH3limit <- function(x, # dataframe with station data
+                               trout, # T/F condition
+                               mussels,# T/F condition
+                               earlyLife# T/F condition
+                               ){
+  x <- filter(x, !(RMK_FDT_TEMP_CELCIUS %in% c('Level II', 'Level I')) |
+              !(RMK_FDT_FIELD_PH %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    filter(!is.na(AMMONIA)) %>% #get rid of NA's
+    dplyr::select(FDT_DATE_TIME, FDT_TEMP_CELCIUS, FDT_FIELD_PH, AMMONIA)
+  # If no data, return nothing
+  if(nrow(x)==0){return(NULL)}
+  
+  # Trout & mussels present scenario
+  if(trout == TRUE & mussels == TRUE){
+    # Acute Criteria
+    return(x %>%
+      rowwise() %>%
+      mutate(acuteNH3limit = as.numeric(round(
+        min(((0.275 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (39.0 / (1 + 10^(FDT_FIELD_PH - 7.204)))),
+            (0.7249 * ( (0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * (23.12 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS))) )), digits = 2))
+            ) %>%
+      # Chronic Criteria mussels == T & earlyLife == T
+      {if(earlyLife == TRUE)
+        mutate(., chronicNH3limit = as.numeric(round(
+          0.8876 * ((0.0278 / (1 + 10^(7.688 - FDT_FIELD_PH))) + (1.1994 / (1 + 10^(FDT_FIELD_PH - 7.688)))) * (2.126 * 10^(0.028 * (20 - max(7, FDT_TEMP_CELCIUS)))), digits = 2)) )
+        else mutate(., chronicNH3limit = as.numeric(NA)) }  )  }
+  
+  # Trout present & mussels absent scenario
+  if(trout == TRUE & mussels == FALSE){
+    # Acute Criteria
+    return(x %>%
+      rowwise() %>%
+      mutate(acuteNH3limit = as.numeric(round(
+        min(((0.275 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (39.0 / (1 + 10^(FDT_FIELD_PH - 7.204)))),
+            (0.7249 * ( (0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * (62.15 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS))) )), digits = 2)) ) %>%
+      # Chronic Criteria mussels == F & earlyLife == T
+      {if(earlyLife == TRUE)
+        mutate(., chronicNH3limit = as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - FDT_FIELD_PH))) + (1.1994 / (1 + 10^(FDT_FIELD_PH - 7.688)))) * min(6.92, (7.547 * 10^(0.028 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)) )
+        # Chronic Criteria mussels == F & earlyLife == F
+        else mutate(., chronicNH3limit =  as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - FDT_FIELD_PH))) + (1.1994 / (1 + 10^(FDT_FIELD_PH - 7.688)))) * (7.547 * 10^(0.028 * (20 - max(FDT_TEMP_CELCIUS, 7)))), digits = 2)) )  }  )  }
+
+  # Trout absent & mussels present scenario
+  if(trout == FALSE & mussels == TRUE){
+    # Acute Criteria
+    return(x %>%
+      rowwise() %>%
+      mutate(acuteNH3limit = as.numeric(round(0.7249 * ((0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * min(51.93, (23.12 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)) ) %>%
+      # Chronic Criteria mussels == T & earlyLife == T
+      {if(earlyLife == TRUE)
+        mutate(., chronicNH3limit = as.numeric(round(0.8876 * ((0.0278 / (1 + 10^(7.688 - FDT_FIELD_PH))) + (1.1994 / (1 + 10^(FDT_FIELD_PH - 7.688)))) * (2.126 * 10^(0.028 * (20 - max(7, FDT_TEMP_CELCIUS)))), digits = 2)) )
+        else mutate(., chronicNH3limit = as.numeric(NA)) }   ) }
+  
+  # Trout & mussels absent scenario
+  if(trout == FALSE & mussels == FALSE){
+    # Acute Criteria
+    return(x %>%
+      rowwise() %>%
+      mutate(acuteNH3limit = as.numeric(round(0.7249 * ((0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * min(51.93, (62.15 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)) ) %>%
+      # Chronic Criteria mussels == F & earlyLife == T
+      {if(earlyLife == TRUE)
+        mutate(., chronicNH3limit = as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - FDT_FIELD_PH))) + (1.1994 / (1 + 10^(FDT_FIELD_PH - 7.688)))) * min(6.92, (7.547 * 10^(0.028 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)) )
+        # Chronic Criteria mussels == F & earlyLife == F
+        else mutate(., chronicNH3limit =  as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - FDT_FIELD_PH))) + (1.1994 / (1 + 10^(FDT_FIELD_PH - 7.688)))) * (7.547 * 10^(0.028 * (20 - max(FDT_TEMP_CELCIUS, 7)))), digits = 2)) )  }  )  }
+  }
+#freshwaterNH3limit(stationData, trout = TRUE, mussels = TRUE, earlyLife = TRUE)

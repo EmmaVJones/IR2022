@@ -71,7 +71,7 @@ vignettes/*.pdf
 
 4.RiverineApplication/data/
 4.RiverineApplication/userDataToUpload/
-
+4.RiverineApplication/AU_working/
 
 rsconnect/
 *.zip

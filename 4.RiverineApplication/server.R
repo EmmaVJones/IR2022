@@ -42,8 +42,10 @@ shinyServer(function(input, output, session) {
   
   # Download data template
   output$downloadTemplate <- downloadHandler(filename=function(){'stationTableStatewideExample.csv'},
-                                             content=function(file){write.csv(template,file,row.names=FALSE)})
+                                             content=function(file){write_csv(template,file,na = "")})
   
+  output$templateLastUpdated_ <- renderUI({
+    helpText(paste0('Template last updated: ', lastUpdated))  })
   
   
   # real
@@ -208,7 +210,12 @@ shinyServer(function(input, output, session) {
   output$AUselection_ <- renderUI({ req(conventionals_HUC())
     # AUs from data in conventionals and carryoverStations
     AUselectionOptions <- unique(c(conventionals_HUC()$ID305B_1, 
-                            dplyr::select(carryoverStations(), ID305B_1:ID305B_10) %>% as.character()))
+                            #dplyr::select(carryoverStations(), ID305B_1:ID305B_10) %>% as.character()))
+                            # this method allows for multiple carryover stations to be concatinated correctly
+                            dplyr::select(carryoverStations(), ID305B_1:ID305B_10) %>% 
+                              mutate_at(vars(starts_with("ID305B")), as.character) %>%
+                              pivot_longer(ID305B_1:ID305B_10, names_to = 'ID305B', values_to = 'keep') %>%
+                              pull(keep) ))
     AUselectionOptions <- AUselectionOptions[!is.na(AUselectionOptions) & !(AUselectionOptions %in% c("NA", "character(0)", "logical(0)"))]
     selectInput('AUselection', 'Assessment Unit Selection', choices = AUselectionOptions)  })
   
@@ -352,7 +359,7 @@ shinyServer(function(input, output, session) {
       PWSconcat <- cbind(tibble(STATION_ID = unique(stationData()$FDT_STA_ID)),
                          assessPWS(stationData(), NITRATE, RMK_NITRATE, 10, 'PWS_Nitrate'),
                          assessPWS(stationData(), CHLORIDE, RMK_CHLORIDE, 250, 'PWS_Chloride'),
-                         assessPWS(stationData(), SULFATE_TOTAL, SULFATE_TOTAL, 250, 'PWS_Total_Sulfate')) %>%
+                         assessPWS(stationData(), SULFATE_TOTAL, RMK_SULFATE_TOTAL, 250, 'PWS_Total_Sulfate')) %>%
         dplyr::select(-ends_with('exceedanceRate')) 
       
       DT::datatable(PWSconcat, escape=F, rownames = F, options= list(scrollX = TRUE, pageLength = nrow(PWSconcat), dom='t')) %>% 

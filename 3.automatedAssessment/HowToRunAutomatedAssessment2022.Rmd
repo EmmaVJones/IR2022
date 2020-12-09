@@ -214,9 +214,7 @@ for(i in 1:nrow(stationTable)){
   } else {# pull what you can from last cycle and flag as carry over
     results <- filter(stationTable, STATION_ID == stationTable$STATION_ID[i]) %>%
       dplyr::select(STATION_ID:VAHU6, COMMENTS) %>%
-      mutate(COMMENTS= paste0('This station has no data in current window but was carried over 
-                              due to IM in one of the 2020IR status fields. The 2020 comment 
-                              was as follows: ', COMMENTS))
+      mutate(COMMENTS= paste0('This station has no data in current window but was carried over due to IM in one of the 2020IR status fields or the 2020 stations table reports the station was carried over from a previous cycle. The 2020 comment reads: ', COMMENTS))
   }
   
   stationTableResults <- bind_rows(stationTableResults,results)

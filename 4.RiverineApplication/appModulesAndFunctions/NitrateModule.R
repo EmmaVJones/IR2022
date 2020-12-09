@@ -1,4 +1,3 @@
-
 NitratePlotlySingleStationUI <- function(id){
   ns <- NS(id)
   tagList(
@@ -172,12 +171,12 @@ NitratePlotlySingleStation <- function(input,output,session, AUdata, stationSele
   output$stationExceedanceRate <- renderDataTable({
     req(input$oneStationSelection, oneStation())
     if(input$changeWQS == TRUE){
-      nitrate <- dplyr::select(oneStation(), FDT_DATE_TIME, FDT_DEPTH, NITRATE) %>%
+      nitrate <- dplyr::select(oneStation(), FDT_DATE_TIME, FDT_DEPTH, NITRATE, RMK_NITRATE) %>%
         filter(!(RMK_NITRATE %in% c('Level II', 'Level I'))) %>% # get lower levels out
         filter(!is.na(NITRATE)) %>% #get rid of NA's
         mutate(`Parameter Rounded to WQS Format` = round(NITRATE, digits = 0),  # round to WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
                limit = 10) %>%
-        rename(parameter = !!names(.[4])) %>% # rename columns to make functions easier to apply
+        rename(parameter = !!names(.[5])) %>% # rename columns to make functions easier to apply
         mutate(exceeds = ifelse(parameter > limit, T, F)) # Identify where above NH3 WQS limit
       z <- quickStats(nitrate, 'PWS_Nitrate') %>% dplyr::select(-PWS_Nitrate_STAT) 
       datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t')) }}) 
@@ -185,3 +184,4 @@ NitratePlotlySingleStation <- function(input,output,session, AUdata, stationSele
   
   
 }
+

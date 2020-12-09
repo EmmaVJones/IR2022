@@ -38,7 +38,8 @@ DSulfatePlotlySingleStation <- function(input,output,session, AUdata, stationSel
   oneStation <- reactive({
     req(ns(input$oneStationSelection))
     filter(AUdata(),FDT_STA_ID %in% input$oneStationSelection) %>%
-      mutate(PWSlimit = 250)})
+      mutate(`Parameter Rounded to WQS Format` = round(SULFATE_TOTAL, digits = 0),
+             PWSlimit = 250)})
   # because we are dealing with two variables here, do NOT filter by NA occurrences in case you drop unintended rows
   #filter(!is.na(SULFATE_DISS)) %>%
   #filter(!is.na(SULFATE_TOTAL)) })
@@ -167,12 +168,16 @@ DSulfatePlotlySingleStation <- function(input,output,session, AUdata, stationSel
   output$stationTSulfateExceedanceRate <- renderDataTable({
     req(input$oneStationSelection, oneStation())
     if(input$changeWQS == TRUE){
-      totalSulfate <- dplyr::select(oneStation(), FDT_DATE_TIME, FDT_DEPTH, SULFATE_TOTAL) %>%
+      totalSulfate <- dplyr::select(oneStation(), FDT_DATE_TIME, FDT_DEPTH, RMK_SULFATE_TOTAL) %>%
+        filter(!(RMK_SULFATE_TOTAL %in% c('Level II', 'Level I'))) %>% # get lower levels out
         filter(!is.na(SULFATE_TOTAL)) %>% #get rid of NA's
         mutate(`Parameter Rounded to WQS Format` = round(SULFATE_TOTAL, digits = 0),  # round to WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
                limit = 250) %>%
-        rename(parameter = !!names(.[4])) %>% # rename columns to make functions easier to apply
+        rename(parameter = !!names(.[5])) %>% # rename columns to make functions easier to apply
         mutate(exceeds = ifelse(parameter > limit, T, F)) # Identify where above NH3 WQS limit
       z <- quickStats(totalSulfate, 'PWS_Total_Sulfate') %>% dplyr::select(-PWS_Total_Sulfate_STAT) 
       datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t')) }}) 
 }
+
+
+
