@@ -29,6 +29,8 @@ In order to link all data in the IR window to the appropriate station informatio
     + AU information (specifically for stations that did not exist in last cycle)
 * WQA CEDS Station table template (bulk data upload template)
     + New for 2022IR cycle, DEQ is moving from ADB to a more ATTAINS-like system comprised of a module in CEDS known as CEDS WQA. The development team has released a template for the 'bulk data upload' component where assessors may upload station information (manually or automatically assessed) to expedite the population of the CEDS module. We need to use this new data model as a starting point as it contains information for AU attribution, critical to WQA CEDS and automated assessment tools.
+* PCB Data from Mark
+
 
 The following sections will detail bringing in these necessary data sources and organizing them in a format the automated scripts can digest.
 
@@ -278,6 +280,23 @@ for now, maybe this is my starting point for rebuilding assessment scripts??????
 ```{r save}
 write.csv(stationsTable2022begin, 'processedStationData/stationsTable2022begin.csv', row.names = F)
 ```
+
+
+## Other data
+
+### PCB Data
+
+Mark's PCB dataset was sent out but the StationID's are messed up on quite a few samples. The following script fixes them.
+
+```{r PCB data}
+PCB <- read_excel('data/2022 IR PCBDatapull.xlsx', sheet = '2022IR Datapull')
+source('PCBdataRework.R')
+
+# be nice and save this as a sheet in dataset for others to use
+write_csv(PCB, 'data/PCBfixed.csv', na = "") # dont write out a character NA in csv
+
+```
+
 
 
 ## Pin data to server
