@@ -253,6 +253,197 @@ benthicAssessment <- function(x, VSCIresults){
 
 #### Ammonia Assessment Functions ---------------------------------------------------------------------------------------------------
 
+# Used rolling windows but opted for loops with filtering instead of roll_apply over time series so teh data analyzed each window could
+#  cascade outside the function and be unpacked by further analyses/visualizations if necessary
+
+# Four day average analysis function
+
+fourDayAverageAnalysis <- function(chronicWindowData){
+  fourDayResults <- tibble(`4dayAmmoniaAvg` = as.numeric(NA),
+                           WindowStart = as.POSIXct(NA),
+                           `4dayAvglimit` = as.numeric(NA),
+                           fourDayExceedance = as.logical(NA),
+                           fourDayWindowData = list())
+  for(k in 1:nrow(chronicWindowData)){
+    fourDayWindow <- filter(chronicWindowData, between(FDT_DATE_TIME, chronicWindowData$FDT_DATE_TIME[k], chronicWindowData$FDT_DATE_TIME[k] + days(4) ) )
+    if(nrow(fourDayWindow) > 1){
+      fourDayResultsi <- fourDayWindow %>%
+        summarize(`4dayAmmoniaAvg` = as.numeric(round(mean(AMMONIA, na.rm = T), digits = 2))) %>% # round to even for comparison to chronic criteria
+        bind_cols(dplyr::select(chronicWindowResultsi, WindowStart, `4dayAvglimit`)) %>%
+        mutate(fourDayExceedance = `4dayAmmoniaAvg` > `4dayAvglimit`)
+      fourDayResults <- bind_rows(fourDayResults, 
+                                  fourDayResultsi %>% bind_cols(tibble(fourDayWindowData = list(fourDayWindow))) )
+    } else {
+      fourDayResults <- bind_rows(fourDayResults, 
+                                  tibble(`4dayAmmoniaAvg` = as.numeric(NA),
+                                         WindowStart = fourDayWindow$FDT_DATE_TIME,
+                                         `4dayAvglimit` = as.numeric(NA),
+                                         fourDayExceedance = as.logical(NA),
+                                         fourDayWindowData = list(NA)) )    }
+  }
+  
+  return(fourDayResults)
+}
+#fourDayAverageAnalysis(chronicWindowData)
+
+
+# Calculate limits and return dataframe with original data and limits 9VAC25-260-155 https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section155/
+freshwaterNH3limit <- function(x, # dataframe with station data
+                               trout, # T/F condition
+                               mussels,# T/F condition
+                               earlyLife# T/F condition
+                               ){
+  x <- filter(x, !(RMK_FDT_TEMP_CELCIUS %in% c('Level II', 'Level I')) |
+                !(RMK_FDT_FIELD_PH %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    filter(!is.na(AMMONIA)) %>% #get rid of NA's
+    dplyr::select(FDT_DATE_TIME, FDT_DEPTH, FDT_TEMP_CELCIUS, FDT_FIELD_PH, AMMONIA)
+  # If no data, return nothing
+  if(nrow(x)==0){return(NULL)}
+  
+  # Trout & mussels present scenario
+  if(trout == TRUE & mussels == TRUE){
+    # Acute Criteria
+    acute <- x %>%
+      rowwise() %>%
+      mutate(acuteNH3limit = as.numeric(round(
+        min(((0.275 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (39.0 / (1 + 10^(FDT_FIELD_PH - 7.204)))),
+            (0.7249 * ( (0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * (23.12 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS))) )), digits = 2)),
+        acuteExceedance = as.numeric(round(AMMONIA, digits = 2)) > acuteNH3limit) 
+    # Chronic is calculated on 30 day windows, so we need to average temperature and pH within each 30 day window before we can calculate a
+    #  chronic criteria. The chronic criteria will be associated with each sample date that starts a 30 day period, but it applies to all 
+    #  samples within the 30 day window. All raw data associated with each window is saved as a listcolumn for later review. 
+    chronicWindowResults <- tibble()
+    for( i in 1 : nrow(acute)){
+      # Calculate window average measurements for chronic criteria
+      chronicWindowData <- filter(acute, between(FDT_DATE_TIME, acute$FDT_DATE_TIME[i], acute$FDT_DATE_TIME[i] + days(30) ) ) %>% 
+        ungroup() 
+      chronicWindowResultsi <- chronicWindowData %>%
+        summarise(WindowStart = min(FDT_DATE_TIME),
+                  AmmoniaAvg = as.numeric(round(mean(AMMONIA, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
+                  TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T), #don't round to even bc more calculations to follow with data
+                  pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>% #don't round to even bc more calculations to follow with data
+        # Chronic Criteria mussels == T & earlyLife == T
+        {if(earlyLife == TRUE)
+          mutate(., chronicNH3limit = as.numeric(round(
+            0.8876 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * (2.126 * 10^(0.028 * (20 - max(7, TempAvg)))), digits = 2)),
+            `4dayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)) )
+          else mutate(., chronicNH3limit = as.numeric(NA),
+                      `4dayAvglimit`= as.numeric(NA)) } %>%
+        # Identify if window Ammonia average is above chronic criteria
+        mutate(chronicExceedance = AmmoniaAvg > chronicNH3limit) %>%
+        # attach associated raw data to analysis for later use
+        bind_cols(tibble(associatedWindowData = list(chronicWindowData)))
+      
+      # 4 day average analysis
+      fourDayResults <- fourDayAverageAnalysis(chronicWindowData)
+      
+      chronicWindowResults <- bind_rows(chronicWindowResults, 
+                                        left_join(chronicWindowResultsi, fourDayResults, by = c('WindowStart', '4dayAvglimit'))  ) }
+    return(left_join(acute, chronicWindowResults, by = c("FDT_DATE_TIME" = "WindowStart")) )  }
+  
+  # Trout present & mussels absent scenario
+  if(trout == TRUE & mussels == FALSE){
+    # Acute Criteria
+    acute <- x %>%
+      rowwise() %>%
+      mutate(acuteNH3limit = as.numeric(round(
+        min(((0.275 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (39.0 / (1 + 10^(FDT_FIELD_PH - 7.204)))),
+            (0.7249 * ( (0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * (62.15 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS))) )), digits = 2)) ) 
+    # Chronic is calculated on 30 day windows, so we need to average temperature and pH within each 30 day window before we can calculate a
+    #  chronic criteria. The chronic criteria will be associated with each sample date that starts a 30 day period, but it applies to all 
+    #  samples within the 30 day window
+    chronicWindowData <- tibble()
+    for( i in 1 : nrow(acute)){
+      # Calculate window average measurements for chronic criteria
+      chronicWindowDatai <- filter(acute, between(FDT_DATE_TIME, acute$FDT_DATE_TIME[i], acute$FDT_DATE_TIME[i] + days(30) ) ) %>% 
+        ungroup() %>%
+        summarise(WindowStart = min(FDT_DATE_TIME),
+                  TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T),
+                  pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>%
+        # Chronic Criteria mussels == F & earlyLife == T
+        {if(earlyLife == TRUE)
+          mutate(., chronicNH3limit = as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * min(6.92, (7.547 * 10^(0.028 * (20 - TempAvg)))), digits = 2)),
+                 `4dayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)) )
+          # Chronic Criteria mussels == F & earlyLife == F
+          else mutate(., chronicNH3limit =  as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * (7.547 * 10^(0.028 * (20 - max(TempAvg, 7)))), digits = 2)),
+                      `4dayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)) )  }
+      chronicWindowData <- bind_rows(chronicWindowData, chronicWindowDatai)      }   
+    return(left_join(acute, dplyr::select(chronicWindowData, WindowStart, chronicNH3limit, `4dayAvglimit`),
+                     by = c("FDT_DATE_TIME" = "WindowStart")) )  }
+  
+  # Trout absent & mussels present scenario
+  if(trout == FALSE & mussels == TRUE){
+    # Acute Criteria
+    acute <- x %>%
+      rowwise() %>%
+      mutate(acuteNH3limit = as.numeric(round(0.7249 * ((0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * min(51.93, (23.12 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)),
+             `4dayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)) )
+    # Chronic is calculated on 30 day windows, so we need to average temperature and pH within each 30 day window before we can calculate a
+    #  chronic criteria. The chronic criteria will be associated with each sample date that starts a 30 day period, but it applies to all 
+    #  samples within the 30 day window
+    chronicWindowData <- tibble()
+    for( i in 1 : nrow(acute)){
+      # Calculate window average measurements for chronic criteria
+      chronicWindowDatai <- filter(acute, between(FDT_DATE_TIME, acute$FDT_DATE_TIME[i], acute$FDT_DATE_TIME[i] + days(30) ) ) %>% 
+        ungroup() %>%
+        summarise(WindowStart = min(FDT_DATE_TIME),
+                  TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T),
+                  pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>%
+        # Chronic Criteria mussels == T & earlyLife == T
+        {if(earlyLife == TRUE)
+          mutate(., chronicNH3limit = as.numeric(round(0.8876 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * (2.126 * 10^(0.028 * (20 - max(7, TempAvg)))), digits = 2)) )
+          else mutate(., chronicNH3limit = as.numeric(NA),
+                      `4dayAvglimit`= as.numeric(NA) ) }  
+      chronicWindowData <- bind_rows(chronicWindowData, chronicWindowDatai)      }   
+    return(left_join(acute, dplyr::select(chronicWindowData, WindowStart, chronicNH3limit, `4dayAvglimit`),
+                     by = c("FDT_DATE_TIME" = "WindowStart")) )  }
+  
+  # Trout & mussels absent scenario
+  if(trout == FALSE & mussels == FALSE){
+    # Acute Criteria
+    acute <- x %>%
+      rowwise() %>%
+      mutate(acuteNH3limit = as.numeric(round(0.7249 * ((0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * min(51.93, (62.15 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)) ) 
+    # Chronic is calculated on 30 day windows, so we need to average temperature and pH within each 30 day window before we can calculate a
+    #  chronic criteria. The chronic criteria will be associated with each sample date that starts a 30 day period, but it applies to all 
+    #  samples within the 30 day window
+    chronicWindowData <- tibble()
+    for( i in 1 : nrow(acute)){
+      # Calculate window average measurements for chronic criteria
+      chronicWindowDatai <- filter(acute, between(FDT_DATE_TIME, acute$FDT_DATE_TIME[i], acute$FDT_DATE_TIME[i] + days(30) ) ) %>% 
+        ungroup() %>%
+        summarise(WindowStart = min(FDT_DATE_TIME),
+                  TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T),
+                  pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>%
+        # Chronic Criteria mussels == F & earlyLife == T
+        {if(earlyLife == TRUE)
+          mutate(., chronicNH3limit = as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * min(6.92, (7.547 * 10^(0.028 * (20 - TempAvg)))), digits = 2)),
+                 `4dayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)) )
+          # Chronic Criteria mussels == F & earlyLife == F
+          else mutate(., chronicNH3limit =  as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * (7.547 * 10^(0.028 * (20 - max(TempAvg, 7)))), digits = 2)),
+                      `4dayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)) )  }
+      chronicWindowData <- bind_rows(chronicWindowData, chronicWindowDatai)      }   
+    return(left_join(acute, dplyr::select(chronicWindowData, WindowStart, chronicNH3limit, `4dayAvglimit`),
+                     by = c("FDT_DATE_TIME" = "WindowStart")) )  }
+}
+#freshwaterNH3limit(stationData, trout = TRUE, mussels = TRUE, earlyLife = TRUE)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Calculate limits and return dataframe with original data and limits 9VAC25-260-155 https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section155/
 freshwaterNH3limit <- function(x, # dataframe with station data
@@ -279,8 +470,10 @@ freshwaterNH3limit <- function(x, # dataframe with station data
       # Chronic Criteria mussels == T & earlyLife == T
       {if(earlyLife == TRUE)
         mutate(., chronicNH3limit = as.numeric(round(
-          0.8876 * ((0.0278 / (1 + 10^(7.688 - FDT_FIELD_PH))) + (1.1994 / (1 + 10^(FDT_FIELD_PH - 7.688)))) * (2.126 * 10^(0.028 * (20 - max(7, FDT_TEMP_CELCIUS)))), digits = 2)) )
-        else mutate(., chronicNH3limit = as.numeric(NA)) }  )  }
+          0.8876 * ((0.0278 / (1 + 10^(7.688 - FDT_FIELD_PH))) + (1.1994 / (1 + 10^(FDT_FIELD_PH - 7.688)))) * (2.126 * 10^(0.028 * (20 - max(7, FDT_TEMP_CELCIUS)))), digits = 2)),
+          `4dayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)) )
+        else mutate(., chronicNH3limit = as.numeric(NA),
+                    `4dayAvglimit`= as.numeric(NA)) }  )  }
   
   # Trout present & mussels absent scenario
   if(trout == TRUE & mussels == FALSE){
@@ -292,20 +485,24 @@ freshwaterNH3limit <- function(x, # dataframe with station data
             (0.7249 * ( (0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * (62.15 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS))) )), digits = 2)) ) %>%
       # Chronic Criteria mussels == F & earlyLife == T
       {if(earlyLife == TRUE)
-        mutate(., chronicNH3limit = as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - FDT_FIELD_PH))) + (1.1994 / (1 + 10^(FDT_FIELD_PH - 7.688)))) * min(6.92, (7.547 * 10^(0.028 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)) )
+        mutate(., chronicNH3limit = as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - FDT_FIELD_PH))) + (1.1994 / (1 + 10^(FDT_FIELD_PH - 7.688)))) * min(6.92, (7.547 * 10^(0.028 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)),
+               `4dayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)) )
         # Chronic Criteria mussels == F & earlyLife == F
-        else mutate(., chronicNH3limit =  as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - FDT_FIELD_PH))) + (1.1994 / (1 + 10^(FDT_FIELD_PH - 7.688)))) * (7.547 * 10^(0.028 * (20 - max(FDT_TEMP_CELCIUS, 7)))), digits = 2)) )  }  )  }
+        else mutate(., chronicNH3limit =  as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - FDT_FIELD_PH))) + (1.1994 / (1 + 10^(FDT_FIELD_PH - 7.688)))) * (7.547 * 10^(0.028 * (20 - max(FDT_TEMP_CELCIUS, 7)))), digits = 2)),
+                    `4dayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)) )  }  )  }
 
   # Trout absent & mussels present scenario
   if(trout == FALSE & mussels == TRUE){
     # Acute Criteria
     return(x %>%
       rowwise() %>%
-      mutate(acuteNH3limit = as.numeric(round(0.7249 * ((0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * min(51.93, (23.12 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)) ) %>%
+      mutate(acuteNH3limit = as.numeric(round(0.7249 * ((0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * min(51.93, (23.12 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)),
+             `4dayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)) ) %>%
       # Chronic Criteria mussels == T & earlyLife == T
       {if(earlyLife == TRUE)
         mutate(., chronicNH3limit = as.numeric(round(0.8876 * ((0.0278 / (1 + 10^(7.688 - FDT_FIELD_PH))) + (1.1994 / (1 + 10^(FDT_FIELD_PH - 7.688)))) * (2.126 * 10^(0.028 * (20 - max(7, FDT_TEMP_CELCIUS)))), digits = 2)) )
-        else mutate(., chronicNH3limit = as.numeric(NA)) }   ) }
+        else mutate(., chronicNH3limit = as.numeric(NA),
+                    `4dayAvglimit`= as.numeric(NA) ) }   ) }
   
   # Trout & mussels absent scenario
   if(trout == FALSE & mussels == FALSE){
@@ -315,8 +512,10 @@ freshwaterNH3limit <- function(x, # dataframe with station data
       mutate(acuteNH3limit = as.numeric(round(0.7249 * ((0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * min(51.93, (62.15 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)) ) %>%
       # Chronic Criteria mussels == F & earlyLife == T
       {if(earlyLife == TRUE)
-        mutate(., chronicNH3limit = as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - FDT_FIELD_PH))) + (1.1994 / (1 + 10^(FDT_FIELD_PH - 7.688)))) * min(6.92, (7.547 * 10^(0.028 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)) )
+        mutate(., chronicNH3limit = as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - FDT_FIELD_PH))) + (1.1994 / (1 + 10^(FDT_FIELD_PH - 7.688)))) * min(6.92, (7.547 * 10^(0.028 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)),
+               `4dayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)) )
         # Chronic Criteria mussels == F & earlyLife == F
-        else mutate(., chronicNH3limit =  as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - FDT_FIELD_PH))) + (1.1994 / (1 + 10^(FDT_FIELD_PH - 7.688)))) * (7.547 * 10^(0.028 * (20 - max(FDT_TEMP_CELCIUS, 7)))), digits = 2)) )  }  )  }
+        else mutate(., chronicNH3limit =  as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - FDT_FIELD_PH))) + (1.1994 / (1 + 10^(FDT_FIELD_PH - 7.688)))) * (7.547 * 10^(0.028 * (20 - max(FDT_TEMP_CELCIUS, 7)))), digits = 2)),
+                    `4dayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)) )  }  )  }
   }
 #freshwaterNH3limit(stationData, trout = TRUE, mussels = TRUE, earlyLife = TRUE)

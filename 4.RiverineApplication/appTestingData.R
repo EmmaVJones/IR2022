@@ -7,7 +7,7 @@ HUC6Selection <- "JU11"#"JM05"#'RL12'#"JM02"#'JM16'#'RU09'#'RL12'#
 
 
 conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
-  filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 UTC" )
+  filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 EDT" )
 vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
 WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 # placeholder for now, shouldn't be a spatial file
@@ -121,7 +121,7 @@ if(nrow(carryoverStations) > 0){
     pull()
   if(length(carryoverStationsInAU) > 0){
     stationSelection <- c(stationSelection, carryoverStationsInAU)  } }
-stationSelection <- stationSelection[2]
+stationSelection <- stationSelection[1]
 
 AUData <- filter_at(conventionals_HUC, vars(starts_with("ID305B")), any_vars(. %in% AUselection) ) 
 
@@ -355,8 +355,8 @@ stationInfo <- filter(stationTable, STATION_ID == stationSelection) %>%
 
 
 ## Ammonia Calculations
-stationData <- #filter(conventionals, FDT_STA_ID %in% '2-JMS279.41') %>% # good example with lots of data
-  filter(conventionals, FDT_STA_ID %in% '4ABSA000.62') %>% # good example with lots of data, lake station so depth is important and hourly averages
+stationData <- filter(conventionals, FDT_STA_ID %in% '2-JMS279.41') %>% # 2BJMS279.41 good cbay station example with lots of data
+  #filter(conventionals, FDT_STA_ID %in% '4ABSA000.62') %>% # good example with lots of data, lake station so depth is important and hourly averages
   left_join(dplyr::select(stationTable, STATION_ID:VAHU6,
                           WQS_ID:EPA_ECO_US_L3NAME),
             #WQS_ID:`Max Temperature (C)`), 
@@ -365,16 +365,121 @@ stationData <- #filter(conventionals, FDT_STA_ID %in% '2-JMS279.41') %>% # good 
   pHSpecialStandardsCorrection()
 
 x <- freshwaterNH3limit(stationData, trout = TRUE, mussels = TRUE, earlyLife = TRUE)  
-x$AMMONIA[c(1)] <- c(4)
-#x$AMMONIA[c(1, 32:33)] <- c(4, 16, 18)
+#x$AMMONIA[c(1)] <- c(4)
+#x$AMMONIA[c(1, 32:33)] <- c(3, 16, 18)
+
+x$AMMONIA[c(2,9)] <- c(8,2)
 
 # Acute criteria are a one-hour average concentration not to be exceeded more than once every three years on the average
 
 # This function tests each unique measure against the associated (calculated) criteria instead of averaging criteria
 #  over each hour window of measurement
-acuteFreshwaterNH3_1hrAssessment <- function(x){ # x is station run through freshwaterNH3limit(), which handles citmon/nonagency data appropriately
+freshwaterNH3Assessment <- function(x,# x is station run through freshwaterNH3limit(), which handles citmon/nonagency data appropriately
+                                             assessmentType){ # c('acute', 'chronic', '4day') one of these options to change criteria tested and window length
+  
+  # Adjust presets based on assessmentType
+  if(assessmentType == 'acute'){
+    limitColumn <- quo(acuteNH3limit)
+    criteriaWindowWidth <- hours(1)}
+  if(assessmentType == 'chronic'){
+    limitColumn <- quo(chronicNH3limit)
+    criteriaWindowWidth <- days(30)}
+  if(assessmentType == '4day'){
+    limitColumn <- quo(`4dayAvglimit`)
+    criteriaWindowWidth <- days(4)}
+  
+  
   # Identify any exceedances
-  exceedances <- filter(x, AMMONIA > acuteNH3limit) 
+  exceedances <- filter(x, AMMONIA > !! limitColumn) 
+ 
+  # WQS applied:
+  # Acute criteria are a one-hour average concentration not to be exceeded more than once every three years on the average
+  # chronic criteria are 30-day average concentrations not to be exceeded more than once every three years on the average
+  # the four-day average concentration of total ammonia nitrogen (in mg N/L) shall not exceed 2.5 times the chronic criterion within a 30-day period more than once every three years on the average.
+  
+  if(nrow(exceedances) > 0){
+    
+    # Test if > 1 exceedance in any 3 year window, start each window with sampling event
+    # Loop through each row of exceedance df to test if any other exceedance in a 3 year window
+    exceedancesIn3YrWindow <- tibble()
+    for( i in 1 : nrow(exceedances)){
+      windowBegin <- exceedances$FDT_DATE_TIME[i]
+      windowEnd <- exceedances$FDT_DATE_TIME[i] + years(3)
+      
+      # Find exceeding data in window defined above
+      otherExceedancesIn3YrWindow <- filter(exceedances, between(FDT_DATE_TIME, windowBegin, windowEnd) ) %>% 
+        ungroup()
+      
+      # Present all data within exceeding window to user so they can make final decision
+      windowData <- filter(x, between(FDT_DATE_TIME, windowBegin, as.POSIXct(windowBegin) + criteriaWindowWidth ) ) 
+        # carry down appropriate window chronic and 4dayAvglimit to entire window as to not confuse user
+        if(assessmentType %in% c('chronic', '4day')){
+          windowCriteria <- ungroup(windowData) %>% dplyr::select(chronicNH3limit, `4dayAvglimit`) %>% slice(1L) 
+          windowData <- mutate(windowData, chronicNH3limit = windowCriteria$chronicNH3limit,
+                               `4dayAvglimit` = windowCriteria$`4dayAvglimit`)        }
+          }
+
+      exceedancesIn3YrWindowi <- tibble(`Window Begin` = windowBegin, `Window End` = windowEnd) %>%
+        bind_cols(summarise(otherExceedancesIn3YrWindow, nExceedancesInWindow = n())) %>% # count number of exceedances in 3 year window
+        bind_cols(tibble(associatedExceedanceData = list(otherExceedancesIn3YrWindow))) %>% # dataset with just exceedances in each exceeding window
+        bind_cols(tibble(allAssociatedWindowData = list(windowData)))
+      exceedancesIn3YrWindow <- bind_rows(exceedancesIn3YrWindow, exceedancesIn3YrWindowi) 
+    }
+    
+    # Summarize results for user
+    # More than one 3 year window with exceedance
+    if(nrow(exceedancesIn3YrWindow) > 1){
+      return(
+        list(
+          tibble(AMMONIA_EXC = max(exceedancesIn3YrWindow$nExceedancesInWindow),
+                 AMMONIA_STAT = 'IM',
+                 `Assessment Decision` = 'Dataset contains more than one 3 year window with at least one hourly exceedance.'),
+          `Exceedance Results` = exceedancesIn3YrWindow)     )
+    } else { # only one exceedance in any 3 year window
+      return(
+        list(
+          tibble(AMMONIA_EXC = max(exceedancesIn3YrWindow$nExceedancesInWindow),
+                 AMMONIA_STAT = 'Review',
+                 `Assessment Decision` = 'Dataset contains one 3 year window with at least one hourly exceedance.'),
+          `Exceedance Results` = exceedancesIn3YrWindow)     )
+      
+    }
+  } else { # No exceedances
+    return(
+      list(
+        tibble(AMMONIA_EXC = 0,
+               AMMONIA_STAT = 'S',
+               `Assessment Decision` = 'Dataset contains no hourly exceedances.'),
+        `Exceedance Results` = NA)  )
+  }
+  }
+
+freshwaterNH3Assessment(x, 'acute')
+z <- freshwaterNH3Assessment(x, 'chronic')
+freshwaterNH3Assessment(x, '4day')
+
+
+rm(assessmentType); rm(exceedancesIn3YrWindow); rm(windowBegin); rm(windowEnd); rm(limitColumn); rm(criteriaWindowWidth); rm(exceedances); rm(exceedancesIn3YrWindowi)
+rm(i); rm(windowData); rm(otherExceedancesIn3YrWindow)
+
+
+assessmentType <- c('acute')#, 'chronic', '4day')
+  
+
+
+
+
+# Present all data within exceeding window to user so they can make final decision
+# have to run each window independently for accurate filtering
+windowData <- tibble()
+for(i in unique(as.character(exceedances$FDT_DATE_TIME))){
+  windowDatai <- filter(x, between(FDT_DATE_TIME, as.POSIXct(i) - criteriaWindowWidth, as.POSIXct(i) + criteriaWindowWidth ) )
+  windowData <- bind_rows(windowData, windowDatai)
+} 
+
+
+
+
   if(nrow(exceedances) > 0){
     
     # Test if > 1 exceedance in any 3 year window, start each window with sampling event
@@ -405,24 +510,31 @@ acuteFreshwaterNH3_1hrAssessment <- function(x){ # x is station run through fres
     # Summarize results for user
     # More than one 3 year window with exceedance
     if(nrow(exceedancesIn3YrWindow) > 1){
+      return(
       list(
         tibble(`Assessment Decision` = 'Dataset contains more than one 3 year window with at least one hourly exceedance.'),
-        `Exceedance Results` = exceedancesIn3YrWindow, `Hourly Data` = hourlyData)    
+        `Exceedance Results` = exceedancesIn3YrWindow, `Hourly Data` = hourlyData)     )
     } else { # only one exceedance in any 3 year window
+      return(
       list(
         tibble(`Assessment Decision` = 'Dataset contains one 3 year window with at least one hourly exceedance.'),
-        `Exceedance Results` = exceedancesIn3YrWindow, `Hourly Data` = hourlyData)    
+        `Exceedance Results` = exceedancesIn3YrWindow, `Hourly Data` = hourlyData)     )
       
     }
   } else { # No exceedances
+    return(
     list(
       tibble(`Assessment Decision` = 'Dataset contains no hourly exceedances.'),
-      `Exceedance Results` = NA, `Hourly Data` = NA)  
+      `Exceedance Results` = NA, `Hourly Data` = NA)  )
   }
 }
     
+x <- freshwaterNH3limit(stationData, trout = TRUE, mussels = TRUE, earlyLife = TRUE)  
+x$AMMONIA[c(1)] <- c(4)
+x$AMMONIA[c(1, 32:33)] <- c(4, 16, 18)
+x$AMMONIA[c(32)] <- c(16)
 
-
+acuteFreshwaterNH3_1hrAssessment(x)
 
 
 
