@@ -365,17 +365,91 @@ stationData <- filter(conventionals, FDT_STA_ID %in% '2-JMS279.41') %>% # 2BJMS2
   pHSpecialStandardsCorrection()
 
 x <- freshwaterNH3limit(stationData, trout = TRUE, mussels = TRUE, earlyLife = TRUE)  
-#x$AMMONIA[c(1)] <- c(4)
+x$acuteExceedance[c(2, 40)] <- c(TRUE, TRUE)
 #x$AMMONIA[c(1, 32:33)] <- c(3, 16, 18)
-
-x$AMMONIA[c(2,9)] <- c(8,2)
+#x$AMMONIA[c(2,9)] <- c(8,2)
 
 # Acute criteria are a one-hour average concentration not to be exceeded more than once every three years on the average
 
-# This function tests each unique measure against the associated (calculated) criteria instead of averaging criteria
-#  over each hour window of measurement
+# This function organizes results from freshwaterNH3limit() into a single assessment decision
+freshwaterNH3Assessment <- function(x, # x is station run through freshwaterNH3limit(), which handles citmon/nonagency data appropriately
+                                    assessmentType){ # c('acute', 'chronic', '4day') one of these options to change criteria tested and window length
+  
+  
+  # Adjust presets based on assessmentType
+  if(assessmentType == 'acute'){limitColumn <- quo(acuteExceedance)}
+  if(assessmentType == 'chronic'){limitColumn <- quo(chronicExceedance)}
+  if(assessmentType == '4day'){limitColumn <- quo(fourDayExceedance)}
+  
+  # Identify any exceedances
+  exceedances <- filter(x, !! limitColumn) # find any exceedances                       
+  
+  if(nrow(exceedances) > 0){
+    
+    # Test if > 1 exceedance in any 3 year window, start each window with sampling event
+    # Loop through each row of exceedance df to test if any other exceedance in a 3 year window
+    exceedancesIn3YrWindow <- tibble()
+    for( i in 1 : nrow(exceedances)){
+      windowBegin <- exceedances$FDT_DATE_TIME[i]
+      windowEnd <- exceedances$FDT_DATE_TIME[i] + years(3)
+      
+      # Find exceeding data in window defined above
+      exceedancesIn3YrWindowData <- filter(exceedances, between(FDT_DATE_TIME, windowBegin, windowEnd) ) %>% 
+        ungroup()
+      
+      
+    exceedancesIn3YrWindowi <- tibble(`Window Begin` = windowBegin, `Window End` = windowEnd) %>%
+      bind_cols(summarise(exceedancesIn3YrWindowData, nExceedancesInWindow = n())) %>%  # count number of exceedances in 3 year window
+      bind_cols(tibble(associatedExceedanceData = list(otherExceedancesIn3YrWindow))) # dataset with just exceedances in each exceeding window
+    exceedancesIn3YrWindow <- bind_rows(exceedancesIn3YrWindow, exceedancesIn3YrWindowi) 
+  }
+  
+  # Summarize results for user
+  # More than one 3 year window with exceedance
+  if(nrow(exceedancesIn3YrWindow) > 1){
+    return(
+      list(
+        tibble(AMMONIA_EXC = ifelse(max(exceedancesIn3YrWindow$nExceedancesInWindow) == 1, nrow(exceedancesIn3YrWindow), max(exceedancesIn3YrWindow$nExceedancesInWindow)),
+               AMMONIA_STAT = 'IM',
+               `Assessment Decision` = 'Dataset contains more than one 3 year window with at least one hourly exceedance.'),
+        `Exceedance Results` = exceedancesIn3YrWindow)     )
+  } else { # only one exceedance in any 3 year window
+    return(
+      list(
+        tibble(AMMONIA_EXC = max(exceedancesIn3YrWindow$nExceedancesInWindow),
+               AMMONIA_STAT = 'Review',
+               `Assessment Decision` = 'Dataset contains one 3 year window with at least one hourly exceedance.'),
+        `Exceedance Results` = exceedancesIn3YrWindow)     )
+    
+  }
+} else { # No exceedances
+  return(
+    list(
+      tibble(AMMONIA_EXC = 0,
+             AMMONIA_STAT = 'S',
+             `Assessment Decision` = 'Dataset contains no hourly exceedances.'),
+      `Exceedance Results` = NA)  )
+}
+}
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 freshwaterNH3Assessment <- function(x,# x is station run through freshwaterNH3limit(), which handles citmon/nonagency data appropriately
-                                             assessmentType){ # c('acute', 'chronic', '4day') one of these options to change criteria tested and window length
+                                    assessmentType){ # c('acute', 'chronic', '4day') one of these options to change criteria tested and window length
+    
   
   # Adjust presets based on assessmentType
   if(assessmentType == 'acute'){
