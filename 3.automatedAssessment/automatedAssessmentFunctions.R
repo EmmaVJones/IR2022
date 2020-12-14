@@ -478,54 +478,64 @@ freshwaterNH3Assessment <- function(x, # x is station run through freshwaterNH3l
   if(assessmentType == 'four-day'){limitColumn <- quo(fourDayExceedance)} ####
   
   # Identify any exceedances
-  exceedances <- filter(x, !! limitColumn) # find any exceedances                       
-  
-  if(nrow(exceedances) > 0){
+  if(!is.null(x)){
+    exceedances <- filter(x, !! limitColumn) # find any exceedances                       
     
-    # Test if > 1 exceedance in any 3 year window, start each window with sampling event
-    # Loop through each row of exceedance df to test if any other exceedance in a 3 year window
-    exceedancesIn3YrWindow <- tibble()
-    for( i in 1 : nrow(exceedances)){
-      windowBegin <- exceedances$FDT_DATE_TIME[i]
-      windowEnd <- exceedances$FDT_DATE_TIME[i] + years(3)
+    if(nrow(exceedances) > 0){
       
-      # Find exceeding data in window defined above
-      exceedancesIn3YrWindowData <- filter(exceedances, between(FDT_DATE_TIME, windowBegin, windowEnd) ) %>% 
-        ungroup()
+      # Test if > 1 exceedance in any 3 year window, start each window with sampling event
+      # Loop through each row of exceedance df to test if any other exceedance in a 3 year window
+      exceedancesIn3YrWindow <- tibble()
+      for( i in 1 : nrow(exceedances)){
+        windowBegin <- exceedances$FDT_DATE_TIME[i]
+        windowEnd <- exceedances$FDT_DATE_TIME[i] + years(3)
+        
+        # Find exceeding data in window defined above
+        exceedancesIn3YrWindowData <- filter(exceedances, between(FDT_DATE_TIME, windowBegin, windowEnd) ) %>% 
+          ungroup()
+        
+        
+        exceedancesIn3YrWindowi <- tibble(`Window Begin` = windowBegin, `Window End` = windowEnd) %>%
+          bind_cols(summarise(exceedancesIn3YrWindowData, nExceedancesInWindow = n())) %>%  # count number of exceedances in 3 year window
+          bind_cols(tibble(associatedExceedanceData = list(exceedancesIn3YrWindowData))) # dataset with just exceedances in each exceeding window
+        exceedancesIn3YrWindow <- bind_rows(exceedancesIn3YrWindow, exceedancesIn3YrWindowi) 
+      }
       
-      
-      exceedancesIn3YrWindowi <- tibble(`Window Begin` = windowBegin, `Window End` = windowEnd) %>%
-        bind_cols(summarise(exceedancesIn3YrWindowData, nExceedancesInWindow = n())) %>%  # count number of exceedances in 3 year window
-        bind_cols(tibble(associatedExceedanceData = list(exceedancesIn3YrWindowData))) # dataset with just exceedances in each exceeding window
-      exceedancesIn3YrWindow <- bind_rows(exceedancesIn3YrWindow, exceedancesIn3YrWindowi) 
-    }
-    
-    # Summarize results for user
-    # More than one 3 year window with exceedance
-    if(nrow(exceedancesIn3YrWindow) > 1){
+      # Summarize results for user
+      # More than one 3 year window with exceedance
+      if(nrow(exceedancesIn3YrWindow) > 1){
+        return(
+          list(
+            tibble(AMMONIA_EXC = ifelse(max(exceedancesIn3YrWindow$nExceedancesInWindow) == 1, nrow(exceedancesIn3YrWindow), max(exceedancesIn3YrWindow$nExceedancesInWindow)),
+                   AMMONIA_STAT = 'IM',
+                   `Assessment Decision` = paste0('Dataset contains more than one 3 year window with at least one ', assessmentType , ' exceedance.')),
+            `Exceedance Results` = exceedancesIn3YrWindow)     )
+      } else { # only one exceedance in any 3 year window
+        return(
+          list(
+            tibble(AMMONIA_EXC = max(exceedancesIn3YrWindow$nExceedancesInWindow),
+                   AMMONIA_STAT = 'Review',
+                   `Assessment Decision` = paste0('Dataset contains one 3 year window with at least one ', assessmentType, ' exceedance.')),
+            `Exceedance Results` = exceedancesIn3YrWindow)     )
+        
+      }
+    } else { # No exceedances
       return(
         list(
-          tibble(AMMONIA_EXC = ifelse(max(exceedancesIn3YrWindow$nExceedancesInWindow) == 1, nrow(exceedancesIn3YrWindow), max(exceedancesIn3YrWindow$nExceedancesInWindow)),
-                 AMMONIA_STAT = 'IM',
-                 `Assessment Decision` = paste0('Dataset contains more than one 3 year window with at least one ', assessmentType , ' exceedance.')),
-          `Exceedance Results` = exceedancesIn3YrWindow)     )
-    } else { # only one exceedance in any 3 year window
-      return(
-        list(
-          tibble(AMMONIA_EXC = max(exceedancesIn3YrWindow$nExceedancesInWindow),
-                 AMMONIA_STAT = 'Review',
-                 `Assessment Decision` = paste0('Dataset contains one 3 year window with at least one ', assessmentType, ' exceedance.')),
-          `Exceedance Results` = exceedancesIn3YrWindow)     )
-      
+          tibble(AMMONIA_EXC = 0,
+                 AMMONIA_STAT = 'S',
+                 `Assessment Decision` = paste0('Dataset contains no ', assessmentType, ' exceedances.')),
+          `Exceedance Results` = NA)  )
     }
-  } else { # No exceedances
+  } else { # x has no data
     return(
       list(
-        tibble(AMMONIA_EXC = 0,
-               AMMONIA_STAT = 'S',
-               `Assessment Decision` = paste0('Dataset contains no ', assessmentType, ' exceedances.')),
+        tibble(AMMONIA_EXC = NA,
+               AMMONIA_STAT = NA,
+               `Assessment Decision` = paste0('Dataset contains no Ammonia data.')),
         `Exceedance Results` = NA)  )
   }
+  
 }
 
 #freshwaterAssessments <- list(acute = freshwaterNH3Assessment(x, 'acute'),
