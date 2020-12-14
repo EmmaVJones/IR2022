@@ -258,7 +258,7 @@ benthicAssessment <- function(x, VSCIresults){
 
 # Four day average analysis function
 
-fourDayAverageAnalysis <- function(chronicWindowData){
+fourDayAverageAnalysis <- function(chronicWindowData, chronicWindowResults){
   fourDayResults <- tibble(`fourDayAmmoniaAvg` = as.numeric(NA),
                            WindowStart = as.POSIXct(NA),
                            `fourDayAvglimit` = as.numeric(NA),
@@ -269,7 +269,7 @@ fourDayAverageAnalysis <- function(chronicWindowData){
     if(nrow(fourDayWindow) > 1){
       fourDayResultsi <- fourDayWindow %>%
         summarize(`fourDayAmmoniaAvg` = as.numeric(round(mean(AMMONIA, na.rm = T), digits = 2))) %>% # round to even for comparison to chronic criteria
-        bind_cols(dplyr::select(chronicWindowResultsi, WindowStart, `fourDayAvglimit`)) %>%
+        bind_cols(dplyr::select(chronicWindowResults, WindowStart, `fourDayAvglimit`)) %>%
         mutate(fourDayExceedance = `fourDayAmmoniaAvg` > `fourDayAvglimit`)
       fourDayResults <- bind_rows(fourDayResults, 
                                   fourDayResultsi %>% bind_cols(tibble(fourDayWindowData = list(fourDayWindow))) )
@@ -292,7 +292,7 @@ freshwaterNH3limit <- function(x, # dataframe with station data
                                trout, # T/F condition
                                mussels,# T/F condition
                                earlyLife# T/F condition
-                               ){
+){
   x <- filter(x, !(RMK_FDT_TEMP_CELCIUS %in% c('Level II', 'Level I')) |
                 !(RMK_FDT_FIELD_PH %in% c('Level II', 'Level I'))) %>% # get lower levels out
     filter(!is.na(AMMONIA)) %>% #get rid of NA's
@@ -335,7 +335,7 @@ freshwaterNH3limit <- function(x, # dataframe with station data
         bind_cols(tibble(associatedWindowData = list(chronicWindowData)))
       
       # 4 day average analysis
-      fourDayResults <- fourDayAverageAnalysis(chronicWindowData)
+      fourDayResults <- fourDayAverageAnalysis(chronicWindowData, chronicWindowResultsi)
       
       chronicWindowResults <- bind_rows(chronicWindowResults, 
                                         left_join(chronicWindowResultsi, fourDayResults, by = c('WindowStart', 'fourDayAvglimit'))  ) }
@@ -353,7 +353,7 @@ freshwaterNH3limit <- function(x, # dataframe with station data
     # Chronic is calculated on 30 day windows, so we need to average temperature and pH within each 30 day window before we can calculate a
     #  chronic criteria. The chronic criteria will be associated with each sample date that starts a 30 day period, but it applies to all 
     #  samples within the 30 day window
-    chronicWindowData <- tibble()
+    chronicWindowResults <- tibble()
     for( i in 1 : nrow(acute)){
       # Calculate window average measurements for chronic criteria
       chronicWindowData <- filter(acute, between(FDT_DATE_TIME, acute$FDT_DATE_TIME[i], acute$FDT_DATE_TIME[i] + days(30) ) ) %>% 
@@ -376,7 +376,7 @@ freshwaterNH3limit <- function(x, # dataframe with station data
         bind_cols(tibble(associatedWindowData = list(chronicWindowData)))
       
       # 4 day average analysis
-      fourDayResults <- fourDayAverageAnalysis(chronicWindowData)
+      fourDayResults <- fourDayAverageAnalysis(chronicWindowData, chronicWindowResultsi)
       
       chronicWindowResults <- bind_rows(chronicWindowResults, 
                                         left_join(chronicWindowResultsi, fourDayResults, by = c('WindowStart', 'fourDayAvglimit'))  ) }
@@ -393,7 +393,7 @@ freshwaterNH3limit <- function(x, # dataframe with station data
     # Chronic is calculated on 30 day windows, so we need to average temperature and pH within each 30 day window before we can calculate a
     #  chronic criteria. The chronic criteria will be associated with each sample date that starts a 30 day period, but it applies to all 
     #  samples within the 30 day window
-    chronicWindowData <- tibble()
+    chronicWindowResults <- tibble()
     for( i in 1 : nrow(acute)){
       # Calculate window average measurements for chronic criteria
       chronicWindowData <- filter(acute, between(FDT_DATE_TIME, acute$FDT_DATE_TIME[i], acute$FDT_DATE_TIME[i] + days(30) ) ) %>% 
@@ -415,7 +415,7 @@ freshwaterNH3limit <- function(x, # dataframe with station data
         bind_cols(tibble(associatedWindowData = list(chronicWindowData)))
       
       # 4 day average analysis
-      fourDayResults <- fourDayAverageAnalysis(chronicWindowData)
+      fourDayResults <- fourDayAverageAnalysis(chronicWindowData, chronicWindowResultsi)
       
       chronicWindowResults <- bind_rows(chronicWindowResults, 
                                         left_join(chronicWindowResultsi, fourDayResults, by = c('WindowStart', 'fourDayAvglimit'))  ) }
@@ -434,7 +434,7 @@ freshwaterNH3limit <- function(x, # dataframe with station data
     # Chronic is calculated on 30 day windows, so we need to average temperature and pH within each 30 day window before we can calculate a
     #  chronic criteria. The chronic criteria will be associated with each sample date that starts a 30 day period, but it applies to all 
     #  samples within the 30 day window
-    chronicWindowData <- tibble()
+    chronicWindowResults <- tibble()
     for( i in 1 : nrow(acute)){
       # Calculate window average measurements for chronic criteria
       chronicWindowData <- filter(acute, between(FDT_DATE_TIME, acute$FDT_DATE_TIME[i], acute$FDT_DATE_TIME[i] + days(30) ) ) %>% 
@@ -457,7 +457,7 @@ freshwaterNH3limit <- function(x, # dataframe with station data
         bind_cols(tibble(associatedWindowData = list(chronicWindowData)))
       
       # 4 day average analysis
-      fourDayResults <- fourDayAverageAnalysis(chronicWindowData)
+      fourDayResults <- fourDayAverageAnalysis(chronicWindowData, chronicWindowResultsi)
       
       chronicWindowResults <- bind_rows(chronicWindowResults, 
                                         left_join(chronicWindowResultsi, fourDayResults, by = c('WindowStart', 'fourDayAvglimit'))  ) }

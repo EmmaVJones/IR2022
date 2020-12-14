@@ -161,6 +161,14 @@ for(i in 1:nrow(stationTable)){
     left_join(stationTable, by = c('FDT_STA_ID' = 'STATION_ID')) %>%
   pHSpecialStandardsCorrection() # correct pH to special standards where necessary
   
+  # Ammonia special section
+  ammoniaAnalysis <- freshwaterNH3limit(stationData, trout = ifelse(unique(stationData$CLASS) %in% c('V','VI'), TRUE, FALSE),
+                                        mussels = TRUE, earlyLife = TRUE) 
+  # https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section155/ states the assumption is that
+  #  waters are to be assessed with the assumption that mussels and early life stages of fish should be present
+  # trout presence is determined by WQS class, this can be changed in the app but is forced to be what the station
+  # is attributed to in the automated assessment scripts
+  
   # If data exists for station, run it, otherwise just output what last cycle said and comment
   if(nrow(stationData) > 0){
     results <- cbind(
@@ -176,7 +184,9 @@ for(i in 1:nrow(stationTable)){
         #dplyr::select(ENTER_EXC:ENTER_STAT), # don't add verbose comment to COMMENT field
     
       # Ammonia needs to go here
-      # AMMONIA_EXC, AMMONIA_STAT
+      ammoniaDecision(list(acute = freshwaterNH3Assessment(ammoniaAnalysis, 'acute'),
+                           chronic = freshwaterNH3Assessment(ammoniaAnalysis, 'chronic'),
+                           fourDay = freshwaterNH3Assessment(ammoniaAnalysis, 'four-day'))), 
     
       # Exact copy of last cycle's scripts for WAT_MET_EXC, WAT_MET_STAT, 
       metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData$FDT_STA_ID) %>% 
@@ -209,8 +219,9 @@ for(i in 1:nrow(stationTable)){
     
       # COMMENTS
       mutate(COMMENTS = paste0('ECOLI Comment: ', ECOLI_STATECOLI_VERBOSE,
-                               ' | ENTEROCOCCI Comment: ', ENTER_STATENTER_VERBOSE)) %>%
-      dplyr::select(-ends_with(c('exceedanceRate', 'VERBOSE'))) # to match Bulk Upload template but helpful to keep visible til now for testing
+                               ' | ENTEROCOCCI Comment: ', ENTER_STATENTER_VERBOSE,
+                               ' | AMMONIA Comment: ', `Assessment Decision`)) %>%
+      dplyr::select(-ends_with(c('exceedanceRate', 'VERBOSE', 'Assessment Decision'))) # to match Bulk Upload template but helpful to keep visible til now for testing
   } else {# pull what you can from last cycle and flag as carry over
     results <- filter(stationTable, STATION_ID == stationTable$STATION_ID[i]) %>%
       dplyr::select(STATION_ID:VAHU6, COMMENTS) %>%
