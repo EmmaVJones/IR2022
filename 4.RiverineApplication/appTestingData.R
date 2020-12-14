@@ -365,21 +365,23 @@ stationData <- filter(conventionals, FDT_STA_ID %in% '2-JMS279.41') %>% # 2BJMS2
   pHSpecialStandardsCorrection()
 
 x <- freshwaterNH3limit(stationData, trout = TRUE, mussels = TRUE, earlyLife = TRUE)  
-x$acuteExceedance[c(2, 40)] <- c(TRUE, TRUE)
-#x$AMMONIA[c(1, 32:33)] <- c(3, 16, 18)
-#x$AMMONIA[c(2,9)] <- c(8,2)
+#x$acuteExceedance[c(2, 40)] <- c(TRUE, TRUE)
+x$chronicExceedance[c(4)] <- c(TRUE)
+x$fourDayExceedance[c(2)] <- c(TRUE)
+
+
 
 # Acute criteria are a one-hour average concentration not to be exceeded more than once every three years on the average
 
 # This function organizes results from freshwaterNH3limit() into a single assessment decision
 freshwaterNH3Assessment <- function(x, # x is station run through freshwaterNH3limit(), which handles citmon/nonagency data appropriately
-                                    assessmentType){ # c('acute', 'chronic', '4day') one of these options to change criteria tested and window length
+                                    assessmentType){ # c('acute', 'chronic', 'four-day') one of these options to change criteria tested and window length
   
   
   # Adjust presets based on assessmentType
   if(assessmentType == 'acute'){limitColumn <- quo(acuteExceedance)}
-  if(assessmentType == 'chronic'){limitColumn <- quo(chronicExceedance)}
-  if(assessmentType == '4day'){limitColumn <- quo(fourDayExceedance)}
+  if(assessmentType == 'chronic'){limitColumn <- quo(chronicExceedance)} ###
+  if(assessmentType == 'four-day'){limitColumn <- quo(fourDayExceedance)} ####
   
   # Identify any exceedances
   exceedances <- filter(x, !! limitColumn) # find any exceedances                       
@@ -400,7 +402,7 @@ freshwaterNH3Assessment <- function(x, # x is station run through freshwaterNH3l
       
     exceedancesIn3YrWindowi <- tibble(`Window Begin` = windowBegin, `Window End` = windowEnd) %>%
       bind_cols(summarise(exceedancesIn3YrWindowData, nExceedancesInWindow = n())) %>%  # count number of exceedances in 3 year window
-      bind_cols(tibble(associatedExceedanceData = list(otherExceedancesIn3YrWindow))) # dataset with just exceedances in each exceeding window
+      bind_cols(tibble(associatedExceedanceData = list(exceedancesIn3YrWindowData))) # dataset with just exceedances in each exceeding window
     exceedancesIn3YrWindow <- bind_rows(exceedancesIn3YrWindow, exceedancesIn3YrWindowi) 
   }
   
@@ -411,14 +413,14 @@ freshwaterNH3Assessment <- function(x, # x is station run through freshwaterNH3l
       list(
         tibble(AMMONIA_EXC = ifelse(max(exceedancesIn3YrWindow$nExceedancesInWindow) == 1, nrow(exceedancesIn3YrWindow), max(exceedancesIn3YrWindow$nExceedancesInWindow)),
                AMMONIA_STAT = 'IM',
-               `Assessment Decision` = 'Dataset contains more than one 3 year window with at least one hourly exceedance.'),
+               `Assessment Decision` = paste0('Dataset contains more than one 3 year window with at least one ', assessmentType , ' exceedance.')),
         `Exceedance Results` = exceedancesIn3YrWindow)     )
   } else { # only one exceedance in any 3 year window
     return(
       list(
         tibble(AMMONIA_EXC = max(exceedancesIn3YrWindow$nExceedancesInWindow),
                AMMONIA_STAT = 'Review',
-               `Assessment Decision` = 'Dataset contains one 3 year window with at least one hourly exceedance.'),
+               `Assessment Decision` = paste0('Dataset contains one 3 year window with at least one ', assessmentType, ' exceedance.')),
         `Exceedance Results` = exceedancesIn3YrWindow)     )
     
   }
@@ -427,18 +429,42 @@ freshwaterNH3Assessment <- function(x, # x is station run through freshwaterNH3l
     list(
       tibble(AMMONIA_EXC = 0,
              AMMONIA_STAT = 'S',
-             `Assessment Decision` = 'Dataset contains no hourly exceedances.'),
+             `Assessment Decision` = paste0('Dataset contains no ', assessmentType, ' exceedances.')),
       `Exceedance Results` = NA)  )
 }
 }
 
-
+freshwaterAssessments <- list(acute = freshwaterNH3Assessment(x, 'acute'),
+                              chronic = freshwaterNH3Assessment(x, 'chronic'),
+                              fourDay = freshwaterNH3Assessment(x, 'four-day'))
   
+# Function to consolidate 3 assessments to fit one row
+ammoniaDecision <- function(freshwaterAssessments # list of freshwater assessments to consolidate into a single decision
+                            ){ 
+  consolidatedResults <- map_df(freshwaterAssessments, 1)
   
-  
-  
-  
-  
+  review <- filter(consolidatedResults, AMMONIA_STAT %in% c('IM', 'Review'))
+  if(nrow(review) > 1){
+    
+    stationTableOutput <- review %>%
+      slice_max(AMMONIA_EXC, n = 1)
+    
+    # special case if max results in tie, just choose 1
+    if(nrow(stationTableOutput) > 1){
+      stationTableOutput <- stationTableOutput[1,] }
+    
+    # Add the other assessment decisions into comment field
+    extra <- paste(filter(consolidatedResults, ! `Assessment Decision` %in% stationTableOutput$`Assessment Decision`)$`Assessment Decision`, collapse = ' ')
+    stationTableOutput <- mutate(stationTableOutput, `Assessment Decision` = paste(`Assessment Decision`, extra))
+  } else { # no exceedances of any type in this scenario
+    stationTableOutput <- consolidatedResults[1,]
+    # Add the other assessment decisions into comment field
+    extra <- paste(filter(consolidatedResults, ! `Assessment Decision` %in% stationTableOutput$`Assessment Decision`)$`Assessment Decision`, collapse = ' ')
+    stationTableOutput <- mutate(stationTableOutput, `Assessment Decision` = paste(`Assessment Decision`, extra))
+    
+  }
+  return(stationTableOutput)
+}
   
   
   
