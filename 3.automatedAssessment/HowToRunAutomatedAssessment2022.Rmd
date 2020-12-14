@@ -256,6 +256,7 @@ stationTableResults1 <- filter(stationTableResults, STATION_ID %in% filter(stati
 write_csv(stationTableResults1, 'processedStationData/stationTableResultsBRRO.csv',
           na = "") # dont write out a character NA in csv
 
+saveRDS(ammoniaAnalysis, 'processedStationData/ammoniaAnalysis.RDS')
 ```
 
 
