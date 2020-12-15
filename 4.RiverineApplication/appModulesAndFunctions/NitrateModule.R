@@ -66,7 +66,8 @@ NitratePlotlySingleStation <- function(input,output,session, AUdata, stationSele
     parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, NITRATE, RMK_NITRATE)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
-                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
+                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
+                  selection = 'none') %>%
       formatStyle(c('NITRATE','RMK_NITRATE'), 'RMK_NITRATE', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
@@ -166,7 +167,8 @@ NitratePlotlySingleStation <- function(input,output,session, AUdata, stationSele
       z <- filter(oneStation(), `Parameter Rounded to WQS Format` > PWSlimit) %>%
         dplyr::select(FDT_DATE_TIME, NITRATE, RMK_NITRATE, Criteria = PWSlimit, `Parameter Rounded to WQS Format`) 
     } else { z <- NULL}
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t')) })
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
+              selection = 'none') })
   
   output$stationExceedanceRate <- renderDataTable({
     req(input$oneStationSelection, oneStation())
@@ -179,7 +181,8 @@ NitratePlotlySingleStation <- function(input,output,session, AUdata, stationSele
         rename(parameter = !!names(.[5])) %>% # rename columns to make functions easier to apply
         mutate(exceeds = ifelse(parameter > limit, T, F)) # Identify where above NH3 WQS limit
       z <- quickStats(nitrate, 'PWS_Nitrate') %>% dplyr::select(-PWS_Nitrate_STAT) 
-      datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t')) }}) 
+      datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
+                selection = 'none') }}) 
   
   
   

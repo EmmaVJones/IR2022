@@ -73,7 +73,8 @@ pHPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
     parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, FDT_FIELD_PH, RMK_FDT_FIELD_PH)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
-                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
+                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
+                  selection = 'none') %>%
       formatStyle(c('FDT_FIELD_PH','RMK_FDT_FIELD_PH'), 'RMK_FDT_FIELD_PH', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
@@ -135,12 +136,14 @@ pHPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
       filter(exceeds == TRUE) %>%
       rename('Outside WQS Criteria' = 'exceeds', 'Parameter Rounded to WQS Format' = 'parameterRound') %>%
       dplyr::select(-c(FDT_DEPTH, limit, interval))
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "300px", dom='t'))})
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "300px", dom='t'),
+              selection = 'none')})
   
   
   output$stationExceedanceRate <- renderDataTable({
     req(ns(input$oneStationSelection), oneStation())
     z <- pHExceedances(oneStation()) %>% quickStats('PH') %>% dplyr::select(-PH_STAT)
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t')) })
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
+              selection = 'none') })
   
 }

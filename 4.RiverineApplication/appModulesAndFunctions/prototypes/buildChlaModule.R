@@ -49,7 +49,8 @@ chlAPlotlySingleStation <- function(input,output,session, AUdata, stationSelecte
     parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, CHLOROPHYLL, RMK_CHLOROPHYLL)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
-                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
+                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
+                  selection = 'none') %>%
       formatStyle(c('CHLOROPHYLL','RMK_CHLOROPHYLL'), 'RMK_CHLOROPHYLL', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   

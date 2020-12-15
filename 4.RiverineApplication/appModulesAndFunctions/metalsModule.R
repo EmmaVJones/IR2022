@@ -45,13 +45,15 @@ metalsTableSingleStation <- function(input,output,session, AUdata, WCmetals ,Sme
     req(WCmetals_oneStation())
     z <- dplyr::select(WCmetals_oneStation(), FDT_STA_ID:HARDNESS)
     z$FDT_DATE_TIME <- as.character(as.POSIXct(z$FDT_DATE_TIME, format="%m/%d/%Y %H:%M"))
-    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'))     })
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'),
+                  selection = 'none')     })
   
   output$WCstationmetalsExceedanceRate <- DT::renderDataTable({
     req(input$WCmetals_oneStationSelection, WCmetals_oneStation())
     z <- dplyr::select(WCmetals_oneStation(), FDT_STA_ID, `FDT_DATE_TIME`,`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`)
     z$FDT_DATE_TIME <- as.character(as.POSIXct(z$FDT_DATE_TIME, format="%m/%d/%Y %H:%M"))
-    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t')) %>%
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'),
+                  selection = 'none') %>%
       formatStyle(names(z), backgroundColor = styleEqual(c('NSP'), c('red'))) # highlight cells red if not supporting
   }) 
   
@@ -73,13 +75,15 @@ metalsTableSingleStation <- function(input,output,session, AUdata, WCmetals ,Sme
     req(Smetals_oneStation())
     z <- dplyr::select(Smetals_oneStation(), FDT_STA_ID, FDT_DATE_TIME:ENDRINT)
     z$FDT_DATE_TIME <- as.character(as.POSIXct(z$FDT_DATE_TIME, format="%m/%d/%Y %H:%M"))
-    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'))     })
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'),
+                  selection = 'none')     })
   
   output$SstationmetalsExceedanceRate <- DT::renderDataTable({
     req(input$Smetals_oneStationSelection, Smetals_oneStation())
     z <- dplyr::select(Smetals_oneStation(), FDT_STA_ID, `FDT_DATE_TIME`,ARSENIC:COMMENT)
     z$FDT_DATE_TIME <- as.character(as.POSIXct(z$FDT_DATE_TIME, format="%m/%d/%Y %H:%M"))
-    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t')) %>%
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'),
+                  selection = 'none') %>%
       formatStyle(names(z), backgroundColor = styleEqual(c('OE'), c('red'))) # highlight cells red if not supporting
   }) 
   

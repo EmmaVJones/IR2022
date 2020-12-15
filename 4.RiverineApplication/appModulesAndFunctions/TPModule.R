@@ -55,7 +55,8 @@ TPPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
     parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, PHOSPHORUS, RMK_PHOSPHORUS)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
-                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
+                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
+                  selection = 'none') %>%
       formatStyle(c('PHOSPHORUS','RMK_PHOSPHORUS'), 'RMK_PHOSPHORUS', 
                   backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
@@ -116,13 +117,15 @@ TPPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
     z <- countNutrients(oneStation(), PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>%
       filter(exceeds == TRUE) %>%
       dplyr::select(FDT_DATE_TIME, PHOSPHORUS = parameter, RMK_PHOSPHORUS, LIMIT = limit)
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'))})
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
+              selection = 'none')})
   
   
   output$stationExceedanceRate <- renderDataTable({
     req(ns(input$oneStationSelection), oneStation())
     z <- countNutrients(oneStation(), PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP') %>%
       dplyr::select(-NUT_TP_STAT)
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t')) })
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
+              selection = 'none') })
   
 }

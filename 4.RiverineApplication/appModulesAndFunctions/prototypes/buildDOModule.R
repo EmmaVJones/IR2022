@@ -72,7 +72,8 @@ DOPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
     parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, DO, RMK_DO)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
-                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
+                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
+                  selection = 'none') %>%
       formatStyle(c('DO','RMK_DO'), 'RMK_DO',backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray')) })
   
   output$plotly <- renderPlotly({
@@ -132,23 +133,27 @@ DOPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
       rename("DO" = 'parameter', 'Criteria' = 'limit', 'Parameter Rounded to WQS Format' = 'parameterRound') %>%
       filter(exceeds == TRUE) %>%
       dplyr::select(-exceeds)
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t'))})
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t'),
+              selection = 'none')})
 
   
   output$dailyAverageTableSingleSite <- renderDataTable({ req(oneStation())
     z <- DO_Assessment_DailyAvg(oneStation()) %>%
       dplyr::select('Date' = date, `DO Daily Average (Rounded to WQS Format)` = DO_DailyAverage, 
                     `n Daily Samples` = n_Samples_Daily, 'Criteria' = limit )
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t'))})
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t'),
+              selection = 'none')})
   
   output$stationExceedanceRate <- renderDataTable({req(input$oneStationSelection, oneStation())
     z <- DOExceedances_Min(oneStation()) %>% quickStats('DO') %>% dplyr::select(-DO_STAT)
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t')) })
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t'),
+              selection = 'none') })
   
   output$stationDailyAverageExceedanceRate <- renderDataTable({
     req(input$oneStationSelection, oneStation())
     z <- DO_Assessment_DailyAvg(oneStation()) %>% quickStats('DO_Daily_Avg') %>% dplyr::select(-DO_Daily_Avg_STAT)
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t')) })
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t'),
+              selection = 'none') })
   
 }
 

@@ -268,8 +268,9 @@ fourDayAverageAnalysis <- function(chronicWindowData, chronicWindowResults){
     fourDayWindow <- filter(chronicWindowData, between(FDT_DATE_TIME, chronicWindowData$FDT_DATE_TIME[k], chronicWindowData$FDT_DATE_TIME[k] + days(4) ) )
     if(nrow(fourDayWindow) > 1){
       fourDayResultsi <- fourDayWindow %>%
-        summarize(`fourDayAmmoniaAvg` = as.numeric(round(mean(AMMONIA, na.rm = T), digits = 2))) %>% # round to even for comparison to chronic criteria
-        bind_cols(dplyr::select(chronicWindowResults, WindowStart, `fourDayAvglimit`)) %>%
+        summarize(WindowStart = min(FDT_DATE_TIME),
+          `fourDayAmmoniaAvg` = as.numeric(round(mean(AMMONIA, na.rm = T), digits = 2))) %>% # round to even for comparison to chronic criteria
+        bind_cols(dplyr::select(chronicWindowResults,`fourDayAvglimit`)) %>%
         mutate(fourDayExceedance = `fourDayAmmoniaAvg` > `fourDayAvglimit`)
       fourDayResults <- bind_rows(fourDayResults, 
                                   fourDayResultsi %>% bind_cols(tibble(fourDayWindowData = list(fourDayWindow))) )
@@ -281,10 +282,10 @@ fourDayAverageAnalysis <- function(chronicWindowData, chronicWindowResults){
                                          fourDayExceedance = as.logical(NA),
                                          fourDayWindowData = list(NA)) )    }
   }
-  
+  fourDayResults <- filter(fourDayResults, !is.na(fourDayAmmoniaAvg))
   return(fourDayResults)
 }
-#fourDayAverageAnalysis(chronicWindowData)
+#fourDayAverageAnalysis(chronicWindowData, chronicWindowResultsi)
 
 
 # Calculate limits and return dataframe with original data and limits 9VAC25-260-155 https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section155/

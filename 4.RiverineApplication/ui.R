@@ -217,7 +217,12 @@ shinyUI(fluidPage(theme="yeti.css",
                                                                 helpText('Review each site using the single site visualization section. There are no WQS for Total Nitrogen.'),
                                                                 TNPlotlySingleStationUI('TN')),
                                                        tabPanel("Ammonia",
-                                                                br(), h4('Hang tight, module still in development.'), br(), br(), br(), br(), br(), br()),
+                                                                helpText('Review each site using the single site visualization section. The results from this analysis are reflected
+                                                                        in the AMMONIA_EXC and AMMONIA_STAT columns in the station table. Since two columns must hold information regarding
+                                                                         three potential ways of analyzing the data, make sure you fully comment which method is represented in the
+                                                                         AMMONIA_EXC and AMMONIA_STAT columns in your COMMENTS field. The automated assessment stations table output
+                                                                         has reported results for all three methods in the COMMENTS field as a starting point.'),
+                                                                AmmoniaPlotlySingleStationUI('Ammonia')),
                                                        tabPanel("Total Phosphorus",
                                                                 helpText('Review each site using the single site visualization section. There are no WQS for Total Nitrogen.'),
                                                                 TPPlotlySingleStationUI('TP')),

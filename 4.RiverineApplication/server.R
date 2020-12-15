@@ -25,6 +25,8 @@ VCPMI63results <- pin_get("VCPMI63results", board = "rsconnect") %>%
 VCPMI65results <- pin_get("VCPMI65results", board = "rsconnect") %>%
   filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) 
 
+# Bring in local data (for now)
+ammoniaAnalysis <- readRDS('userDataToUpload/processedStationData/ammoniaAnalysis.RDS')
 
 
 
@@ -116,7 +118,8 @@ shinyServer(function(input, output, session) {
   # Table of AUs within Selected VAHU6
   output$AUSummary <-  DT::renderDataTable({ req(AUs())
     DT::datatable(AUs() %>% st_drop_geometry(), rownames = FALSE, 
-                  options= list(scrollX = TRUE, pageLength = nrow(AUs()), scrollY = "300px", dom='Bti'))   })
+                  options= list(scrollX = TRUE, pageLength = nrow(AUs()), scrollY = "300px", dom='Bti'),
+                  selection = 'none')   })
 
   # Table of Stations within Selected VAHU6
   stationSummary <- reactive({req(huc6_filter())
@@ -129,7 +132,9 @@ shinyServer(function(input, output, session) {
           ifelse(FDT_STA_ID %in% unique(stationTable()$STATION_ID), 'yes','no')) })
   
   output$stationSummary <- DT::renderDataTable({req(stationSummary())
-    DT::datatable(stationSummary(), rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(stationSummary()), scrollY = "300px", dom='Bti')) %>%
+    DT::datatable(stationSummary(), rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(stationSummary()), 
+                                                                    scrollY = "300px", dom='Bti'),
+                  selection = 'none') %>%
       DT::formatStyle('Analyzed By App', target = 'row', backgroundColor = styleEqual(c('yes','no'), c('lightgray', 'yellow'))) })
      
   
@@ -143,7 +148,8 @@ shinyServer(function(input, output, session) {
 
     DT::datatable(z, rownames = FALSE, 
                   options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "300px", dom='Bti',
-                                autoWidth = TRUE, columnDefs = list(list(width = '400px', targets = c(29))))) })
+                                autoWidth = TRUE, columnDefs = list(list(width = '400px', targets = c(29)))),
+                  selection = 'none') })
   
   # Button to visualize modal map of AUs in selected VAHU6
   observeEvent(input$reviewAUs,{
@@ -188,7 +194,8 @@ shinyServer(function(input, output, session) {
   # Show selected VAHU6
   output$selectedVAHU6 <- DT::renderDataTable({
     datatable(huc6_filter() %>% st_set_geometry(NULL) %>% select(VAHU6, VaName, Basin),
-              rownames = FALSE, options= list(pageLength = 1, scrollY = "35px", dom='t'))})
+              rownames = FALSE, options= list(pageLength = 1, scrollY = "35px", dom='t'),
+              selection = 'none')})
   
   
   ## Don't let user click pull data button if no conventionals data for VAHU6
@@ -222,7 +229,8 @@ shinyServer(function(input, output, session) {
   output$selectedAU <- DT::renderDataTable({req(conventionals_HUC(),input$AUselection)
     z <- filter(regionalAUs(), ID305B %in% input$AUselection) %>% st_set_geometry(NULL) %>% as.data.frame()
     datatable(z, rownames = FALSE, 
-              options= list(pageLength = nrow(z),scrollX = TRUE, scrollY = "300px", dom='t'))})
+              options= list(pageLength = nrow(z),scrollX = TRUE, scrollY = "300px", dom='t'),
+              selection = 'none')})
   
   output$stationSelection_ <- renderUI({ req(conventionals_HUC(), input$AUselection)
     z <- filter(conventionals_HUC(), ID305B_1 %in% input$AUselection | ID305B_2 %in% input$AUselection | 
@@ -261,7 +269,8 @@ shinyServer(function(input, output, session) {
       #filter(stationTable(), STATION_ID == input$stationSelection) %>% 
       #select(STATION_ID:VAHU6, WQS_ID:Trout) %>% 
       t() %>% as.data.frame() %>% rename(`Station and WQS Information` = 1)
-    DT::datatable(z, options= list(pageLength = nrow(z), scrollY = "250px", dom='t'))  })
+    DT::datatable(z, options= list(pageLength = nrow(z), scrollY = "250px", dom='t'),
+                  selection = 'none')  })
   
   
   output$stationMap <- renderLeaflet({req(nrow(stationInfo()) >0) # to prevent having no lat/lng data for that half second app is catching up after station change
@@ -283,13 +292,15 @@ shinyServer(function(input, output, session) {
     z <- suppressWarnings(filter(historicalStationsTable, STATION_ID %in% input$stationSelection) %>% 
                             select(STATION_ID:COMMENTS) %>%
                             t() %>% as.data.frame() %>% rename(`Station Information From 2020 Cycle` = 'V1')) # need to update each rebuild
-    DT::datatable(z, options= list(pageLength = nrow(z), scrollY = "250px", dom='t'))  })
+    DT::datatable(z, options= list(pageLength = nrow(z), scrollY = "250px", dom='t'),
+                  selection = 'none')  })
   
   output$stationHistoricalInfo2 <- DT::renderDataTable({ req(nrow(stationInfo()) >0)
     z <- suppressWarnings(filter(historicalStationsTable2, STATION_ID %in% input$stationSelection) %>% 
                             select(STATION_ID:COMMENTS) %>%
                             t() %>% as.data.frame() %>% rename(`Station Information From 2018 Cycle` = 'V1')) # need to update each rebuild
-    DT::datatable(z, options= list(pageLength = nrow(z), scrollY = "250px", dom='t'))  })
+    DT::datatable(z, options= list(pageLength = nrow(z), scrollY = "250px", dom='t'),
+                  selection = 'none')  })
   
   
   
@@ -301,6 +312,10 @@ shinyServer(function(input, output, session) {
     bacteriaAssessmentDecision(stationData(), 'ECOLI', 'RMK_ECOLI', 10, 410, 126)})
   enter <- reactive({req(stationData())
     bacteriaAssessmentDecision(stationData(), 'ENTEROCOCCI', 'RMK_ENTEROCOCCI', 10, 130, 35)})
+  ammoniaAnalysisStation <- reactive({req(stationData())
+    z <- filter(ammoniaAnalysis, StationID %in% unique(stationData()$FDT_STA_ID)) %>%
+      map(1) 
+    z$AmmoniaAnalysis })
   
   observe({
     req(nrow(ecoli()) > 0, nrow(enter()) > 0)# need to tell the app to wait for data to exist in these objects before smashing data together or will bomb out when switching between VAHU6's on the Watershed Selection Page
@@ -310,6 +325,11 @@ shinyServer(function(input, output, session) {
                                          pHExceedances(stationData()) %>% quickStats('PH'),
                                          ecoli() %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),#siteData$ecoli %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),
                                          enter() %>% dplyr::select(ENTER_EXC:ENTER_STAT), #siteData$enter %>% dplyr::select(ENTER_EXC:ENTER_STAT)) %>%
+                                         
+                                         ammoniaDecision(list(acute = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'acute'),
+                                                              chronic = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'chronic'),
+                                                              fourDay = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'four-day'))), 
+                                         
                                          metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
                                                              dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
                                          metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
@@ -320,7 +340,7 @@ shinyServer(function(input, output, session) {
                                          countNutrients(stationData(), CHLOROPHYLL, RMK_CHLOROPHYLL, NA) %>% quickStats('NUT_CHLA') %>%
                                            mutate(NUT_CHLA_STAT = NA)) %>% # don't show a real assessment decision) %>%
       mutate(COMMENTS = NA) %>%
-      dplyr::select(-ends_with('exceedanceRate'))
+      dplyr::select(-ends_with(c('exceedanceRate','Assessment Decision')))
   })
   
   #output$testOutside <- renderPrint({ecoli()})#siteData$ecoli})
@@ -332,12 +352,14 @@ shinyServer(function(input, output, session) {
                             # hide certain columns
                             dom='Bt', buttons=list('copy',
                                                    list(extend='csv',filename=paste('AssessmentResults_',paste(assessmentCycle,input$stationSelection, collapse = "_"),Sys.Date(),sep='')),
-                                                   list(extend='excel',filename=paste('AssessmentResults_',paste(assessmentCycle,input$stationSelection, collapse = "_"),Sys.Date(),sep=''))))) %>% 
+                                                   list(extend='excel',filename=paste('AssessmentResults_',paste(assessmentCycle,input$stationSelection, collapse = "_"),Sys.Date(),sep='')))),
+              selection = 'none') %>% 
       formatStyle(c('TEMP_EXC','TEMP_SAMP','TEMP_STAT'), 'TEMP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
       formatStyle(c('DO_EXC','DO_SAMP','DO_STAT'), 'DO_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
       formatStyle(c('PH_EXC','PH_SAMP','PH_STAT'), 'PH_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
       formatStyle(c('ECOLI_EXC','ECOLI_SAMP','ECOLI_GM_EXC','ECOLI_GM_SAMP','ECOLI_STAT'), 'ECOLI_STAT', backgroundColor = styleEqual(c('IM'), c('red'))) %>%
       formatStyle(c('ENTER_SAMP','ENTER_EXC',"ENTER_GM_EXC","ENTER_GM_SAMP",'ENTER_STAT'), 'ENTER_STAT', backgroundColor = styleEqual(c('IM'), c('red'))) %>%
+      formatStyle(c('AMMONIA_EXC','AMMONIA_STAT'), 'AMMONIA_STAT', backgroundColor = styleEqual(c('Review', 'IM'), c('yellow','red'))) %>%
       formatStyle(c('WAT_MET_EXC','WAT_MET_STAT'), 'WAT_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
       formatStyle(c('SED_MET_EXC','SED_MET_STAT'), 'SED_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
       formatStyle(c('BENTHIC_STAT'), 'BENTHIC_STAT', backgroundColor = styleEqual(c('Review'), c('yellow'))) %>%
@@ -353,7 +375,8 @@ shinyServer(function(input, output, session) {
     if(is.na(unique(stationData()$PWS))){
       PWSconcat <- tibble(STATION_ID = unique(stationData()$FDT_STA_ID),
                           PWS= 'PWS Standards Do Not Apply To Station')
-      DT::datatable(PWSconcat, escape=F, rownames = F, options= list(scrollX = TRUE, pageLength = nrow(PWSconcat), dom='t'))
+      DT::datatable(PWSconcat, escape=F, rownames = F, options= list(scrollX = TRUE, pageLength = nrow(PWSconcat), dom='t'),
+                    selection = 'none')
       
     } else {
       PWSconcat <- cbind(tibble(STATION_ID = unique(stationData()$FDT_STA_ID)),
@@ -362,7 +385,8 @@ shinyServer(function(input, output, session) {
                          assessPWS(stationData(), SULFATE_TOTAL, RMK_SULFATE_TOTAL, 250, 'PWS_Total_Sulfate')) %>%
         dplyr::select(-ends_with('exceedanceRate')) 
       
-      DT::datatable(PWSconcat, escape=F, rownames = F, options= list(scrollX = TRUE, pageLength = nrow(PWSconcat), dom='t')) %>% 
+      DT::datatable(PWSconcat, escape=F, rownames = F, options= list(scrollX = TRUE, pageLength = nrow(PWSconcat), dom='t'),
+                    selection = 'none') %>% 
         formatStyle(c("PWS_Nitrate_EXC","PWS_Nitrate_SAMP","PWS_Nitrate_STAT"), "PWS_Nitrate_STAT", backgroundColor = styleEqual(c('Review'), c('red'))) %>%
         formatStyle(c("PWS_Chloride_EXC","PWS_Chloride_SAMP","PWS_Chloride_STAT"), "PWS_Chloride_STAT", backgroundColor = styleEqual(c('Review'), c('red'))) %>%
         formatStyle(c("PWS_Total_Sulfate_EXC","PWS_Total_Sulfate_SAMP","PWS_Total_Sulfate_STAT"), "PWS_Total_Sulfate_STAT", backgroundColor = styleEqual(c('Review'), c('red'))) } })
@@ -376,7 +400,8 @@ shinyServer(function(input, output, session) {
                   options= list(scrollX = TRUE, pageLength = nrow(AUData()), scrollY = "300px", 
                                 dom='Btf', buttons=list('copy',
                                                         list(extend='csv',filename=paste('AUData_',paste(input$stationSelection, collapse = "_"),Sys.Date(),sep='')),
-                                                        list(extend='excel',filename=paste('AUData_',paste(input$stationSelection, collapse = "_"),Sys.Date(),sep='')))))})
+                                                        list(extend='excel',filename=paste('AUData_',paste(input$stationSelection, collapse = "_"),Sys.Date(),sep='')))),
+                  selection = 'none')})
   # Summarize data
   output$stationDataTableRecords <- renderText({req(AUData())
     paste(nrow(AUData()), 'records were retrieved for',as.character(input$AUselection),sep=' ')})
@@ -407,6 +432,9 @@ shinyServer(function(input, output, session) {
   
   ## Total Nitrogen Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(TNPlotlySingleStation,'TN', AUData, stationSelected)
+  
+  ## Ammonia Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(AmmoniaPlotlySingleStation,'Ammonia', AUData, stationSelected, ammoniaAnalysis)
   
   ## Total Phosphorus Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(TPPlotlySingleStation,'TP', AUData, stationSelected)

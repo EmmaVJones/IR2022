@@ -1,9 +1,9 @@
 # app testing data
 source('global.R')
 
-DEQregionSelection <- 'PRO'#'BRRO'
-basinSelection <- "James-Middle"#'James-Upper'#"Roanoke"#"Roanoke"#'James-Upper'#
-HUC6Selection <- "JM01"#"JM05"#'RL12'#"JM02"#'JM16'#'RU09'#'RL12'#
+DEQregionSelection <- "PRO"#'BRRO'
+basinSelection <- "James-Lower"#'James-Upper'#"Roanoke"#"Roanoke"#'James-Upper'#
+HUC6Selection <- "JL07"#"JM05"#'RL12'#"JM02"#'JM16'#'RU09'#'RL12'#
 
 
 conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
@@ -226,6 +226,17 @@ stationInfo <- filter(stationTable, STATION_ID == stationSelection) %>%
 
 # Ecoli build
 #windowChoice_ <- unique(enter1[['associatedDecisionData']][[1]]$`Date Window Starts`)[1]
+oneStationDecisionData <- ecoli1[['associatedDecisionData']][[1]]
+z <- dplyr::select(stationData, FDT_STA_ID, FDT_DATE_TIME, ECOLI, RMK_ECOLI)%>% 
+  mutate(FDT_DATE_TIME = as.Date(FDT_DATE_TIME, format = '%Y-%m-%D %H:%M:S'))
+
+windowData <- filter(oneStationDecisionData, as.character(`Date Window Starts`) %in% as.character(z$FDT_DATE_TIME[2])) %>%#input$rawData_rows_selected]) %>%
+  dplyr::select( associatedData) %>%
+  unnest(cols = c(associatedData)) %>%
+  mutate(newSTV = 410, geomeanLimit = 126,
+         `Date Time` = as.POSIXct(strptime(FDT_DATE_TIME, format="%Y-%m-%d")))#as.POSIXct(windowData$`Date Time`, format="%Y-%m-%d", tz='GMT') + as.difftime(1, units="days")
+
+
 
 #windowData <- filter(enter1[['associatedDecisionData']][[1]], `Date Window Starts` %in% windowChoice_) %>%
 #  dplyr::select( associatedData) %>%
@@ -496,15 +507,21 @@ stationInfo <- filter(stationTable, STATION_ID == stationSelection) %>%
   
 ### app testing part
 
-stationData <- filter(conventionals, FDT_STA_ID %in% '2-XDD000.40') %>%
+stationData <- #filter(conventionals, FDT_STA_ID %in% '2-XDD000.40') %>%
   #filter(conventionals, FDT_STA_ID %in% '2-JMS279.41') %>% # 2BJMS279.41 good cbay station example with lots of data
-  #filter(conventionals, FDT_STA_ID %in% '4ABSA000.62') %>% # good example with lots of data, lake station so depth is important and hourly averages
+  filter(conventionals, FDT_STA_ID %in% '4ABSA000.62') %>% # good example with lots of data, lake station so depth is important and hourly averages
   left_join(dplyr::select(stationTable, STATION_ID:VAHU6,
                           WQS_ID:EPA_ECO_US_L3NAME),
             #WQS_ID:`Max Temperature (C)`), 
             by = c('FDT_STA_ID' = 'STATION_ID')) %>%
   #filter(!is.na(ID305B_1)) %>% # 4ABSA000.62 doesn't have an AU?????
   pHSpecialStandardsCorrection()
+
+# For testing 4 day stuff
+#stationData <- filter(stationData, !is.na(AMMONIA))
+#stationData$FDT_DATE_TIME[c(2, 4, 6, 8)] <- as.POSIXct(c("2015-04-28 11:50:00 EDT", "2015-05-12 11:30:00 EDT", "2015-06-11 11:10:00 EDT", "2015-07-22 11:00:00 EDT"))
+#stationData <- stationData[1:9,]
+
 
 #z <- freshwaterNH3limit(stationData, trout = TRUE, mussels = TRUE, earlyLife = TRUE)  
 
@@ -532,9 +549,6 @@ windowData <- dplyr::select(chronicSelection, associatedWindowData) %>%
   unnest(cols = c(associatedWindowData)) %>%
   mutate(`30dayAmmoniaAvg` = chronicSelection$`30dayAmmoniaAvg`,
          chronicNH3limit = chronicSelection$chronicNH3limit)
-class(windowData$FDT_DATE_TIME)
-,
-         `Date Time` = as.POSIXct(strptime(FDT_DATE_TIME, format="%Y-%m-%d")))#as.POSIXct(windowData$`Date Time`, format="%Y-%m-%d", tz='GMT') + as.difftime(1, units="days")
 
 
 
@@ -547,3 +561,40 @@ windowData <- dplyr::select(windowCriteria, associatedWindowData) %>%
          TempAvg = windowCriteria$TempAvg,
          pHAvg = windowCriteria$pHAvg,
          `Date Time` = as.POSIXct(strptime(FDT_DATE_TIME, format="%Y-%m-%d")))#as.POSIXct(windowData$`Date Time`, format="%Y-%m-%d", tz='GMT') + as.difftime(1, units="days")
+
+
+
+# 4 day part of ammonia module
+
+fourDayData <- dplyr::select(oneStationAnalysis, FDT_DATE_TIME, fourDayAmmoniaAvg, fourDayAvglimit, fourDayExceedance, fourDayWindowData)  %>%
+    filter(!is.na(fourDayAmmoniaAvg))
+
+dplyr::select(fourDayData, 
+                     "4 Day Window Begin Date" = FDT_DATE_TIME, 
+                     '4 Day Averaged Ammonia Rounded to WQS Format' = fourDayAmmoniaAvg,
+                     '4 Day Ammonia Criteria' = fourDayAvglimit)
+  
+
+fourDaySelection <- fourDayData[2,]#[input$avg4DayData_rows_selected, ]
+
+fourDayWindowData <- dplyr::select(fourDaySelection, fourDayWindowData) %>%
+  unnest(cols = c(fourDayWindowData)) %>%
+  mutate(`fourDayAmmoniaAvg` = fourDaySelection$fourDayAmmoniaAvg,
+         fourDayAvgLimit = fourDaySelection$fourDayAvglimit) 
+fourDayWindowData$`Date Time` <- as.Date(fourDayWindowData$FDT_DATE_TIME, format="%m/%d/%y")
+
+
+plot_ly(data=fourDayWindowData) %>%
+  add_markers(x= ~`Date Time`, y= ~AMMONIA, mode = 'scatter', name="Ammonia (mg/L as N)", marker = list(color= '#535559'),
+              hoverinfo="text",text=~paste(sep="<br>",
+                                           paste("Date: ",`Date Time`),
+                                           paste("Ammonia: ",AMMONIA,"mg/L as N"))) %>%
+  add_lines(data=fourDayWindowData, x=~`Date Time`, y=~`fourDayAmmoniaAvg`, mode='line', line = list(color = 'orange', dash= 'dash'),
+            hoverinfo = "text", text= ~paste("4 day Window Ammonia Average: ", `fourDayAmmoniaAvg`," mg/L as N", sep=''), 
+            name="4 Day Window Ammonia Average") %>%
+  add_lines(data=fourDayWindowData, x=~`Date Time`,y=~fourDayAvgLimit, mode='line', line = list(color = '#484a4c',dash = 'dot'),
+            hoverinfo = "text", text= ~paste("4 Day Window Ammonia Criteria", fourDayAvgLimit," mg/L as N", sep=''), 
+            name="4 Day Window Ammonia Criteria") %>% 
+  layout(showlegend=FALSE,
+         yaxis=list(title="Ammonia (mg/L as N)"),
+         xaxis=list(title="Sample Date",tickfont = list(size = 10))) 

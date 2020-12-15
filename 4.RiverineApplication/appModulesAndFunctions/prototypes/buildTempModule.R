@@ -68,7 +68,8 @@ temperaturePlotlySingleStation <- function(input,output,session, AUdata, station
     parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, FDT_TEMP_CELCIUS, RMK_FDT_TEMP_CELCIUS)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
-                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
+                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
+                  selection = 'none') %>%
       formatStyle(c( 'FDT_TEMP_CELCIUS', 'RMK_FDT_TEMP_CELCIUS'), 'RMK_FDT_TEMP_CELCIUS', 
                   backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))  })
   
@@ -96,13 +97,15 @@ temperaturePlotlySingleStation <- function(input,output,session, AUdata, station
       rename("FDT_TEMP" = 'parameter', 'Criteria' = 'limit', 'Parameter Rounded to WQS Format' = 'parameterRound') %>%
       filter(exceeds == TRUE) %>%
       dplyr::select(-exceeds)
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "300px", dom='t'))})
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "300px", dom='t'),
+              selection = 'none')})
   
   # Temperature Station Exceedance Rate
   output$stationExceedanceRate <- renderDataTable({
     req(ns(input$oneStationSelection), oneStation())
     z <- tempExceedances(oneStation()) %>% quickStats('TEMP') %>% dplyr::select(-TEMP_STAT)
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t')) })
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
+              selection = 'none') })
 }
 
 

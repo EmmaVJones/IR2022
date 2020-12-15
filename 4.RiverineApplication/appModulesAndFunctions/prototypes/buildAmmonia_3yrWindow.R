@@ -14,9 +14,9 @@ AmmoniaPlotlySingleStationUI <- function(id){
                       helpText("The below settings are applied to the station based on the WQS Class attributed to the station. All
                                analyses presented reflect these conditions."),
                       uiOutput(ns('optionsUI_'))),
-                      #checkboxInput(ns('mussels'), 'Mussels Present', value = TRUE),
-                      #checkboxInput(ns('earlyLife'), 'Early Life Stages of Fish Present', value = TRUE)),
-               column(2),
+               column(2, helpText('The default settings are specified to expedite application rendering time. If the default analysis 
+                                  settings do not meet your needs, please contact Emma Jones (emma.jones@deq.virginia.gov)
+                                  to add more interactive analysis on the fly.')),
                column(2,actionButton(ns('reviewData'),"Review Raw Parameter Data",class='btn-block', width = '250px'))),
       helpText('The default design flow for calculating steady state wasteload allocations for the acute ammonia criterion for 
                freshwater is the 1Q10 (see 9VAC25-260-140 B footnote 6) unless statistically valid methods are employed that 
@@ -28,29 +28,55 @@ AmmoniaPlotlySingleStationUI <- function(id){
                       assessors are responsible for validating suggested assessment results against flow statistics.')),
       plotlyOutput(ns('plotly')),
       br(),hr(),br(),
-      h4("Acute Ammonia Criteria Analysis Results"),
+      h4(strong("Acute Ammonia Criteria Analysis Results")),
       fluidRow(
-        column(8, h5('All ammonia records that are above the acute criteria for the ',span(strong('selected site')),' are highlighted below.'),
+        column(8, h5('All ammonia records that are above the ',span(strong('acute criteria')),' for the ',span(strong('selected site')),' are highlighted below.'),
                div(style = 'height:150px;overflow-y: scroll', dataTableOutput(ns('rangeTableSingleSite')))),
-        column(4, h5('Individual ammonia exceedance statistics for the ',span(strong('selected site')),' are highlighted below.'),
+        column(4, h5(span(strong('Acute criteria')), ' ammonia exceedance statistics calculated across three year windows 
+                     for the ',span(strong('selected site')),' are highlighted below.'),
                dataTableOutput(ns("stationAcuteExceedanceRate")))),
       br(),hr(),br(),
-      h4("Chronic Ammonia Criteria Analysis Results"),
+      h4(strong("Chronic Ammonia Criteria Analysis Results")),
       fluidRow(
-        column(8, h5('All ammonia records that are above the chronic criteria for the ',span(strong('selected site')),' are highlighted below.'),
+        column(8, h5('All ammonia records that are above the ',span(strong('chronic criteria')),' for the ',span(strong('selected site')),' are highlighted below.'),
                div(style = 'height:150px;overflow-y: scroll', dataTableOutput(ns('rangeChronicTableSingleSite')))),
-        column(4, h5('Individual ammonia exceedance statistics for the ',span(strong('selected site')),' are highlighted below.'),
+        column(4, h5(span(strong('Chronic criteria')), ' ammonia exceedance statistics calculated across three year windows
+                     for the ',span(strong('selected site')),' are highlighted below.'),
                dataTableOutput(ns("stationChronicExceedanceRate")))),
       h5(strong('Chronic Ammonia Criteria In Depth Analysis')),
       helpText('Review the 30 day windows (identified by each sample date) for chronic criteria exceedances.
-               To view the dataset within each 90 day window, use the drop down box to select the start of the window in question.'),
-      verbatimTextOutput(ns('test')),
-      
-      fluidRow(
+               To view the dataset within each 30 day window, use the drop down box to select the start of the window in question.'),
+     fluidRow(
         column(6, helpText('Below is the data averaged over each 30 day window associated with the ',span('selected site'),'.'), 
                h5(strong('30 day Window Averaged Data')),DT::dataTableOutput(ns('avg30dayData'))),
-        column(6, #uiOutput(ns('windowChoice_')),
-               plotlyOutput(ns('chronicPlotlyZoom'))))
+        column(6, helpText('Click a row on the table to left to reveal a detailed interactive plot of the data
+                           included in the selected 30 day window. The orange dashed line is the ammonia 
+                           averaged across the 30 day window. The black dashed line is the chronic criteria
+                           calculated from the averaged temperature and pH measures in the 30 day window.'),
+          plotlyOutput(ns('chronicPlotlyZoom')))),
+     br(),hr(),br(),
+     h4(strong("Four Day Ammonia Criteria Analysis Results")),
+     fluidRow(
+       column(8, h5('All ammonia records that are above the ',span(strong('four day criteria')),' for the ',span(strong('selected site')),' are highlighted below. 
+                    Four day ammonia criteria is calculated as 2.5 times the chronic criterion within a 30-day period. '),
+              div(style = 'height:150px;overflow-y: scroll', dataTableOutput(ns('range4DayTableSingleSite')))),
+       column(4, h5(span(strong('Four day criteria')), ' ammonia exceedance statistics calculated across three year windows
+                     for the ',span(strong('selected site')),' are highlighted below.'),
+              dataTableOutput(ns("station4DayExceedanceRate")))),
+     h5(strong('Four Day Ammonia Criteria In Depth Analysis')),
+     helpText('Review the four day windows (identified by each sample date) for four day criteria exceedances.
+               To view the dataset within each 4 day window, use the drop down box to select the start of the window in question.'),
+     fluidRow(
+       column(6, helpText('Below is the data averaged over each four day window associated with the ',span('selected site'),'.'), 
+              h5(strong('4 day Window Averaged Data')),DT::dataTableOutput(ns('avg4DayData'))),
+       column(6, helpText('Click a row on the table to left to reveal a detailed interactive plot of the data
+                           included in the selected 4 day window. The orange dashed line is the ammonia 
+                           averaged across the 4 day window. The black dashed line is the chronic criteria
+                           calculated from the averaged temperature and pH measures in the 4 day window.'),
+              plotlyOutput(ns('fourDayPlotlyZoom'))))
+     
+     #verbatimTextOutput(ns('test')),
+     
     )
   )
 }
@@ -80,7 +106,7 @@ AmmoniaPlotlySingleStation <- function(input,output,session, AUdata, stationSele
 
   
   oneStationAnalysis <- reactive({req(nrow(oneStation()) > 0)
-    # extract pre run ammonia analysis
+    ## extract pre run ammonia analysis
     dat <- filter(ammoniaAnalysis, StationID %in% unique(oneStation()$FDT_STA_ID)) %>%
       map_df(1) 
     dat$AmmoniaAnalysis })
@@ -103,7 +129,8 @@ AmmoniaPlotlySingleStation <- function(input,output,session, AUdata, stationSele
       parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, AMMONIA, RMK_AMMONIA)
       
       DT::datatable(parameterFilter, rownames = FALSE, 
-                    options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
+                    options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
+                    selection = 'none') %>%
         formatStyle(c('AMMONIA','RMK_AMMONIA'), 'RMK_AMMONIA', 
                     backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
     })
@@ -115,17 +142,6 @@ AmmoniaPlotlySingleStation <- function(input,output,session, AUdata, stationSele
     if(nrow(oneStationAnalysis()) > 0){
       dat <- mutate(oneStationAnalysis(), over = ifelse(acuteExceedance == TRUE, '#D11814', '#535559'))# 'VIOLATION', 'GOOD'))
       dat$SampleDate <- as.POSIXct(dat$FDT_DATE_TIME, format="%m/%d/%y")
-      #dat <- acuteNH3limit(oneStation()) %>%
-      #  mutate(over=ifelse(AMMONIA > NH3limit, '#D11814', '#535559'))# 'VIOLATION', 'GOOD'))
-      #dat$SampleDate <- as.POSIXct(as.POSIXct(dat$FDT_DATE_TIME2, format="%m/%d/%Y %H:%M"), format="%m/%d/%y")
-      
-      #last3years <- mutate(dat, sampleYear = lubridate::year(SampleDate)) %>%
-      #  filter(sampleYear %in% lastXyears(dat, 'SampleDate', 3, TRUE))
-      #box1 <- data.frame(SampleDate = c(min(last3years$FDT_DATE_TIME2), min(last3years$FDT_DATE_TIME2),
-      #                                  max(last3years$FDT_DATE_TIME2),max(last3years$FDT_DATE_TIME2)), 
-      #                   y = c(min(dat$AMMONIA), max(dat$AMMONIA), max(dat$AMMONIA), min(dat$AMMONIA)))
-      
-      
       if(nrow(dat) > 0){ 
         plot_ly(data=dat)%>%
           #add_polygons(x = ~SampleDate, y = ~y, data = box1, fillcolor = "#B0B3B7",opacity=0.6, line = list(width = 0),
@@ -151,12 +167,14 @@ AmmoniaPlotlySingleStation <- function(input,output,session, AUdata, stationSele
     req(nrow(oneStation()) > 0)
     z <- filter(oneStationAnalysis(), acuteExceedance == TRUE) %>%
       dplyr::select(FDT_DATE_TIME:FDT_FIELD_PH, 'AMMONIA Rounded to WQS Format' = AMMONIA, acuteNH3limit)
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t')) })
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t'),
+              selection = 'none') })
   
   output$stationAcuteExceedanceRate <- renderDataTable({
     req(nrow(oneStation())> 0)
     z <- freshwaterNH3Assessment(oneStationAnalysis(), 'acute')[[1]]
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "100px", dom='t')) })
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "100px", dom='t'),
+              selection = 'none') })
   
   ## Chronic results
   output$rangeChronicTableSingleSite <- renderDataTable({
@@ -165,12 +183,14 @@ AmmoniaPlotlySingleStation <- function(input,output,session, AUdata, stationSele
       dplyr::select(FDT_DATE_TIME,  '30 Day Averaged Ammonia Rounded to WQS Format' = `30dayAmmoniaAvg`, 
                     '30 Day Averaged Temperature' = TempAvg, 
                     '30 Day Averaged pH' = pHAvg, chronicNH3limit)
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t')) })
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t'),
+              selection = 'none') })
   
   output$stationChronicExceedanceRate <- renderDataTable({
     req(nrow(oneStation())> 0)
     z <- freshwaterNH3Assessment(oneStationAnalysis(), 'chronic')[[1]]
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "100px", dom='t')) })
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "100px", dom='t'),
+              selection = 'none') })
   
 
   ### 30 day averaged Data and Individual window analysis
@@ -185,7 +205,7 @@ AmmoniaPlotlySingleStation <- function(input,output,session, AUdata, stationSele
                        '30 Day Averaged Ammonia Rounded to WQS Format' = `30dayAmmoniaAvg`, 
                        '30 Day Averaged Temperature' = TempAvg, 
                        '30 Day Averaged pH' = pHAvg, chronicNH3limit)
-    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "400px", dom='ti'),
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "300px", dom='ti'),
                   selection = 'single') })
   
   
@@ -202,9 +222,7 @@ AmmoniaPlotlySingleStation <- function(input,output,session, AUdata, stationSele
   })
   
   
-  output$test <- renderPrint({ req(oneStationAnalysis())
-    windowData()  })
-  
+ 
   output$chronicPlotlyZoom <- renderPlotly({
     req(windowData())
     
@@ -225,7 +243,69 @@ AmmoniaPlotlySingleStation <- function(input,output,session, AUdata, stationSele
              xaxis=list(title="Sample Date",tickfont = list(size = 10))) 
   })
   
+  ## 4 day results
+  output$range4DayTableSingleSite <- renderDataTable({    req(nrow(oneStation()) > 0)
+    z <- filter(oneStationAnalysis(), fourDayExceedance == TRUE) %>%
+      dplyr::select(FDT_DATE_TIME,  '4 Day Averaged Ammonia Rounded to WQS Format' = `30dayAmmoniaAvg`, 
+                    '4 Day Ammonia Criteria' =  fourDayAvglimit)
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t'),
+              selection = 'none') })
   
+  output$station4DayExceedanceRate <- renderDataTable({    req(nrow(oneStation())> 0)
+    z <- freshwaterNH3Assessment(oneStationAnalysis(), 'four-day')[[1]]
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "100px", dom='t'),
+              selection = 'none') })
+  
+  
+  
+  ### 4 day averaged Data and Individual window analysis
+  
+  fourDayData <- reactive({req(nrow(oneStation()) > 0)
+    dplyr::select(oneStationAnalysis(), FDT_DATE_TIME, fourDayAmmoniaAvg, fourDayAvglimit, fourDayExceedance, fourDayWindowData)  %>%
+      filter(!is.na(fourDayAmmoniaAvg)) })
+  
+  output$avg4DayData <- DT::renderDataTable({
+    req(fourDayData())
+    z <- dplyr::select(fourDayData(), 
+                       "4 Day Window Begin Date" = FDT_DATE_TIME, 
+                       '4 Day Averaged Ammonia Rounded to WQS Format' = fourDayAmmoniaAvg,
+                       '4 Day Ammonia Criteria' = fourDayAvglimit)
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "300px", dom='ti'),
+                  selection = 'single') })
+  
+  
+  fourDayWindowData <-  reactive({req(fourDayData(), input$avg4DayData_rows_selected)
+    fourDaySelection <- fourDayData()[input$avg4DayData_rows_selected, ]
+    
+    fourDayWindowData <- dplyr::select(fourDaySelection, fourDayWindowData) %>%
+      unnest(cols = c(fourDayWindowData)) %>%
+      mutate(`fourDayAmmoniaAvg` = fourDaySelection$fourDayAmmoniaAvg,
+             fourDayAvgLimit = fourDaySelection$fourDayAvglimit) 
+    fourDayWindowData$`Date Time` <- as.Date(fourDayWindowData$FDT_DATE_TIME, format="%m/%d/%y")
+    return(fourDayWindowData) })
+
+  
+  output$test <- renderPrint({ req(oneStationAnalysis())
+    fourDayWindowData()  })
+  
+  output$fourDayPlotlyZoom <- renderPlotly({
+    req(fourDayWindowData())
+    
+    plot_ly(data=fourDayWindowData()) %>%
+      add_markers(x= ~`Date Time`, y= ~AMMONIA, mode = 'scatter', name="Ammonia (mg/L as N)", marker = list(color= '#535559'),
+                  hoverinfo="text",text=~paste(sep="<br>",
+                                               paste("Date: ",`Date Time`),
+                                               paste("Ammonia: ",AMMONIA,"mg/L as N"))) %>%
+      add_lines(data=fourDayWindowData(), x=~`Date Time`, y=~`fourDayAmmoniaAvg`, mode='line', line = list(color = 'orange', dash= 'dash'),
+                hoverinfo = "text", text= ~paste("4 day Window Ammonia Average: ", `fourDayAmmoniaAvg`," mg/L as N", sep=''), 
+                name="4 Day Window Ammonia Average") %>%
+      add_lines(data=fourDayWindowData(), x=~`Date Time`,y=~fourDayAvgLimit, mode='line', line = list(color = '#484a4c',dash = 'dot'),
+                hoverinfo = "text", text= ~paste("4 Day Window Ammonia Criteria ", fourDayAvgLimit," mg/L as N", sep=''), 
+                name="4 Day Window Ammonia Criteria") %>% 
+      layout(showlegend=FALSE,
+             yaxis=list(title="Ammonia (mg/L as N)"),
+             xaxis=list(title="Sample Date",tickfont = list(size = 10)))
+  })
   
 }
 
@@ -244,14 +324,30 @@ server <- function(input,output,session){
   stationSelected <- reactive({input$stationSelection})
   
   
-  AUData <- reactive({#filter_at(conventionals_HUC, vars(starts_with("ID305B")), any_vars(. %in% AUselection) ) })
-    filter(conventionals, FDT_STA_ID == '2-XDD000.40') %>%
-      left_join(dplyr::select(stationTable, STATION_ID:VAHU6,
-                              WQS_ID:EPA_ECO_US_L3NAME),
-                #WQS_ID:`Max Temperature (C)`), 
-                by = c('FDT_STA_ID' = 'STATION_ID')) %>%
-      filter(!is.na(ID305B_1)) %>%
-      pHSpecialStandardsCorrection() })
+  AUData <- reactive({filter_at(conventionals_HUC, vars(starts_with("ID305B")), any_vars(. %in% AUselection) ) })
+    # for testing 30 day
+    #filter(conventionals, FDT_STA_ID == '2-XDD000.40') %>%
+    #  left_join(dplyr::select(stationTable, STATION_ID:VAHU6,
+    #                          WQS_ID:EPA_ECO_US_L3NAME),
+    #            #WQS_ID:`Max Temperature (C)`), 
+    #            by = c('FDT_STA_ID' = 'STATION_ID')) %>%
+    #  filter(!is.na(ID305B_1)) %>%
+    #  pHSpecialStandardsCorrection() })
+    
+    # for testing 4 day
+    #stationData <- filter(conventionals, FDT_STA_ID %in% '4ABSA000.62') %>% # good example with lots of data, lake station so depth is important and hourly averages
+    #  left_join(dplyr::select(stationTable, STATION_ID:VAHU6,
+    #                          WQS_ID:EPA_ECO_US_L3NAME),
+    #            #WQS_ID:`Max Temperature (C)`), 
+    #            by = c('FDT_STA_ID' = 'STATION_ID')) %>%
+    #  #filter(!is.na(ID305B_1)) %>% # 4ABSA000.62 doesn't have an AU?????
+    #  pHSpecialStandardsCorrection()
+    #stationData <- filter(stationData, !is.na(AMMONIA))
+    #stationData$FDT_DATE_TIME[c(2, 4, 6, 8)] <- as.POSIXct(c("2015-04-28 11:50:00 EDT", "2015-05-12 11:30:00 EDT", "2015-06-11 11:10:00 EDT", "2015-07-22 11:00:00 EDT"))
+    #stationData <- stationData[1:9,]
+    #return(stationData) })
+    
+    
   
   
   
@@ -260,17 +356,5 @@ server <- function(input,output,session){
 }
 
 shinyApp(ui,server)
-
-
-
-
-output$windowChoice_ <- renderUI({
-  req(chronicData())
-  fluidRow(
-    column(4, selectInput(ns('windowChoice'),'Select 30 day window start date',
-                          choices = unique(as.Date(chronicData()$FDT_DATE_TIME)), width = '100%')),
-    column(8, helpText('Orange line corresponds to the window chronic criteria; wide black dashed line
-                         corresponds to the geomean criteria; thin black dashed line corresponds
-                         to the STV limit.')))})
 
 

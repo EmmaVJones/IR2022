@@ -45,7 +45,8 @@ SSCPlotlySingleStation <- function(input,output,session, AUdata, stationSelected
     parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, SSC, `RMK_SSC`)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
-                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
+                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
+                  selection = 'none') %>%
       formatStyle(c('SSC','RMK_SSC'), 'RMK_SSC', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   

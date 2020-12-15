@@ -71,7 +71,8 @@ DSulfatePlotlySingleStation <- function(input,output,session, AUdata, stationSel
     parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, SULFATE_DISS, RMK_SULFATE_DISS, SULFATE_TOTAL, RMK_SULFATE_TOTAL)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
-                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
+                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
+                  selection = 'none') %>%
       formatStyle(c('SULFATE_DISS','RMK_SULFATE_DISS'), 'RMK_SULFATE_DISS', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray')) %>%
       formatStyle(c('SULFATE_TOTAL','RMK_SULFATE_TOTAL'), 'RMK_SULFATE_TOTAL', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))  })
   
@@ -163,7 +164,8 @@ DSulfatePlotlySingleStation <- function(input,output,session, AUdata, stationSel
       z <- filter(oneStation(), `Parameter Rounded to WQS Format` > PWSlimit) %>%
         dplyr::select(FDT_DATE_TIME, SULFATE_TOTAL, RMK_SULFATE_TOTAL, Criteria = PWSlimit, `Parameter Rounded to WQS Format`) 
     } else { z <- NULL}
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t')) })
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
+              selection = 'none') })
   
   output$stationTSulfateExceedanceRate <- renderDataTable({
     req(input$oneStationSelection, oneStation())
@@ -176,7 +178,8 @@ DSulfatePlotlySingleStation <- function(input,output,session, AUdata, stationSel
         rename(parameter = !!names(.[5])) %>% # rename columns to make functions easier to apply
         mutate(exceeds = ifelse(parameter > limit, T, F)) # Identify where above NH3 WQS limit
       z <- quickStats(totalSulfate, 'PWS_Total_Sulfate') %>% dplyr::select(-PWS_Total_Sulfate_STAT) 
-      datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t')) }}) 
+      datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
+                selection = 'none') }}) 
 }
 
 

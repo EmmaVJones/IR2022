@@ -51,7 +51,8 @@ TNPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
     parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, NITROGEN, RMK_NITROGEN)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
-                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
+                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
+                  selection = 'none') %>%
       formatStyle(c('NITROGEN','RMK_NITROGEN'), 'RMK_NITROGEN', 
                   backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })

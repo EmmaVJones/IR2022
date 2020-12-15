@@ -50,7 +50,8 @@ BenthicsPlotlySingleStation <- function(input,output,session, AUdata, stationSel
   output$ecoregionInfo <- DT::renderDataTable({  req(oneStation())
     DT::datatable(dplyr::select(oneStation(), Basin = Basin_Code, `Level III Ecoregion` = EPA_ECO_US_L3CODE,
                                 `Level III Ecoregion Name` = EPA_ECO_US_L3NAME), 
-                  rownames = FALSE, options= list(dom= 't', pageLength = 1, scrollX = TRUE, scrollY = "60px", dom='t')) })
+                  rownames = FALSE, options= list(dom= 't', pageLength = 1, scrollX = TRUE, scrollY = "60px", dom='t'),
+                  selection = 'none') })
   
   
   # Option to change SCI used for modal
@@ -114,20 +115,23 @@ BenthicsPlotlySingleStation <- function(input,output,session, AUdata, stationSel
   output$SCIroundup <- DT::renderDataTable({
     req(nrow(Benthics_oneStation()$roundup) > 0)
     DT::datatable(Benthics_oneStation()$roundup, escape=F, rownames = F,
-                  options= list(dom= 't' , scrollX = TRUE, pageLength = nrow(Benthics_oneStation()$roundup), scrollY = "150px"))})
+                  options= list(dom= 't' , scrollX = TRUE, pageLength = nrow(Benthics_oneStation()$roundup), scrollY = "150px"),
+                  selection = 'none')})
   
   
   output$yearlyAvgSCI <- DT::renderDataTable({
     req(nrow(Benthics_oneStation()$yearlyAverage) > 0)
     DT::datatable(Benthics_oneStation()$yearlyAverage, escape=F, rownames = F,
-                  options= list(dom= 't' , pageLength = nrow(Benthics_oneStation()$yearlyAverage), scrollY = "150px"))})
+                  options= list(dom= 't' , pageLength = nrow(Benthics_oneStation()$yearlyAverage), scrollY = "150px"),
+                  selection = 'none')})
   
   
   output$rawBenthicsData <- DT::renderDataTable({
     req(ns(input$Benthics_oneStationSelection), nrow(Benthics_oneStation()$data) > 0)
     z <- dplyr::select(Benthics_oneStation()$data, StationID:Season, BenSampID:`SCI Threshold`, everything())
     DT::datatable(z, escape=F, rownames = F,
-                  options= list(dom= 't' , scrollX = TRUE, pageLength = nrow(z), scrollY = "300px"))#%>%
+                  options= list(dom= 't' , scrollX = TRUE, pageLength = nrow(z), scrollY = "300px"),
+                  selection = 'none')#%>%
     #formatRound(columns=c("%Ephem", "%PT - Hydropsychidae", "Fam%Scrap", "%Chiro",  "Fam%2Dom", "FamHBI", "%Ephem Score", 
     #                     "%PT-H Score",  "Fam Richness Score",  "%Chironomidae Score", "Fam EPT Score", "Fam %Scraper Score",
     #                     "Fam %2Dom Score", "Fam %MFBI Score" , "Fam SCI" ), digits=1) 
