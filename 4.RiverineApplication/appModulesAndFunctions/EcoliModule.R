@@ -210,12 +210,14 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
   #                       to the STV limit.')))})
   
   windowData <- reactive({ req(oneStation(), input$rawData_rows_selected, !is.na(oneStationDecisionData()))
-    filter(oneStationDecisionData(), as.character(`Date Window Starts`) %in% as.character(as.Date(oneStation()$FDT_DATE_TIME[input$rawData_rows_selected]))) %>% #input$windowChoice_) %>%
+    windowDat <- filter(oneStationDecisionData(), as.character(`Date Window Starts`) %in% as.character(as.Date(oneStation()$FDT_DATE_TIME[input$rawData_rows_selected]))) %>% #input$windowChoice_) %>%
       dplyr::select( associatedData) %>%
       unnest(cols = c(associatedData)) %>%
       mutate(newSTV = 410, geomeanLimit = 126,
-             `Date Time` = as.POSIXct(strptime(FDT_DATE_TIME, format="%Y-%m-%d")))#as.POSIXct(windowData$`Date Time`, format="%Y-%m-%d", tz='GMT') + as.difftime(1, units="days")
-  })
+             `Date Time` = as.POSIXct(strptime(FDT_DATE_TIME, format="%Y-%m-%d")))
+    bind_rows(windowDat,
+              tibble(`Date Time` = c(min(windowDat$`Date Time`)- days(5), max(windowDat$`Date Time`) + days(5)),
+                     newSTV = 410, geomeanLimit = 126))  })
   
   output$test <- renderPrint({
     windowData()

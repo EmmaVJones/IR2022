@@ -211,12 +211,14 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
   #                       to the STV limit.')))})
   
   windowData <- reactive({ req(oneStation(), input$rawData_rows_selected, !is.na(oneStationDecisionData()))
-    filter(oneStationDecisionData(), as.character(`Date Window Starts`) %in% as.character(as.Date(oneStation()$FDT_DATE_TIME[input$rawData_rows_selected]))) %>% #input$windowChoice_) %>%
+    windowDat <- filter(oneStationDecisionData(), as.character(`Date Window Starts`) %in% as.character(as.Date(oneStation()$FDT_DATE_TIME[input$rawData_rows_selected]))) %>% #input$windowChoice_) %>%
       dplyr::select( associatedData) %>%
       unnest(cols = c(associatedData)) %>%
       mutate(newSTV = 410, geomeanLimit = 126,
-             `Date Time` = as.POSIXct(strptime(FDT_DATE_TIME, format="%Y-%m-%d")))#as.POSIXct(windowData$`Date Time`, format="%Y-%m-%d", tz='GMT') + as.difftime(1, units="days")
-    })
+             `Date Time` = as.POSIXct(strptime(FDT_DATE_TIME, format="%Y-%m-%d")))
+    bind_rows(windowDat,
+              tibble(`Date Time` = c(min(windowDat$`Date Time`)- days(5), max(windowDat$`Date Time`) + days(5)),
+                     newSTV = 410, geomeanLimit = 126))  })
   
   output$test <- renderPrint({
     windowData()
@@ -229,13 +231,6 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
     req(windowData(), oneStation(), !is.na(oneStationDecisionData()))
     
     windowData <- windowData()
-    
-    # Fix look of single measure
-    if(nrow(windowData) == 1){
-      windowData <- bind_rows(windowData,
-                              tibble(`Date Time` = c(windowData$`Date Time`- days(5), windowData$`Date Time` + days(5))))
-    }
-    
     
     plot_ly(data=windowData) %>%
       add_markers(x= ~`Date Time`, y= ~Value,mode = 'scatter', name="E. coli (CFU / 100 mL)", marker = list(color= '#535559'),

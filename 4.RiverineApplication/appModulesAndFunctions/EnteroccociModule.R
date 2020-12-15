@@ -1,3 +1,4 @@
+
 EnteroPlotlySingleStationUI <- function(id){
   ns <- NS(id)
   tagList(
@@ -7,7 +8,6 @@ EnteroPlotlySingleStationUI <- function(id){
                column(6,actionButton(ns('reviewData'),"Review Raw Parameter Data",class='btn-block', width = '250px'))),
       helpText('All data presented in the interactive plot is raw data. Rounding rules are appropriately applied to the 
                assessment functions utilized by the application.'),
-      #verbatimTextOutput(ns('test')),
       plotlyOutput(ns('plotly')),
       br(),hr(),br(),
       fluidRow(
@@ -50,12 +50,21 @@ EnteroPlotlySingleStationUI <- function(id){
                  Comments are specific to each row of data. To view the dataset within each 90 day window, use
                  the drop down box to select the start of the window in question.'),
       fluidRow(
-        column(6, helpText('Below is the raw data associated with the ',span('selected site'),'.'), 
+        #verbatimTextOutput(ns('test')),
+        
+        column(4, helpText('Below is the raw data associated with the ',span('selected site'),'. Click on a row to reveal the
+                           data included in the selected 90 day window in the plot to the right and to highlight the specific 
+                           assessment logic in the table below the plot.'), 
                h5(strong('Raw Data')),DT::dataTableOutput(ns('rawData'))),
-        column(6, uiOutput(ns('windowChoice')),
-               plotlyOutput(ns('plotlyZoom')))),
+        column(8, helpText('Click a row on the table to left to reveal a detailed interactive plot of the data
+                           included in the selected 90 day window. The orange line corresponds to the window geomean; wide black dashed line
+                         corresponds to the geomean criteria; thin black dashed line corresponds to the STV limit. Below the plot is a
+                           table with specific assessment logic regarding the data included in the selected 90 day window.'),
+               plotlyOutput(ns('plotlyZoom')),
+               DT::dataTableOutput(ns("analysisTableZoom")))),
       br(), br(),
       h5(strong('Analyzed Data (Each window with an individual STV and geomean assessment decisions)')),
+      helpText('This dataset shows all assessment logic for each 90 day window assessment.'),
       DT::dataTableOutput(ns('analysisTable')))
   )
 }
@@ -99,7 +108,7 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
     parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, ENTEROCOCCI, RMK_ENTEROCOCCI)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
-                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t')) %>%
+                  options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'), selection = 'none')   %>%
       formatStyle(c('ENTEROCOCCI','RMK_ENTEROCOCCI'), 'RMK_ENTEROCOCCI', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
@@ -134,7 +143,7 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
       dplyr::select(-associatedData) %>% # remove embedded tibble to make table work
       mutate(`Date Window Starts` = as.Date(`Date Window Starts`),
              `Date Window Ends` = as.Date(`Date Window Ends`))
-    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t')) 
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'), selection = 'none')   
   })
   
   
@@ -142,7 +151,7 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
     req(oneStation(),oneStationAnalysis())
     z <- oneStationAnalysis() %>% 
       dplyr::select(ENTER_EXC:ENTER_GM_SAMP, 'Verbose Assessment Decision' = ENTER_STATENTER_VERBOSE) #only grab decision
-    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'))  })
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'), selection = 'none')    })
   
   
   #### Old Standard ---------------------------------------------------------------------------------
@@ -154,7 +163,7 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
       filter(exceeds == T) %>%
       mutate(FDT_DATE_TIME = as.Date(FDT_DATE_TIME), ENTEROCOCCI = parameter) %>%
       dplyr::select(FDT_DATE_TIME, ENTEROCOCCI, limit, exceeds)
-    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "100px", dom='ti')) })
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "100px", dom='ti'), selection = 'none')   })
   
   output$exceedancesOldStdTableSingleSitegeomean <- DT::renderDataTable({    req(oneStation())
     z <- bacteria_ExceedancesGeomeanOLD(oneStation() %>% 
@@ -167,7 +176,7 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
         filter(samplesPerMonth > 4, geoMeanCalendarMonth > limit) # minimum sampling rule for geomean to apply
     } else {z <- tibble(FDT_DATE_TIME = NA, `ENTEROCOCCI` = NA, sampleMonthYear= NA, geoMeanCalendarMonth= NA, limit= NA, samplesPerMonth= NA)}
     
-    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "150px", dom='t')) })
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "150px", dom='t'), selection = 'none')   })
   
   output$oldStdTableSingleSite <- DT::renderDataTable({req(oneStation())
     #get rid of citizen data
@@ -176,7 +185,7 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
       z <- bacteria_Assessment_OLD(z1,  'ENTEROCOCCI', 35, 104)
       if(nrow(z) > 0 ){
         z <- dplyr::select(z, `Assessment Method`,everything()) }
-      DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'))
+      DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'), selection = 'none')  
     }
   })
   
@@ -186,25 +195,46 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
     req(oneStation())
     z <- dplyr::select(oneStation(), FDT_STA_ID, FDT_DATE_TIME, ENTEROCOCCI, RMK_ENTEROCOCCI) %>% 
       mutate(FDT_DATE_TIME = as.Date(FDT_DATE_TIME, format = '%Y-%m-%D %H:%M:S'))
-    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "400px", dom='ti'))  })
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "400px", dom='ti'), 
+                  selection = 'single')    })
   
-  output$windowChoice <- renderUI({
-    req(oneStationAnalysis(), !is.na(oneStationDecisionData()))
-    fluidRow(
-      column(4, selectInput(ns('windowChoice_'),'Select 90 day window start date',
-                            choices = unique(oneStationDecisionData()$`Date Window Starts`), width = '100%')),
-      column(8, helpText('Orange line corresponds to the window geomean; wide black dashed line
-                         corresponds to the geomean criteria; thin black dashed line corresponds
-                         to the STV limit.')))})
+  #output$windowChoice <- renderUI({
+  #  req(oneStationAnalysis(), !is.na(oneStationDecisionData()))
+  #  fluidRow(
+  #    column(4, selectInput(ns('windowChoice_'),'Select 90 day window start date',
+  #                          choices = unique(oneStationDecisionData()$`Date Window Starts`), width = '100%')),
+  #    column(8, helpText('Orange line corresponds to the window geomean; wide black dashed line
+  #                       corresponds to the geomean criteria; thin black dashed line corresponds
+  #                       to the STV limit.')))})
   
-  output$plotlyZoom <- renderPlotly({
-    req(input$windowChoice_, oneStation(), !is.na(oneStationDecisionData()))
-    
-    windowData <- filter(oneStationDecisionData(), as.character(`Date Window Starts`) %in% input$windowChoice_) %>%
+  
+  windowData <- reactive({ req(oneStation(), input$rawData_rows_selected, !is.na(oneStationDecisionData()))
+    windowDat <- filter(oneStationDecisionData(), as.character(`Date Window Starts`) %in% as.character(as.Date(oneStation()$FDT_DATE_TIME[input$rawData_rows_selected]))) %>% #input$windowChoice_) %>%
       dplyr::select( associatedData) %>%
       unnest(cols = c(associatedData)) %>%
       mutate(newSTV = 130, geomeanLimit = 35,
-             `Date Time` = as.POSIXct(strptime(FDT_DATE_TIME, format="%Y-%m-%d")))#as.POSIXct(windowData$`Date Time`, format="%Y-%m-%d", tz='GMT') + as.difftime(1, units="days")
+             `Date Time` = as.POSIXct(strptime(FDT_DATE_TIME, format="%Y-%m-%d")))
+    bind_rows(windowDat,
+              tibble(`Date Time` = c(min(windowDat$`Date Time`)- days(5), max(windowDat$`Date Time`) + days(5)),
+                     newSTV = 130, geomeanLimit = 35)) })
+  
+  output$test <- renderPrint({
+    windowData()
+  })
+  
+  
+  
+  output$plotlyZoom <- renderPlotly({
+    req(windowData(), oneStation(), !is.na(oneStationDecisionData()))
+    
+    windowData <- windowData()
+    
+    # Fix look of single measure
+    #if(nrow(windowData) == 1){
+    #  print(windowData)
+    #  windowData <- bind_rows(windowData,
+    #                          tibble(`Date Time` = c(min(windowData$`Date Time`)- days(5), max(windowData$`Date Time`) + days(5))))
+    #}
     
     plot_ly(data=windowData) %>%
       add_markers(x= ~`Date Time`, y= ~Value,mode = 'scatter', name="Enterococci (CFU / 100 mL)", marker = list(color= '#535559'),
@@ -223,11 +253,23 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
              xaxis=list(title="Sample Date",tickfont = list(size = 10))) 
   })
   
+  output$analysisTableZoom <- DT::renderDataTable({
+    req(!is.na(oneStationDecisionData()), nrow(windowData()) > 0)
+    z <- oneStationDecisionData()[input$rawData_rows_selected,] %>%
+      dplyr::select(-associatedData) # remove embedded tibble to make table work
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "140px", dom='t'), selection = 'none')  })
+  
+  
+  
   output$analysisTable <- DT::renderDataTable({
     req(!is.na(oneStationDecisionData()))
     z <- oneStationDecisionData() %>%
       dplyr::select(-associatedData) # remove embedded tibble to make table work
-    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "400px", dom='t'))
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "400px", dom='t'), selection = 'none')  
   })
   
+  # these kill app when shifting to stations with no bacteria data
+  #DTproxy = dataTableProxy('analysisTable')
+  # observeEvent(nrow(windowData()) > 0, {
+  #  DTproxy %>% selectRows(as.numeric(input$rawData_rows_selected)) })
 }  
