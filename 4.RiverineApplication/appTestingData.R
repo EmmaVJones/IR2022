@@ -237,6 +237,33 @@ windowData <- filter(oneStationDecisionData, as.character(`Date Window Starts`) 
          `Date Time` = as.POSIXct(strptime(FDT_DATE_TIME, format="%Y-%m-%d")))#as.POSIXct(windowData$`Date Time`, format="%Y-%m-%d", tz='GMT') + as.difftime(1, units="days")
 
 
+z <- oneStationDecisionData %>%
+  dplyr::select(-associatedData) 
+
+
+# Fix look of single measure
+if(nrow(windowData) == 1){
+  windowData <- bind_rows(windowData,
+                          tibble(`Date Time` = c(windowData$`Date Time`- days(5), windowData$`Date Time` + days(5))))
+}
+
+
+plot_ly(data=windowData) %>%
+  add_markers(x= ~`Date Time`, y= ~Value,mode = 'scatter', name="E. coli (CFU / 100 mL)", marker = list(color= '#535559'),
+              hoverinfo="text",text=~paste(sep="<br>",
+                                           paste("Date: ",`Date Time`),
+                                           paste("E. coli: ",Value,"CFU / 100 mL"))) %>%
+  add_lines(data=windowData, x=~`Date Time`, y=~geomean, mode='line', line = list(color = 'orange', dash= 'dash'),
+            hoverinfo = "text", text= ~paste("Window Geomean: ", format(geomean,digits=3)," CFU / 100 mL", sep=''), 
+            name="Window Geomean") %>%
+  add_lines(data=windowData, x=~`Date Time`,y=~newSTV, mode='line', line = list(color = '#484a4c',dash = 'dot'),
+            hoverinfo = "text", text= "New STV: 410 CFU / 100 mL", name="New STV: 410 CFU / 100 mL") %>%
+  add_lines(data=windowData, x=~`Date Time`,y=~geomeanLimit, mode='line', line = list(color = 'black', dash= 'dash'),
+            hoverinfo = "text", text= "Geomean Criteria: 126 CFU / 100 mL", name="Geomean Criteria: 126 CFU / 100 mL") %>%
+  layout(showlegend=FALSE,
+         yaxis=list(title="E. coli (CFU / 100 mL)"),
+         xaxis=list(title="Sample Date",tickfont = list(size = 10))) 
+
 
 #windowData <- filter(enter1[['associatedDecisionData']][[1]], `Date Window Starts` %in% windowChoice_) %>%
 #  dplyr::select( associatedData) %>%

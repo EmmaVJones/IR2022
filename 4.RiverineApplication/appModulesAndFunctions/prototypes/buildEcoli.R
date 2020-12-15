@@ -52,19 +52,19 @@ EcoliPlotlySingleStationUI <- function(id){
                the drop down box to select the start of the window in question.'),
       fluidRow(
         #verbatimTextOutput(ns('test')),
-        
-        column(6, helpText('Below is the raw data associated with the ',span('selected site'),'. Click on a row to reveal the
+        column(4, helpText('Below is the raw data associated with the ',span('selected site'),'. Click on a row to reveal the
                            data included in the selected 90 day window in the plot to the right and to highlight the specific 
-                           assessment logic in the Analyzed Data table below.'), 
+                           assessment logic in the table below the plot.'), 
                h5(strong('Raw Data')),DT::dataTableOutput(ns('rawData'))),
-        column(6, helpText('Click a row on the table to left to reveal a detailed interactive plot of the data
+        column(8, helpText('Click a row on the table to left to reveal a detailed interactive plot of the data
                            included in the selected 90 day window. The orange line corresponds to the window geomean; wide black dashed line
-                         corresponds to the geomean criteria; thin black dashed line corresponds to the STV limit.'),
-               plotlyOutput(ns('plotlyZoom')))),
+                         corresponds to the geomean criteria; thin black dashed line corresponds to the STV limit. Below the plot is a
+                           table with specific assessment logic regarding the data included in the selected 90 day window.'),
+               plotlyOutput(ns('plotlyZoom')),
+               DT::dataTableOutput(ns("analysisTableZoom")))),
       br(), br(),
       h5(strong('Analyzed Data (Each window with an individual STV and geomean assessment decisions)')),
-      helpText('Click on a row in the Raw Data table above to reveal the data included in the selected 90 day window in the plot to the right and 
-                to highlight the specific assessment logic in the Analyzed Data table below.'),
+      helpText('This dataset shows all assessment logic for each 90 day window assessment.'),
       DT::dataTableOutput(ns('analysisTable')))
   )
 }
@@ -211,7 +211,6 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
   #                       to the STV limit.')))})
   
   windowData <- reactive({ req(oneStation(), input$rawData_rows_selected, !is.na(oneStationDecisionData()))
-    #oneStation()$FDT_DATE_TIME[input$rawData_rows_selected]
     filter(oneStationDecisionData(), as.character(`Date Window Starts`) %in% as.character(as.Date(oneStation()$FDT_DATE_TIME[input$rawData_rows_selected]))) %>% #input$windowChoice_) %>%
       dplyr::select( associatedData) %>%
       unnest(cols = c(associatedData)) %>%
@@ -255,21 +254,25 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
              xaxis=list(title="Sample Date",tickfont = list(size = 10))) 
   })
   
+  output$analysisTableZoom <- DT::renderDataTable({
+    req(!is.na(oneStationDecisionData()), nrow(windowData()) > 0)
+    z <- oneStationDecisionData()[input$rawData_rows_selected,] %>%
+      dplyr::select(-associatedData) # remove embedded tibble to make table work
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "140px", dom='t'), selection = 'none')  })
+  
   
    
   output$analysisTable <- DT::renderDataTable({
     req(!is.na(oneStationDecisionData()))
     z <- oneStationDecisionData() %>%
       dplyr::select(-associatedData) # remove embedded tibble to make table work
-    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "400px", dom='t'))  })
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "400px", dom='t'), selection = 'none')  })
   
-  DTproxy = dataTableProxy('analysisTable')
   
-  observeEvent(windowData(), {
-    #rowNumberToSelect <- 
-    #as.character(as.Date(oneStation()$FDT_DATE_TIME[input$rawData_rows_selected]))
-    DTproxy %>% selectRows(as.numeric(input$rawData_rows_selected))
-  })
+  # these kill app when shifting to stations with no bacteria data
+  #DTproxy = dataTableProxy('analysisTable')
+  # observeEvent(nrow(windowData()) > 0, {
+  #  DTproxy %>% selectRows(as.numeric(input$rawData_rows_selected)) })
   
 }
 
