@@ -95,7 +95,7 @@ tempExceedances <- function(x){
     filter(!is.na(FDT_TEMP_CELCIUS))%>% #get rid of NA's
     rename(parameter = !!names(.[2]), limit = !!names(.[4])) %>% # rename columns to make functions easier to apply
     # Round to Even Rule
-    mutate(parameterRound = round(parameter, digits = 0), # round to whole number based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
+    mutate(parameterRound = signif(parameter, digits = 2), # two significant figures based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
            exceeds = ifelse(parameterRound > limit, T, F)) # Identify where above max Temperature, 
 }
 #tempExceedances(x) %>%
@@ -109,7 +109,7 @@ DOExceedances_Min <- function(x){
     filter(!is.na(DO)) %>% 
     rename(parameter = !!names(.[2]), limit = !!names(.[4])) %>% # rename columns to make functions easier to apply
     # Round to Even Rule
-    mutate(parameterRound = round(parameter, digits = 1), # round to 1 digit based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
+    mutate(parameterRound = signif(parameter, digits = 2), # two significant figures based on  https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
            exceeds = ifelse(parameterRound < limit, T, F))# Identify where below min DO 
 }
 #DOExceedances_Min(x) %>% quickStats('DO')
@@ -126,7 +126,7 @@ DO_Assessment_DailyAvg <- function(x){
     mutate(n_Samples_Daily = n()) %>% # how many samples per day?
     filter(n_Samples_Daily > 1) %>%
     # Daily average with average rounded to even
-    mutate(DO_DailyAverage = round(mean(DO), digits = 1),  # round to 1 digit based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
+    mutate(DO_DailyAverage = signif(mean(DO), digits = 2),  # two significant figures based on  https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
            exceeds = ifelse(DO_DailyAverage < `Dissolved Oxygen Daily Avg (mg/L)`,T,F)) %>% 
     ungroup() %>% 
     dplyr::select(-c(FDT_DATE_TIME, `Dissolved Oxygen Min (mg/L)`))
@@ -155,7 +155,7 @@ pHExceedances <- function(x){
       pH <- pH %>%
         rowwise() %>% 
         # Round to Even Rule
-        mutate(parameterRound = round(FDT_FIELD_PH, digits = 1)) %>% # round to 1 digit based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
+        mutate(parameterRound = signif(FDT_FIELD_PH, digits = 2)) %>% # two significant figures based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
         mutate(interval=findInterval(parameterRound,c(`pH Min`,`pH Max`), left.open=TRUE, rightmost.closed = TRUE)) %>% # Identify where pH outside of assessment range with round to even
         ungroup()%>%
         mutate(exceeds=ifelse(interval == 1, F, T), # Highlight where pH doesn't fall into assessment range
@@ -194,7 +194,7 @@ assessPWS <- function(x, fieldName, commentName, PWSlimit, outputName){
     parameterData <- dplyr::select(x, FDT_DATE_TIME, !! fieldName_, !! commentName_) %>%
       filter(!( !! commentName_ %in% c('Level II', 'Level I'))) %>% # get lower levels out
       filter(!is.na(!!fieldName_ )) %>% #get rid of NA's
-      mutate(`Parameter Rounded to WQS Format` = round(!! fieldName_, digits = 0),  # round to WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
+      mutate(`Parameter Rounded to WQS Format` = signif(!! fieldName_, digits = 2),  # two significant figures based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
              limit =  PWSlimit) %>%
       rename(parameter = !!names(.[4])) %>% # rename columns to make functions easier to apply
       mutate(exceeds = ifelse(parameter > limit, T, F)) # Identify where above WQS limit
@@ -269,7 +269,7 @@ fourDayAverageAnalysis <- function(chronicWindowData, chronicWindowResults){
     if(nrow(fourDayWindow) > 1){
       fourDayResultsi <- fourDayWindow %>%
         summarize(WindowStart = min(FDT_DATE_TIME),
-          `fourDayAmmoniaAvg` = as.numeric(round(mean(AMMONIA, na.rm = T), digits = 2))) %>% # round to even for comparison to chronic criteria
+          `fourDayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA, na.rm = T), digits = 2))) %>% # two sigfigs for comparison to chronic criteria
         bind_cols(dplyr::select(chronicWindowResults,`fourDayAvglimit`)) %>%
         mutate(fourDayExceedance = `fourDayAmmoniaAvg` > `fourDayAvglimit`)
       fourDayResults <- bind_rows(fourDayResults, 
@@ -306,10 +306,11 @@ freshwaterNH3limit <- function(x, # dataframe with station data
     # Acute Criteria
     acute <- x %>%
       rowwise() %>%
-      mutate(acuteNH3limit = as.numeric(round(
-        min(((0.275 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (39.0 / (1 + 10^(FDT_FIELD_PH - 7.204)))),
-            (0.7249 * ( (0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * (23.12 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS))) )), digits = 2)),
-        acuteExceedance = as.numeric(round(AMMONIA, digits = 2)) > acuteNH3limit) 
+      mutate(ammoniaRound = as.numeric(signif(AMMONIA, digits = 2)),
+             acuteNH3limit = as.numeric(signif(
+               min(((0.275 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (39.0 / (1 + 10^(FDT_FIELD_PH - 7.204)))),
+                   (0.7249 * ( (0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * (23.12 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS))) )), digits = 2)),
+             acuteExceedance = ammoniaRound > acuteNH3limit) 
     # Chronic is calculated on 30 day windows, so we need to average temperature and pH within each 30 day window before we can calculate a
     #  chronic criteria. The chronic criteria will be associated with each sample date that starts a 30 day period, but it applies to all 
     #  samples within the 30 day window. All raw data associated with each window is saved as a listcolumn for later review. 
@@ -321,14 +322,14 @@ freshwaterNH3limit <- function(x, # dataframe with station data
       if(nrow(chronicWindowData) > 1){ # need 2 or more data points to run a chronic or 4 day 
         chronicWindowResultsi <- chronicWindowData %>%
           summarise(WindowStart = min(FDT_DATE_TIME),
-                    `30dayAmmoniaAvg` = as.numeric(round(mean(AMMONIA, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
+                    `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
                     TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T), #don't round to even bc more calculations to follow with data
                     pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>% #don't round to even bc more calculations to follow with data
           # Chronic Criteria mussels == T & earlyLife == T
           {if(earlyLife == TRUE)
-            mutate(., chronicNH3limit = as.numeric(round(
+            mutate(., chronicNH3limit = as.numeric(signif(
               0.8876 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * (2.126 * 10^(0.028 * (20 - max(7, TempAvg)))), digits = 2)),
-              `fourDayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)) )
+              `fourDayAvglimit`= as.numeric(signif(chronicNH3limit * 2.5, digits = 2)) )
             else mutate(., chronicNH3limit = as.numeric(NA),
                         `fourDayAvglimit`= as.numeric(NA)) } %>%
           # Identify if window Ammonia average is above chronic criteria
@@ -355,10 +356,11 @@ freshwaterNH3limit <- function(x, # dataframe with station data
     # Acute Criteria
     acute <- x %>%
       rowwise() %>%
-      mutate(acuteNH3limit = as.numeric(round(
-        min(((0.275 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (39.0 / (1 + 10^(FDT_FIELD_PH - 7.204)))),
-            (0.7249 * ( (0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * (62.15 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS))) )), digits = 2)),
-        acuteExceedance = as.numeric(round(AMMONIA, digits = 2)) > acuteNH3limit) 
+      mutate(ammoniaRound = as.numeric(signif(AMMONIA, digits = 2)),
+             acuteNH3limit = as.numeric(signif(
+               min(((0.275 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (39.0 / (1 + 10^(FDT_FIELD_PH - 7.204)))),
+                   (0.7249 * ( (0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * (62.15 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS))) )), digits = 2)),
+             acuteExceedance = ammoniaRound > acuteNH3limit) 
     # Chronic is calculated on 30 day windows, so we need to average temperature and pH within each 30 day window before we can calculate a
     #  chronic criteria. The chronic criteria will be associated with each sample date that starts a 30 day period, but it applies to all 
     #  samples within the 30 day window
@@ -370,16 +372,16 @@ freshwaterNH3limit <- function(x, # dataframe with station data
       if(nrow(chronicWindowData) > 1){ # need 2 or more data points to run a chronic or 4 day 
       chronicWindowResultsi <- chronicWindowData %>%
         summarise(WindowStart = min(FDT_DATE_TIME),
-                  `30dayAmmoniaAvg` = as.numeric(round(mean(AMMONIA, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
+                  `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
                   TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T), #don't round to even bc more calculations to follow with data
                   pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>% #don't round to even bc more calculations to follow with data
         # Chronic Criteria mussels == F & earlyLife == T
         {if(earlyLife == TRUE)
-          mutate(., chronicNH3limit = as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * min(6.92, (7.547 * 10^(0.028 * (20 - TempAvg)))), digits = 2)),
-                 `fourDayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)) )
+          mutate(., chronicNH3limit = as.numeric(signif(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * min(6.92, (7.547 * 10^(0.028 * (20 - TempAvg)))), digits = 2)),
+                 `fourDayAvglimit`= as.numeric(signif(chronicNH3limit * 2.5, digits = 2)) )
           # Chronic Criteria mussels == F & earlyLife == F
-          else mutate(., chronicNH3limit =  as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * (7.547 * 10^(0.028 * (20 - max(TempAvg, 7)))), digits = 2)),
-                      `fourDayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)) )  } %>%
+          else mutate(., chronicNH3limit =  as.numeric(signif(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * (7.547 * 10^(0.028 * (20 - max(TempAvg, 7)))), digits = 2)),
+                      `fourDayAvglimit`= as.numeric(signif(chronicNH3limit * 2.5, digits = 2)) )  } %>%
         # Identify if window Ammonia average is above chronic criteria
         mutate(chronicExceedance = `30dayAmmoniaAvg` > chronicNH3limit) %>%
         # attach associated raw data to analysis for later use
@@ -405,8 +407,9 @@ freshwaterNH3limit <- function(x, # dataframe with station data
     # Acute Criteria
     acute <- x %>%
       rowwise() %>%
-      mutate(acuteNH3limit = as.numeric(round(0.7249 * ((0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * min(51.93, (23.12 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)),
-             acuteExceedance = as.numeric(round(AMMONIA, digits = 2)) > acuteNH3limit) 
+      mutate(ammoniaRound = as.numeric(signif(AMMONIA, digits = 2)),
+             acuteNH3limit = as.numeric(signif(0.7249 * ((0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * min(51.93, (23.12 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)),
+             acuteExceedance = ammoniaRound > acuteNH3limit) 
     # Chronic is calculated on 30 day windows, so we need to average temperature and pH within each 30 day window before we can calculate a
     #  chronic criteria. The chronic criteria will be associated with each sample date that starts a 30 day period, but it applies to all 
     #  samples within the 30 day window
@@ -418,13 +421,13 @@ freshwaterNH3limit <- function(x, # dataframe with station data
       if(nrow(chronicWindowData) > 1){ # need 2 or more data points to run a chronic or 4 day 
       chronicWindowResultsi <- chronicWindowData %>%
         summarise(WindowStart = min(FDT_DATE_TIME),
-                  `30dayAmmoniaAvg` = as.numeric(round(mean(AMMONIA, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
+                  `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
                   TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T), #don't round to even bc more calculations to follow with data
                   pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>% #don't round to even bc more calculations to follow with data
         # Chronic Criteria mussels == T & earlyLife == T
         {if(earlyLife == TRUE)
-          mutate(., chronicNH3limit = as.numeric(round(0.8876 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * (2.126 * 10^(0.028 * (20 - max(7, TempAvg)))), digits = 2)),
-                 `fourDayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)))
+          mutate(., chronicNH3limit = as.numeric(signif(0.8876 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * (2.126 * 10^(0.028 * (20 - max(7, TempAvg)))), digits = 2)),
+                 `fourDayAvglimit`= as.numeric(signif(chronicNH3limit * 2.5, digits = 2)))
           else mutate(., chronicNH3limit = as.numeric(NA),
                       `fourDayAvglimit`= as.numeric(NA) ) }  %>%
         # Identify if window Ammonia average is above chronic criteria
@@ -455,8 +458,9 @@ freshwaterNH3limit <- function(x, # dataframe with station data
     # Acute Criteria
     acute <- x %>%
       rowwise() %>%
-      mutate(acuteNH3limit = as.numeric(round(0.7249 * ((0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * min(51.93, (62.15 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)),
-             acuteExceedance = as.numeric(round(AMMONIA, digits = 2)) > acuteNH3limit)  
+      mutate(ammoniaRound = as.numeric(signif(AMMONIA, digits = 2)),
+             acuteNH3limit = as.numeric(signif(0.7249 * ((0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * min(51.93, (62.15 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)),
+             acuteExceedance = ammoniaRound > acuteNH3limit)  
     # Chronic is calculated on 30 day windows, so we need to average temperature and pH within each 30 day window before we can calculate a
     #  chronic criteria. The chronic criteria will be associated with each sample date that starts a 30 day period, but it applies to all 
     #  samples within the 30 day window
@@ -468,16 +472,16 @@ freshwaterNH3limit <- function(x, # dataframe with station data
       if(nrow(chronicWindowData) > 1){ # need 2 or more data points to run a chronic or 4 day 
       chronicWindowResultsi <- chronicWindowData %>%
         summarise(WindowStart = min(FDT_DATE_TIME),
-                  `30dayAmmoniaAvg` = as.numeric(round(mean(AMMONIA, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
+                  `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
                   TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T), #don't round to even bc more calculations to follow with data
                   pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>% #don't round to even bc more calculations to follow with data
         # Chronic Criteria mussels == F & earlyLife == T
         {if(earlyLife == TRUE)
-          mutate(., chronicNH3limit = as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * min(6.92, (7.547 * 10^(0.028 * (20 - TempAvg)))), digits = 2)),
-                 `fourDayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)) )
+          mutate(., chronicNH3limit = as.numeric(signif(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * min(6.92, (7.547 * 10^(0.028 * (20 - TempAvg)))), digits = 2)),
+                 `fourDayAvglimit`= as.numeric(signif(chronicNH3limit * 2.5, digits = 2)) )
           # Chronic Criteria mussels == F & earlyLife == F
-          else mutate(., chronicNH3limit =  as.numeric(round(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * (7.547 * 10^(0.028 * (20 - max(TempAvg, 7)))), digits = 2)),
-                      `fourDayAvglimit`= as.numeric(round(chronicNH3limit * 2.5, digits = 2)) )  }  %>%
+          else mutate(., chronicNH3limit =  as.numeric(signif(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * (7.547 * 10^(0.028 * (20 - max(TempAvg, 7)))), digits = 2)),
+                      `fourDayAvglimit`= as.numeric(signif(chronicNH3limit * 2.5, digits = 2)) )  }  %>%
         # Identify if window Ammonia average is above chronic criteria
         mutate(chronicExceedance = `30dayAmmoniaAvg` > chronicNH3limit) %>%
         # attach associated raw data to analysis for later use

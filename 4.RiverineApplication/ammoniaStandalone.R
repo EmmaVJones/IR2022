@@ -12,6 +12,8 @@ library(DT)
 library(plotly)
 library(readxl)
 
+#options(pillar.sigfig = 2)
+
 source('appModulesAndFunctions/automatedAssessmentFunctions.R')
 
 # Server connection things
@@ -54,8 +56,10 @@ conventionals_HUC <- left_join(conventionals, dplyr::select(stationTable, STATIO
   filter(!is.na(ID305B_1)) %>%
   pHSpecialStandardsCorrection()
 
+#oneStation <- filter(conventionals_HUC, FDT_STA_ID %in% '2-BLY000.08') %>%
+#  filter(!is.na(AMMONIA))
 
-
+#oneStationAnalysis <- freshwaterNH3limit(oneStation, trout = FALSE, mussels = TRUE, earlyLife = TRUE)   
 
 
 AmmoniaPlotlySingleStationUI <- function(id){
@@ -243,7 +247,7 @@ AmmoniaPlotlySingleStation <- function(input,output,session, AUdata, stationSele
   output$rangeTableSingleSite <- renderDataTable({
     req(nrow(oneStation()) > 0)
     z <- filter(oneStationAnalysis(), acuteExceedance == TRUE) %>%
-      dplyr::select(FDT_DATE_TIME:FDT_FIELD_PH, 'AMMONIA Rounded to WQS Format' = AMMONIA, acuteNH3limit)
+      dplyr::select(FDT_DATE_TIME:FDT_FIELD_PH, AMMONIA, 'Ammonia Rounded to WQS Format' = ammoniaRound, acuteNH3limit)
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t'),
               selection = 'none') })
   
