@@ -113,7 +113,7 @@ DOPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
                                                  paste("Depth: ",FDT_DEPTH, "m"),
                                                  paste("DO: ",DO," (mg/L)")))%>%
         layout(showlegend=FALSE,
-               yaxis=list(title="DO (unitless)"),
+               yaxis=list(title="DO (mg/L)"),
                xaxis=list(title="Sample Date",tickfont = list(size = 10)))
     } else {
       plot_ly(data=dat)%>%
@@ -125,7 +125,7 @@ DOPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
                                                  paste("Depth: ",FDT_DEPTH, "m"),
                                                  paste("DO: ",DO," (mg/L)")))%>%
         layout(showlegend=FALSE,
-               yaxis=list(title="DO (unitless)"),
+               yaxis=list(title="DO (mg/L)"),
                xaxis=list(title="Sample Date",tickfont = list(size = 10)))    }  })
   
   output$minTableSingleSite <- renderDataTable({req(oneStation())

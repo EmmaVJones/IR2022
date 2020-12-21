@@ -60,7 +60,8 @@ quickStats <- function(parameterDataset, parameter){
     if(results$exceedanceRate > 10.5 & results$EXC >= 2 & results$SAMP > 10){outcome <- '10.5% Exceedance'}
     if(results$EXC < 1 &results$exceedanceRate < 10.5 & results$SAMP > 10){outcome <- 'S'}
     if(results$EXC >= 1 & results$SAMP <= 10){outcome <- 'Review'}
-    if(results$EXC < 1 & results$SAMP <= 10){outcome <- 'S'}
+    if(results$EXC < 1 & results$SAMP <= 10 & results$SAMP > 1){outcome <- 'S'} # & results$SAMP >1 new 12/21/2020 can't say supporting on 1 sample
+    if(results$EXC < 1 & results$SAMP <= 10 & results$SAMP == 1){outcome <- 'Review'} # & results$SAMP >1 new 12/21/2020 can't say supporting on 1 sample
     
     
     results <- mutate(results, STAT = outcome)
@@ -220,7 +221,7 @@ countNutrients <- function(x, fieldName, commentName, nutrientLimit){
     mutate(limit = nutrientLimit, 
            exceeds = ifelse(parameter > limit, T, F)) # Identify where above WQS limit
 }
-#countNutrients(x, PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP')
+#countNutrients(x, PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP') # but no longer use 0.2 riverine flag after 12/21/2020 email with Tish/Amanda
 #countNutrients(x, CHLOROPHYLL, RMK_CHLOROPHYLL, NA)  %>% quickStats('NUT_CHLA')
 
 

@@ -11,13 +11,15 @@ TPPlotlySingleStationUI <- function(id){
       helpText('All data presented in the interactive plot is raw data. Rounding rules are appropriately applied to the 
                assessment functions utilized by the application.'),
       plotlyOutput(ns('plotly')) ,
-      h5('Total Phosphorus exceedances above 0.2 mg/L for the ',span(strong('selected site')),' are highlighted below to highlight
-         potenial observed effects for Aquatic Life Use.'),
-      fluidRow(
-        column(6, h6('If there is no data listed below then none of the measures exceeded 0.2 mg/L Total Phosphorus.'), 
-               dataTableOutput(ns('rangeTableSingleSite'))),
-        column(6, h6('Total Phosphorus > 0.2 mg/L exceedance rate'),
-               dataTableOutput(ns("stationExceedanceRate"))))
+      br(), br(),br()
+      # TP 0.2 limit no longer used after 12/21/2020 email with Tish/Amanda
+      #h5('Total Phosphorus exceedances above 0.2 mg/L for the ',span(strong('selected site')),' are highlighted below to highlight
+      #   potenial observed effects for Aquatic Life Use.'),
+      #fluidRow(
+      #  column(6, h6('If there is no data listed below then none of the measures exceeded 0.2 mg/L Total Phosphorus.'), 
+      #         dataTableOutput(ns('rangeTableSingleSite'))),
+      #  column(6, h6('Total Phosphorus > 0.2 mg/L exceedance rate'),
+      #         dataTableOutput(ns("stationExceedanceRate"))))
     ) )
 }
 
@@ -111,21 +113,21 @@ TPPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
     }
     
   })
+  # TP 0.2 limit no longer used after 12/21/2020 email with Tish/Amanda
+  #output$rangeTableSingleSite <- renderDataTable({
+  #  req(oneStation())
+  #  z <- countNutrients(oneStation(), PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>%
+  #    filter(exceeds == TRUE) %>%
+  #    dplyr::select(FDT_DATE_TIME, PHOSPHORUS = parameter, RMK_PHOSPHORUS, LIMIT = limit)
+  #  datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
+  #            selection = 'none')})
   
-  output$rangeTableSingleSite <- renderDataTable({
-    req(oneStation())
-    z <- countNutrients(oneStation(), PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>%
-      filter(exceeds == TRUE) %>%
-      dplyr::select(FDT_DATE_TIME, PHOSPHORUS = parameter, RMK_PHOSPHORUS, LIMIT = limit)
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
-              selection = 'none')})
   
-  
-  output$stationExceedanceRate <- renderDataTable({
-    req(ns(input$oneStationSelection), oneStation())
-    z <- countNutrients(oneStation(), PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP') %>%
-      dplyr::select(-NUT_TP_STAT)
-    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
-              selection = 'none') })
+  #output$stationExceedanceRate <- renderDataTable({
+  #  req(ns(input$oneStationSelection), oneStation())
+  #  z <- countNutrients(oneStation(), PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP') %>%
+  #    dplyr::select(-NUT_TP_STAT)
+  #  datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
+  #            selection = 'none') })
   
 }
