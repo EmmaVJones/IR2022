@@ -244,7 +244,7 @@ for(i in 1:nrow(stationTable)){
                                ' | ENTEROCOCCI Comment: ', ENTER_STATENTER_VERBOSE,
                                ' | AMMONIA Comment: ', `Assessment Decision`)) %>%
       left_join(comments, by = 'STATION_ID') %>%
-      dplyr::select(-ends_with(c('exceedanceRate', 'VERBOSE', 'Assessment Decision'))) # to match Bulk Upload template but helpful to keep visible til now for testing
+      dplyr::select(-ends_with(c('exceedanceRate', 'VERBOSE', 'Assessment Decision', 'StationID'))) # to match Bulk Upload template but helpful to keep visible til now for testing
   } else {# pull what you can from last cycle and flag as carry over
     results <- filter(stationTable, STATION_ID == stationTable$STATION_ID[i]) %>%
       dplyr::select(STATION_ID:VAHU6, COMMENTS) %>%

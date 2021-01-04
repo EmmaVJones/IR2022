@@ -1,9 +1,9 @@
 # app testing data
 source('global.R')
 
-DEQregionSelection <- "PRO"#'BRRO'
-basinSelection <- "James-Lower"#'James-Upper'#"Roanoke"#"Roanoke"#'James-Upper'#
-HUC6Selection <- "JL07"#"JM05"#'RL12'#"JM02"#'JM16'#'RU09'#'RL12'#
+DEQregionSelection <- 'BRRO'
+basinSelection <- "James-Middle"#'James-Upper'#"Roanoke"#"Roanoke"#'James-Upper'#
+HUC6Selection <- "JM02"#'JM16'#'RU09'#'RL12'#
 
 
 conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%

@@ -86,6 +86,14 @@ StationTableStartingData <- function(x){
     distinct(STATION_ID, .keep_all = T)
 }
 
+#stations <- unique(estuarineStations$STATION_ID)#unique(stationData$FDT_STA_ID)
+#x <- estuarineStations#stationData
+#previousStationTable <-  stationTable
+#previousStationTableCycle <- 2020
+#previousStationTable2 <- historicalStationsTable2
+#previousStationTable2Cycle <- 2018
+#rm(previousStationTable); rm(previousStationTable2); rm(previousStationTable2Cycle);rm(previousStationTableCycle); rm(lastComment); rm(lastComment2)
+
 stationTableComments <- function(stations, previousStationTable, 
                                  previousStationTableCycle,
                                  previousStationTable2,
@@ -98,6 +106,7 @@ stationTableComments <- function(stations, previousStationTable,
   names(lastComment2) <- c('STATION_ID', paste(previousStationTable2Cycle, 'IR COMMENTS'))
   return(left_join(lastComment, lastComment2, by= 'STATION_ID'))
 }
+
 
 
 
