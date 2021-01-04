@@ -86,6 +86,18 @@ StationTableStartingData <- function(x){
     distinct(STATION_ID, .keep_all = T)
 }
 
+stationTableComments <- function(stations, previousStationTable, 
+                                 previousStationTableCycle,
+                                 previousStationTable2,
+                                 previousStationTable2Cycle){
+  lastComment <- filter(previousStationTable, STATION_ID %in% stations) %>%
+    dplyr::select(STATION_ID, COMMENTS)
+  names(lastComment) <- c('STATION_ID', paste(previousStationTableCycle, 'IR COMMENTS'))
+  lastComment2 <- filter(previousStationTable2, STATION_ID %in% stations) %>%
+    dplyr::select(STATION_ID, COMMENTS)
+  names(lastComment2) <- c('STATION_ID', paste(previousStationTable2Cycle, 'IR COMMENTS'))
+  return(left_join(lastComment, lastComment2, by= 'STATION_ID'))
+}
 
 
 

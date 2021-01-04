@@ -126,6 +126,7 @@ shinyServer(function(input, output, session) {
     filter(conventionals, Huc6_Vahu6 %in% huc6_filter()$VAHU6) %>%
       distinct(FDT_STA_ID, .keep_all = TRUE)  %>% 
       dplyr::select(FDT_STA_ID:FDT_SPG_CODE, STA_LV2_CODE:Data_Source, Latitude, Longitude) %>% 
+      dplyr::select(-FDT_DATE_TIME) %>% # drop date time bc confusing to users
       mutate(#`In Stations Table` = ifelse(FDT_STA_ID %in% unique(stationTable$STATION_ID), 'yes','no'),
         #`In Selected Region` = ifelse(FDT_STA_ID %in% filter(stationTable, REGION %in% DEQregionSelection)$STATION_ID, 'yes','no'),
         `Analyzed By App` = #ifelse(`In Stations Table` == 'yes'# && `In Selected Region` == 'yes', 'yes','no'))

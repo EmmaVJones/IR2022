@@ -70,6 +70,12 @@ stationsTemplate <- read_excel('WQA_CEDS_templates/WQA_Bulk_Station_Upload (3).x
 
 ```
 
+## Bring in Station Table from two previous assessments 
+
+```{r stations table 2018}
+historicalStationsTable2 <- read_excel('data/tbl_ir_mon_stations2018IRfinal.xlsx')
+```
+
 
 
 # Workflow
@@ -116,13 +122,27 @@ We only want to run riverine methods on riverine stations right now, so drop all
 lakeStations <- filter(stationTable, str_detect(ID305B_1, 'L_') | str_detect(ID305B_2, 'L_') | str_detect(ID305B_3, 'L_') | str_detect(ID305B_4, 'L_') |
                           str_detect(ID305B_5, 'L_') | str_detect(ID305B_6, 'L_') | str_detect(ID305B_7, 'L_') | str_detect(ID305B_8, 'L_') | 
                           str_detect(ID305B_9, 'L_') | str_detect(ID305B_10, 'L_') ) 
- bothTypes <- filter(lakeStations, str_detect(ID305B_1, 'R_') | str_detect(ID305B_2, 'R_') | str_detect(ID305B_3, 'R_') | str_detect(ID305B_4, 'R_') |
+bothTypes <- filter(lakeStations, str_detect(ID305B_1, 'R_') | str_detect(ID305B_2, 'R_') | str_detect(ID305B_3, 'R_') | str_detect(ID305B_4, 'R_') |
                           str_detect(ID305B_5, 'R_') | str_detect(ID305B_6, 'R_') | str_detect(ID305B_7, 'R_') | str_detect(ID305B_8, 'R_') | 
                           str_detect(ID305B_9, 'R_') | str_detect(ID305B_10, 'R_') ) 
 stationTable <- filter(stationTable, ! STATION_ID %in% lakeStations$STATION_ID)
 
 ```
 
+And drop estuarine stations as well.
+
+```{r}
+estuarineStations <- filter(stationTable, str_detect(ID305B_1, 'E_') | str_detect(ID305B_2, 'E_') | str_detect(ID305B_3, 'E_') | str_detect(ID305B_4, 'E_') |
+                          str_detect(ID305B_5, 'E_') | str_detect(ID305B_6, 'E_') | str_detect(ID305B_7, 'E_') | str_detect(ID305B_8, 'E_') | 
+                          str_detect(ID305B_9, 'E_') | str_detect(ID305B_10, 'E_') ) 
+bothTypesE <- filter(estuarineStations, str_detect(ID305B_1, 'R_') | str_detect(ID305B_2, 'R_') | str_detect(ID305B_3, 'R_') | str_detect(ID305B_4, 'R_') |
+                          str_detect(ID305B_5, 'R_') | str_detect(ID305B_6, 'R_') | str_detect(ID305B_7, 'R_') | str_detect(ID305B_8, 'R_') | 
+                          str_detect(ID305B_9, 'R_') | str_detect(ID305B_10, 'R_') ) 
+
+stationTable <- filter(stationTable, ! STATION_ID %in% estuarineStations$STATION_ID) %>%
+  bind_rows(bothTypesE) # add northern station back in to be safe
+
+```
 
 
 
@@ -135,13 +155,6 @@ For testing reduce stationTable to just BRRO for now
 
 
 # steps
-
-pin conventionals, metals, benthics, wqs information, last cycle AU info (spatial)
-
-user upload AU and station info (carry over only what is given to scripts, NA if nothing given)
-
-script joins WQS info to conventionals
-
 go through conventionals one station at a time, join stationTable, analyze by functions, report in WQA CEDS template
 
 
@@ -162,7 +175,10 @@ for(i in 1:nrow(stationTable)){
   # pull one station data
   stationData <- filter(conventionals, FDT_STA_ID %in% stationTable$STATION_ID[i]) %>%
     left_join(stationTable, by = c('FDT_STA_ID' = 'STATION_ID')) %>%
-  pHSpecialStandardsCorrection() # correct pH to special standards where necessary
+    pHSpecialStandardsCorrection() # correct pH to special standards where necessary
+  
+  # Previous station table comments
+  comments <- stationTableComments(unique(stationData$FDT_STA_ID), stationTable, '2020', historicalStationsTable2, '2018')
   
   # Ammonia special section
   ammoniaAnalysisStation <- freshwaterNH3limit(stationData, trout = ifelse(unique(stationData$CLASS) %in% c('V','VI'), TRUE, FALSE),
@@ -172,6 +188,9 @@ for(i in 1:nrow(stationTable)){
   # trout presence is determined by WQS class, this can be changed in the app but is forced to be what the station
   # is attributed to in the automated assessment scripts
   
+  # Previous station comments
+  
+  
   # If data exists for station, run it, otherwise just output what last cycle said and comment
   if(nrow(stationData) > 0){
     results <- cbind(
@@ -179,13 +198,13 @@ for(i in 1:nrow(stationTable)){
       tempExceedances(stationData) %>% quickStats('TEMP'),
       DOExceedances_Min(stationData) %>% quickStats('DO'), 
       pHExceedances(stationData) %>% quickStats('PH'),
-      bacteriaAssessmentDecision(stationData, 'ECOLI', 'RMK_ECOLI', 10, 410, 126) %>%
-        dplyr::select(ECOLI_EXC:ECOLI_STATECOLI_VERBOSE), # add verbose comment to COMMENT field
-        #dplyr::select(ECOLI_EXC:ECOLI_STAT), # don't add verbose comment to COMMENT field
-      bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_ENTEROCOCCI', 10, 130, 35) %>%
-        dplyr::select(ENTER_EXC:ENTER_STATENTER_VERBOSE), # add verbose comment to COMMENT field
-        #dplyr::select(ENTER_EXC:ENTER_STAT), # don't add verbose comment to COMMENT field
-    
+      bacteriaAssessmentDecisionClass(stationData),
+      
+      #bacteriaAssessmentDecision(stationData, 'ECOLI', 'RMK_ECOLI', 10, 410, 126) %>%
+      #  dplyr::select(ECOLI_EXC:ECOLI_STATECOLI_VERBOSE), # add verbose comment to COMMENT field
+      #bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_ENTEROCOCCI', 10, 130, 35) %>%
+      #  dplyr::select(ENTER_EXC:ENTER_STATENTER_VERBOSE), # add verbose comment to COMMENT field
+
       # Ammonia needs to go here
       ammoniaDecision(list(acute = freshwaterNH3Assessment(ammoniaAnalysisStation, 'acute'),
                            chronic = freshwaterNH3Assessment(ammoniaAnalysisStation, 'chronic'),
@@ -224,11 +243,13 @@ for(i in 1:nrow(stationTable)){
       mutate(COMMENTS = paste0('ECOLI Comment: ', ECOLI_STATECOLI_VERBOSE,
                                ' | ENTEROCOCCI Comment: ', ENTER_STATENTER_VERBOSE,
                                ' | AMMONIA Comment: ', `Assessment Decision`)) %>%
+      left_join(comments, by = 'STATION_ID') %>%
       dplyr::select(-ends_with(c('exceedanceRate', 'VERBOSE', 'Assessment Decision'))) # to match Bulk Upload template but helpful to keep visible til now for testing
   } else {# pull what you can from last cycle and flag as carry over
     results <- filter(stationTable, STATION_ID == stationTable$STATION_ID[i]) %>%
       dplyr::select(STATION_ID:VAHU6, COMMENTS) %>%
-      mutate(COMMENTS= paste0('This station has no data in current window but was carried over due to IM in one of the 2020IR status fields or the 2020 stations table reports the station was carried over from a previous cycle. The 2020 comment reads: ', COMMENTS))
+      mutate(COMMENTS = 'This station has no data in current window but was carried over due to IM in one of the 2020IR status fields or the 2020 stations table reports the station was carried over from a previous cycle.') %>%
+      left_join(comments, by = 'STATION_ID')
   }
   
   stationTableResults <- bind_rows(stationTableResults,results)
@@ -239,10 +260,34 @@ for(i in 1:nrow(stationTable)){
 
 stationTableResults <- bind_rows(stationsTemplate, stationTableResults) %>%
   # for now bc bacteria needs help still
-  dplyr::select(STATION_ID:COMMENTS)
+  dplyr::select(STATION_ID:`2018 IR COMMENTS`)
 
 timeDiff = Sys.time()- startTime
   
+```
+
+Now assess lake stations.
+
+
+
+## do stuff for lakes
+
+
+Now add in comment for estuarine stations to expedite assessor identification of stations
+
+```{r add back estuarine stations }
+estuarineStations <- filter(estuarineStations, ! STATION_ID %in% bothTypesE$STATION_ID) # drop duplicates
+
+# Previous station table comments
+comments <- stationTableComments(unique(estuarineStations$STATION_ID), stations2020IR, '2020', historicalStationsTable2, '2018')
+  
+
+estuarineStationData <- dplyr::select(estuarineStations, STATION_ID:VAHU6, COMMENTS) %>%
+      mutate(COMMENTS = 'This station is designated as an estuarine station and cannot be assessed by current automated methods.') %>%
+      left_join(comments, by = 'STATION_ID')
+  
+  
+stationTableResults <- bind_rows(stationTableResults, estuarineStationData)
 ```
 
 
