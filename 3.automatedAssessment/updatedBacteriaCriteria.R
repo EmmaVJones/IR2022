@@ -302,7 +302,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
 # To get just info for station table  
 #xxx <- bacteriaAssessmentDecision(stationData, 'ECOLI', 'RMK_ECOLI', 10, 410, 126) %>%
 #  dplyr::select(StationID:ECOLI_STAT)
-#xxx <- bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35) %>%
+#xxx <- bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_ENTEROCOCCI', 10, 130, 35) %>%
 #  dplyr::select(StationID:ENTER_STAT)
 
 
@@ -313,7 +313,7 @@ bacteriaAssessmentDecisionClass <- function(x){ # input dataframe with bacteria 
                                             
   if(unique(x$CLASS) %in% c('I', 'II')){
     return(
-    bacteriaAssessmentDecision(x, 'ENTEROCOCCI', 'RMK_31649', 10, 130, 35) %>%
+    bacteriaAssessmentDecision(x, 'ENTEROCOCCI', 'RMK_ENTEROCOCCI', 10, 130, 35) %>%
       mutate(ECOLI_EXC = as.numeric(NA), ECOLI_SAMP = as.numeric(NA), ECOLI_GM_EXC = as.numeric(NA), ECOLI_GM_SAMP = as.numeric(NA), 
              ECOLI_STAT = as.character(NA), ECOLI_STATECOLI_VERBOSE = as.character(NA)) %>%
       dplyr::select(StationID, ECOLI_EXC, ECOLI_SAMP, ECOLI_GM_EXC, ECOLI_GM_SAMP, ECOLI_STAT, ECOLI_STATECOLI_VERBOSE, ENTER_EXC, 
