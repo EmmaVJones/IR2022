@@ -107,8 +107,11 @@ shinyUI(fluidPage(theme="yeti.css",
                                             helpText('After you use the VAHU6 drop down to select your desired watershed, you may
                                                      preview the stations and AUs contained within the selected watershed by clicking the ',
                                                      span(strong('Spatially Preview Stations and Assessment Units')),' below.'),
-                                            actionButton('reviewAUs',"Spatially Preview Stations and Assessment Units",class='btn-block')
-                                          ),
+                                            actionButton('reviewAUs',"Spatially Preview Stations and Assessment Units",class='btn-block'),
+                                            br(),
+                                            helpText('For a quick `30,000 foot view of the watershed`, click the button below to open a map
+                                                     overviewing station statuses.'),
+                                            actionButton('statusOverview','Watershed Status Overview', class='btn-block')  ),
                                           mainPanel(
                                             leafletOutput('VAmap'),
                                             br(),

@@ -28,47 +28,146 @@ VAHU6stationSummary <- function(stationTable, VAHU6chosen, parameterSTATcrosswal
                                          individualColor == 'yellow' ~ 2,
                                          individualColor == 'green' ~ 3,
                                          individualColor == 'gray' ~ 4))
-    
+    # Gives one "rank" per station
     overall <- vahu6StationSummary %>%
       group_by(STATION_ID, individualColor, individualScore) %>%
-      dplyr::summarise(n = n()) %>%
+      dplyr::summarise(`n Parameters of lowest status` = n()) 
+    # join number of ranks causing color info
+    overall2 <- overall %>%
       group_by(STATION_ID) %>%
-      summarise(stationOverallScore = min(individualScore))
+      summarise(stationOverallScore = min(individualScore)) %>%
+      left_join(overall, by = c('STATION_ID','stationOverallScore' = 'individualScore')) %>%
+      dplyr::select(-individualColor)
     
-    return(left_join(vahu6StationSummary, overall, by = 'STATION_ID') %>%
-             mutate(stationColor = case_when(stationOverallScore == 1 ~ 'red',
-                                             stationOverallScore == 2 ~ 'yellow',
-                                             stationOverallScore == 3 ~ 'green',
-                                             stationOverallScore == 4 ~ 'gray')) %>%
-             left_join(parameterSTATcrosswalk, by = 'ParameterSTAT') %>%
-             left_join(dplyr::select(stationTable, STATION_ID, LATITUDE, LONGITUDE), by = 'STATION_ID') %>%
-             ungroup() %>%
-             st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
-                      remove = T, # remove these lat/lon cols from df
-                      crs = 4269) ) # add projection, needs to be geographic for now bc entering lat/lng
+    return(left_join(vahu6StationSummary, overall2, by = 'STATION_ID') %>%
+            mutate(stationColor = case_when(stationOverallScore == 1 ~ 'red',
+                                            stationOverallScore == 2 ~ 'yellow',
+                                            stationOverallScore == 3 ~ 'green',
+                                            stationOverallScore == 4 ~ 'gray'),
+                   stationOverallScore = as.factor(stationOverallScore), 
+                   `Overall Station Result` = case_when(stationColor == 'red' ~ 'Station contains at least one parameter status of IM or 10.5% Exceedance',
+                                                        stationColor == 'yellow' ~ 'Station contains at least one parameter status of IN or Review',
+                                                        stationColor == 'green' ~ 'Station contains at least one parameter status of S and no IM, IN, 10.5% Exceedance, or Review',
+                                                        stationColor == 'gray' ~ 'Station contains all NA statuses')) %>%
+            left_join(parameterSTATcrosswalk, by = 'ParameterSTAT') %>%
+            left_join(dplyr::select(stationTable, STATION_ID, LATITUDE, LONGITUDE), by = 'STATION_ID') %>%
+            ungroup() %>%
+            st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
+                     remove = T, # remove these lat/lon cols from df
+                     crs = 4326) ) # add projection, needs to be geographic for now bc entering lat/lng
+    
+    # Gives ranked scale of n statuses
+  #  overall <- vahu6StationSummary %>%
+  #    group_by(STATION_ID, individualColor, individualScore) %>%
+  #    dplyr::summarise(n = n()) %>%
+  #    left_join(dplyr::select(stationTable, STATION_ID, LATITUDE, LONGITUDE), by = 'STATION_ID') %>%
+  #    ungroup() %>%
+  #    st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
+  #             remove = T, # remove these lat/lon cols from df
+  #             crs = 4269)  # add projection, needs to be geographic for now bc entering lat/lng
+  #  
+    #return(overall)
   } else {
     return(tibble(STATION_ID = NA, ParameterSTAT = NA, Status = NA, individualColor = NA, 
-           individualScore = NA, stationOverallScore = NA, stationColor = NA, Parameter = NA))  }
+           individualScore = NA, stationOverallScore = NA, stationColor = NA, Parameter = NA)) }
+    #return(tibble(STATION_ID = NA, individualColor = NA, individualScore = NA, n = NA)) }
 }
 
-x <- VAHU6stationSummary(stationTable, huc6_filter$VAHU6, parameterSTATcrosswalk) 
-
+x <- VAHU6stationSummary(stationTable,'JM02', parameterSTATcrosswalk) 
 
 
 
 # now make a function to plot stations on a map and color by selected variable
 if(nrow(x) > 0){
-  mapview(x, zcol = 'stationColor', #color = ~stationColor,
-          label= x$STATION_ID, layer.name = 'Overall Station Summary',
-          popup= leafpop::popupTable(x, zcol=c('STATION_ID')), legend= TRUE) 
+  pal <- colorFactor(
+    palette = c('red', 'yellow','green', 'gray'),
+    domain = c(1, 2, 3, 4))
+ 
+  CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE) %>%
+    addCircleMarkers(data = x, color='black', fillColor=~pal(x$stationOverallScore), radius = 6,
+                     fillOpacity = 0.5,opacity=1,weight = 2,stroke=T,group="Overall Station Summary",
+                     label = ~STATION_ID, layerId = ~STATION_ID,
+                     popup = leafpop::popupTable(x, zcol=c( "STATION_ID", "Overall Station Result", "n Parameters of lowest status"))  ) %>% 
+    addLegend('topright', colors = c('red', 'yellow','green', 'gray'),
+              labels = c('Station contains at least one parameter status of IM or 10.5% Exceedance',
+                         'Station contains at least one parameter status of IN or Review',
+                         'Station contains at least one parameter status of S and no IM, IN, 10.5% Exceedance, or Review', 
+                         'Station contains all NA statuses'), title = 'Legend') %>%
+    addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                     overlayGroups = c('Overall Station Summary'),
+                     options=layersControlOptions(collapsed=T),
+                     position='topleft') 
+}
+
+
+  parameter <- 'Ammonia'
+  indParameter <- filter(x, Parameter == parameter)
   
-  # but probably need to make a real map
+indStatusMap <- function(parameter, status){
+  pal <- colorFactor(
+    palette = c('red', 'yellow','green', 'gray'),
+    domain = c(1, 2, 3, 4))
   
-  m <- mapview(x, zcol = 'stationColor', #color = ~stationColor,
-               label= x$STATION_ID, layer.name = 'Overall Station Summary',
-               popup= leafpop::popupTable(x, zcol=c('STATION_ID')), legend= TRUE) + 
-    mapview(huc6_filter(), color = 'yellow',lwd= 5, label= huc6_filter()$VAHU6, layer.name = c('Selected HUC6'),
-            popup= leafpop::popupTable(huc6_filter(), zcol=c('VAHU6',"VaName","VAHU5","ASSESS_REG")), legend= FALSE)
-  m@map %>% setView(st_bbox(huc6_filter())$xmax[[1]],st_bbox(huc6_filter())$ymax[[1]],zoom = 9) 
+  if(parameter == 'Overall Status'){
+     CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE) %>%
+      addCircleMarkers(data = status, color='black', fillColor=~pal(status$stationOverallScore), radius = 6,
+                       fillOpacity = 0.5,opacity=1,weight = 2,stroke=T,group="Overall Station Status Summary",
+                       label = ~STATION_ID, layerId = ~STATION_ID,
+                       popup = leafpop::popupTable(status, zcol=c( "STATION_ID", "Overall Station Result", "n Parameters of lowest status"))  ) %>% 
+      addLegend('topright', colors = c('red', 'yellow','green', 'gray'),
+                labels = c('Station contains at least one parameter<br> status of IM or 10.5% Exceedance',
+                           'Station contains at least one parameter<br> status of IN or Review',
+                           'Station contains at least one parameter<br> status of S and no IM, IN, 10.5% Exceedance, or Review', 
+                           'Station contains all NA statuses'), title = 'Legend') %>%
+      addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                       overlayGroups = c('Overall Station Status Summary'),
+                       options=layersControlOptions(collapsed=T),
+                       position='topleft') 
+  } else {
+    indParameter <- filter(status, Parameter %in% parameter)
+    
+    CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE) %>%
+      addCircleMarkers(data = indParameter , color='black', fillColor=~pal(indParameter$individualScore), radius = 6,
+                       fillOpacity = 0.5,opacity=1,weight = 2,stroke=T,group=paste(parameter, "Station Summary"),
+                       label = ~STATION_ID, layerId = ~STATION_ID,
+                       popup = leafpop::popupTable(indParameter , zcol=c( "STATION_ID", "Parameter", "Status"))  ) %>% 
+      addLegend('topright', colors = c('red', 'yellow','green', 'gray'),
+                labels = c('Station status of IM or 10.5% Exceedance',
+                           'Station status of IN or Review',
+                           'Station status of S', 
+                           'Station status of NA'), title = 'Legend') %>%
+      addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                       overlayGroups = c(paste(parameter, "Station Summary")),
+                       options=layersControlOptions(collapsed=T),
+                       position='topleft')  }
+}
+  
+
+indStatusMap('Overall Status', x)  
+
+indStatusMap('Ammonia', x)  
+
+
+
+
+ui <- fluidPage(
+  helpText('Review each site using the single site visualization section, then 
+           proceed to the bottom of the page to find exceedance rate for the entire assessment unit.',br(),
+           span(strong('NOTE: The pH exceedance analysis results at the bottom of the page include data
+                       from ALL stations within the assessment unit.'))),
+  TPPlotlySingleStationUI('TP')     )
+
+
+server <- function(input,output,session){
+  
+  stationData <- eventReactive( input$stationSelection, {
+    filter(AUData, FDT_STA_ID %in% input$stationSelection) })
+  stationSelected <- reactive({input$stationSelection})
+  
+  
+  AUData <- reactive({filter_at(conventionals_HUC, vars(starts_with("ID305B")), any_vars(. %in% AUselection) ) })
+  callModule(TPPlotlySingleStation,'TP', AUData, stationSelected)
   
 }
+
+shinyApp(ui,server)

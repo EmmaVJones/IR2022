@@ -152,6 +152,8 @@ shinyServer(function(input, output, session) {
                                 autoWidth = TRUE, columnDefs = list(list(width = '400px', targets = c(29)))),
                   selection = 'none') })
   
+  ## Review AU Modal
+  
   # Button to visualize modal map of AUs in selected VAHU6
   observeEvent(input$reviewAUs,{
     showModal(modalDialog(
@@ -159,7 +161,7 @@ shinyServer(function(input, output, session) {
       leafletOutput('AUmap'),
       easyClose = TRUE))  })
   
-  # modal map
+  # AU modal map
   output$AUmap <- renderLeaflet({
     req(AUs(), huc6_filter())
     stations <- dplyr::select(stationSummary(), STATION_ID = FDT_STA_ID, LATITUDE = Latitude, LONGITUDE = Longitude, `Analyzed By App`) %>%
@@ -184,6 +186,35 @@ shinyServer(function(input, output, session) {
     m@map })
   
   
+  ## Status Overview Modal
+  
+  
+  observeEvent(input$statusOverview,{
+    showModal(modalDialog(
+      title="Spatially Preview Station Statuses",
+      helpText('This map allows users to quickly preview station status results. The map presents an overall station overview where 
+               the station is colored based on the most harmful status category (e.g. if a station has 8 Supporting parameter statuses, 
+               2 Insufficient parameter statuses, and 1 Impaired status, the station will be colored red to reflect the Impaired status). 
+               The number of statuses in the most harmful category is reported for each station in the popup window (accessed by clicking
+               the station in the map).'),
+      helpText("Additionally, users may use the selection option below to investigate individual parameter statuses across the watershed."),
+      helpText(strong('All statuses are based on the station table dataset uploaded to the application.')),
+      fluidRow(column(4), # make sure drop down doesn't cover up map navigation features
+               column(8,selectInput('chooseStatusParameter','Choose parameter to report station status.', 
+                                     choices = c('Overall Status', unique(parameterSTATcrosswalk$Parameter))))),
+      #verbatimTextOutput('testStationStatus'),
+      leafletOutput('statusMap'),
+      size = 'l',
+      easyClose = TRUE))  })
+  
+  # VAHU6 station status 
+  stationStatus <- reactive({req(input$statusOverview, huc6_filter(), stationTable())
+    VAHU6stationSummary(stationTable(), huc6_filter(), parameterSTATcrosswalk) })
+  
+  # Station Status modal map
+  #output$testStationStatus <- renderPrint({ stationStatus()})
+  output$statusMap <- renderLeaflet({ req(input$chooseStatusParameter, nrow(stationStatus()) >0)
+    indStatusMap(input$chooseStatusParameter, stationStatus())  })
   
   
   ################################ Assessment Unit Review Tab ########################################
