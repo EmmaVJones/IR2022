@@ -475,14 +475,18 @@ write_csv(WQStableExisting_out, './WQSlookupTable/20201207_092616_WQSlookup.csv'
 
 First we need to take the spatial data we will use for the app and split it efficiently.
 
-
-**DRAFT 2020 IR spatial data here, need to rerun with final data release!!!!!**
-
 ```{r split AUs for app}
 # only run once
 #source('preprocessingModules/splitAUbySubbasin.R')
 ```
 
+### Pin spatial AU information to server for application use
+
+This significantly speeds up app rendering. Initially it was performed on draft data, but final data is pinned now.
+
+```{r pin AU data}
+#source('pinAUdataToServer.R')
+```
 
 
 
@@ -490,11 +494,20 @@ First we need to take the spatial data we will use for the app and split it effi
 
 The logical starting point is to take all the unique stations that need to be assessed (distinctSites_sf from above) and join AU information by StationID where possible before going to more computationally intensive methods. 
 
-Bring in Cleo's final stations data from 2020 cycle.
+Bring in Cleo's final stations data from 2020 cycle. The data was extracted from a featureclass and then saved to shapefile (my system is having issues dealing with geodatabases right now). Then the shapefile was joined to a spreadsheet to make sure the process of converting to a shapefile didn't truncate comment fields.
 
 ```{r cleo 2020 final stations}
-final2020 <- st_read('GIS/2020_wqms.shp') %>%
-  st_transform(4326)
+# converted featureclass C:\HardDriveBackup\GIS\Assessment\2020IR_final\2020IR_GISData\va_20ir_wqms.gdb to C:\HardDriveBackup\R\GitHub\IR2022\1.preprocessData\GIS\va_20ir_wqms.shp
+
+ # have to read in console
+final2020 <- st_read('GIS/va_20ir_wqms.shp') %>%
+  st_transform(4326) %>%
+  dplyr::select(OBJECTID, STATION_ID)
+
+realComments <- read_excel('C:/HardDriveBackup/GIS/Assessment/2020IR_final/ir20_Appendix8_StationsKey-List.xlsx', sheet = 'ir20_Appendix8_StationsList')
+
+final2020 <- left_join(final2020, realComments, by = "STATION_ID")
+
 ```
 
 Join distinct sites to AU information to get all available free data.

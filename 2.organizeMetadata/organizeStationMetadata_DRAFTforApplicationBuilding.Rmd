@@ -289,14 +289,23 @@ write.csv(stationsTable2022begin, 'processedStationData/stationsTable2022begin.c
 Mark's PCB dataset was sent out but the StationID's are messed up on quite a few samples. The following script fixes them.
 
 ```{r PCB data}
-PCB <- read_excel('data/2022 IR PCBDatapull.xlsx', sheet = '2022IR Datapull')
+PCB <- read_excel('data/2022 IR PCBDatapull.xlsx', sheet = '2022IR Datapull')# had to manually combine date and time fields to avoid date time issues
 source('PCBdataRework.R')
 
 # be nice and save this as a sheet in dataset for others to use
-write_csv(PCB, 'data/PCBfixed.csv', na = "") # dont write out a character NA in csv
+write.csv(PCB, 'data/PCBfixed.csv', row.names = F) # dont write out a character NA in csv
 
 ```
 
+
+
+### Fish Tissue Data
+
+Fish tissue is a disaster. 
+
+```{r fish tissue}
+fish2015 <- read_excel('data/2015_2020_fish_tissue_data_WQA/2015_fish_PCBs_v122.xlsx')
+```
 
 
 ## Pin data to server

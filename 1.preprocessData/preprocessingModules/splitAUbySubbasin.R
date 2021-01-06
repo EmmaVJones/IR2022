@@ -22,10 +22,16 @@ subbasinOptionsByAUtype <- tibble(waterbodyType = as.character(),
 
 
 # Riverine split up
-riverineL <- st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_draft/va_2020_aus_riverine.shp') %>%
+riverineL <- st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_final/2020IR_GISData/va_aus_riverine.shp') %>%
   st_transform(4326)   # transform to WQS84 for spatial intersection 
+  # trying to work with featureclasses
+  #st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_final/2020IR_GISData/va_20ir_aus_final.gdb', layer = 'va_aus_riverine')# %>% # could not transform crs by bringing in layer as featureclass, so exported it to shapefile first
+  # draft 2020 IR data
+  #st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_draft/va_2020_aus_riverine.shp') %>%
+  #st_transform(4326)   # transform to WQS84 for spatial intersection 
 
-# intersect subbasins with WQS to get appropriate subabsin argument for data organization
+
+# intersect subbasins with WQS to get appropriate subbasin argument for data organization
 riverineLB <- st_join(st_zm(riverineL), dplyr::select(subbasins, BASIN_CODE, ASSESS_REG), join = st_intersects) %>%
   left_join(basinCodesConversion, by = c('BASIN_CODE' ='BASIN')) 
 
@@ -44,8 +50,11 @@ for(i in 1:length(unique(riverineLB$BASIN_CODE))){
   #                        as.character(unique(z2$VAHUSB)), '.shp'), driver = "ESRI Shapefile")
   #  }
   #}
-  st_write(z1, paste0('data/GIS/processedAUs_2020draft/AU_RL_', 
+  st_write(z1, paste0('data/GIS/processedAUs_2020final/AU_RL_', 
                                               as.character(unique(z1$BASIN_CODE)),'.shp'), driver = "ESRI Shapefile")
+  # draft location
+  #st_write(z1, paste0('data/GIS/processedAUs_2020draft/AU_RL_', 
+  #                    as.character(unique(z1$BASIN_CODE)),'.shp'), driver = "ESRI Shapefile")
   
   subbasinAssessmentOptions <- tibble(waterbodyType = as.character('Riverine'),
                                       SubbasinOptions = as.character(unique(z$BASIN_CODE)),
@@ -60,8 +69,14 @@ rm(riverineLB);rm(riverineL)
 
 
 # Lakes split up
-lakesL <- st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_draft/va_2020_aus_reservoir.shp') %>%
+# this version uses the lake splits Emma made based on Paula's map and the 2020 IR final lakes AU layer.
+# this represents a better starting point for BRRO bc we know these massive AUs are going to be split into
+# smaller AUs and doing so at the start of the assessment prevents AUs from pooling data
+lakesL <- st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_final/2020IR_GISData/va_aus_reservoir_EVJ.shp') %>%
   st_transform(4326)   # transform to WQS84 for spatial intersection 
+  # 2020 draft
+  #st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_draft/va_2020_aus_reservoir.shp') %>%
+  #st_transform(4326)   # transform to WQS84 for spatial intersection 
 
 # intersect subbasins with WQS to get appropriate subabsin argument for data organization
 lakesLB <- st_join(st_zm(lakesL), dplyr::select(subbasins, BASIN_CODE, ASSESS_REG), join = st_intersects) %>%
@@ -82,8 +97,12 @@ for(i in 1:length(unique(lakesLB$BASIN_CODE))){
   #                        as.character(unique(z2$VAHUSB)), '.shp'), driver = "ESRI Shapefile")
   #  }
   #}
-  st_write(z1, paste0('data/GIS/processedAUs_2020draft/AU_LP_', 
+  # final Location
+  st_write(z1, paste0('data/GIS/processedAUs_2020final/AU_LP_', 
                       as.character(unique(z1$BASIN_CODE)),'.shp'), driver = "ESRI Shapefile")
+  # Draft location
+  #st_write(z1, paste0('data/GIS/processedAUs_2020draft/AU_LP_', 
+  #                    as.character(unique(z1$BASIN_CODE)),'.shp'), driver = "ESRI Shapefile")
   
   subbasinAssessmentOptions <- tibble(waterbodyType = as.character('Lacustrine'),
                                       SubbasinOptions = as.character(unique(z$BASIN_CODE)),
@@ -98,8 +117,11 @@ rm(lakesLB);rm(lakesL)
 
 
 # estuarine split up
-estuaryP <- st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_draft/va_2020_aus_estuarine.shp') %>%
+estuaryP <- st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_final/2020IR_GISData/va_aus_estuarine.shp') %>%
   st_transform(4326)   # transform to WQS84 for spatial intersection 
+  # draft 2020 IR layers
+  #st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_draft/va_2020_aus_estuarine.shp') %>%
+  #st_transform(4326)   # transform to WQS84 for spatial intersection 
 
 # intersect subbasins with WQS to get appropriate subabsin argument for data organization
 estuaryPB <- st_join(st_zm(estuaryP), dplyr::select(subbasins, BASIN_CODE, ASSESS_REG), join = st_intersects) %>%
@@ -120,8 +142,13 @@ for(i in 1:length(unique(estuaryPB$BASIN_CODE))){
   #                        as.character(unique(z2$VAHUSB)), '.shp'), driver = "ESRI Shapefile")
   #  }
   #}
-  st_write(z1, paste0('data/GIS/processedAUs_2020draft/AU_EP_', 
+  # final 2020 location
+  st_write(z1, paste0('data/GIS/processedAUs_2020final/AU_EP_', 
                       as.character(unique(z1$BASIN_CODE)),'.shp'), driver = "ESRI Shapefile")
+  
+  ## draft 2020 location
+  #st_write(z1, paste0('data/GIS/processedAUs_2020draft/AU_EP_', 
+  #                    as.character(unique(z1$BASIN_CODE)),'.shp'), driver = "ESRI Shapefile")
   
   subbasinAssessmentOptions <- tibble(waterbodyType = as.character('Estuarine'),
                                       SubbasinOptions = as.character(unique(z$BASIN_CODE)),

@@ -71,14 +71,14 @@ shinyServer(function(input, output, session) {
         pull()    
       withProgress(message = 'Reading in Large Spatial File',
                    if(length(basinCodesAU()) >1){ # in case more than 1 basin code in basin
-                     paste0('data/GIS/processedAUs_2020draft/AU_', typeName[1],'_',basinCodesAU(),'.shp' ) %>%
+                     paste0('data/GIS/processedAUs_2020draft/AU_', typeName[1],'_',basinCodesAU(),'.shp' ) %>%                       # change to final
                        map(st_read) %>%
                        reduce(rbind) %>%
                        st_transform(4326) %>%
                        st_zm()
                    } else {
                      st_zm(
-                       st_read(paste0('data/GIS/processedAUs_2020draft/AU_', typeName[1],'_',basinCodesAU(),'.shp' ))) %>%
+                       st_read(paste0('data/GIS/processedAUs_2020draft/AU_', typeName[1],'_',basinCodesAU(),'.shp' ))) %>%           # change to final
                        st_transform(4326)   } )       })
   
  

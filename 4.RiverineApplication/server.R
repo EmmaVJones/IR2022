@@ -1,6 +1,6 @@
 source('global.R')
 
-# Pinned to server, do for each region
+# Pinned to server, done for each region in C:\HardDriveBackup\R\GitHub\IR2022\1.preprocessData\preprocessingWorkflow\ReworkingDataPreprocessingMethod.Rmd
 #regionalAUs <- st_read('userDataToUpload/AU_working/va_2020_aus_riverine_DRAFT_BRRO.shp') %>%
 #  st_transform(4326)   # transform to WQS84 for spatial intersection 
 #pin(regionalAUs, name = 'BRROworkingAUriverine', description = "BRRO working AU riverine", board = "rsconnect")
@@ -89,7 +89,7 @@ shinyServer(function(input, output, session) {
   regionalAUs <- reactive({ 
     req(input$pullAUs)
     withProgress(message = 'Reading in Large Spatial File',
-                 st_zm(st_as_sf(pin_get(paste0(input$DEQregionSelection, 'workingAUriverine'), board = 'rsconnect')) )) })
+                 st_zm(st_as_sf(pin_get(paste0(input$DEQregionSelection, 'workingAUriverine'), board = 'rsconnect')) )) })     # change to final
   
   
   
