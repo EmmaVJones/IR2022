@@ -44,7 +44,45 @@ changeDEQRegionName <- function(stuff){
   } else {return(concatinateUnique(stuff))}
 }
 
-
+# Lake name standardization
+lakeNameStandardization <- function(x){
+  x %>%
+    mutate(Lake_Name = case_when(WATER_NAME %in% c('Smith Lake (Aquia Reservoir)') ~ 'Aquia Reservoir (Smith Lake)',
+                                 WATER_NAME %in% c('Claytor Lake (New River)', 'Claytor Lake (Peak Creek)') ~ 'Claytor Lake',
+                                 WATER_NAME %in% c('Fairystone Lake (Goblin Town Creek)') ~ 'Fairystone Lake', 
+                                 WATER_NAME %in% c('Harwoods Mill Reservoir (PWS)') ~ 'Harwoods Mill Reservoir',
+                                 WATER_NAME %in% c('Lake Anna', 'Lake Anna/Contrary Creek', 'Lake Anna/Freshwater Creek', 
+                                                   'Lake Anna/Gold Mine Creek', 'Lake Anna/Pamunkey Creek', 
+                                                   'Lake Anna/Plentiful Creek', 'Terrys Run/Lake Anna') ~ 'Lake Anna',
+                                 WATER_NAME %in% c('Lake Cohoon (PWS)') ~ 'Lake Cohoon',          
+                                 WATER_NAME %in% c('Lake Kilby (PWS)') ~ 'Lake Kilby',
+                                 WATER_NAME %in% c('Lake Meade (PWS)') ~ 'Lake Meade',
+                                 WATER_NAME %in% c('Lake Moomaw (Jackson River)') ~ 'Lake Moomaw',
+                                 WATER_NAME %in% c('Lake Prince - Reservoir (PWS)') ~ 'Lake Prince - Reservoir',
+                                 WATER_NAME %in% c('Lake Smith (PWS)') ~ 'Lake Smith',
+                                 WATER_NAME %in% c('Lake Whitehurst (PWS)') ~ 'Lake Whitehurst',
+                                 WATER_NAME %in% c('Leesville Lake', 'Leesville Lake (Pigg R.)', 
+                                                   'Leesville Lake Middle (Roanoke R.)') ~ 'Leesville Lake',
+                                 WATER_NAME %in% c('Lee Hall Reservoir- Upper, Middle','Lee Hall Reservoir-Lower') ~ 'Lee Hall Reservoir',
+                                 WATER_NAME %in% c('Little Creek Reservoir - (PWS)') ~ 'Little Creek Reservoir (VBC)',
+                                 WATER_NAME %in% c('Little Creek Reservoir (PWS)') ~ 'Little Creek Reservoir (JCC)',
+                                 WATER_NAME %in% c('Lone Star Lake F (PWS)') ~ 'Lone Star Lake F (Crystal Lake)', 
+                                 WATER_NAME %in% c('Lone Star Lake G (PWS)') ~ 'Lone Star Lake G (Crane Lake)', 
+                                 WATER_NAME %in% c('Lone Star Lake I (PWS)') ~ 'Lone Star Lake I (Butler Lake)', 
+                                 WATER_NAME %in% c('Martinsville (Beaver Creek) Reservoir') ~ 'Martinsville Reservoir (Beaver Creek Reservoir)',
+                                 WATER_NAME %in% c('Philpott Reservoir (Goblin Town Creek)', 
+                                                   'Philpott Reservoir (Smith River)') ~ "Philpott Reservoir",
+                                 WATER_NAME %in% c('Roanoke River') ~ 'Lake Gaston',                         
+                                 WATER_NAME %in% c('S F Rivanna River Reservoir') ~ 'Rivanna Reservoir (South Fork Rivanna Reservoir)',
+                                 str_detect(WATER_NAME, 'Smith Mtn. Lake') ~ 'Smith Mountain Lake', 
+                                 WATER_NAME %in% c('Speights Run - Lake (PWS)') ~ 'Speights Run Lake',
+                                 WATER_NAME %in% c('Waller Mill Reservoir (PWS)') ~ 'Waller Mill Reservoir',
+                                 WATER_NAME %in% c('Unnamed pond near Tanyard Swamp') ~ 'Tanyard Swamp',
+                                 WATER_NAME %in% c('Unsegmented lakes in G03') ~ 'West Run',
+                                 TRUE ~ as.character(WATER_NAME)))
+}
+#test <- regionalAUs %>%
+#  lakeNameStandardization()
 
 
 

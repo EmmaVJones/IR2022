@@ -16,13 +16,16 @@ ammoniaAnalysis <- readRDS('userDataToUpload/processedStationData/ammoniaAnalysi
 lakeNutStandards <- read_csv('data/9VAC25-260-187lakeNutrientStandards.csv')
 
 
-DEQregionSelection <- 'BRRO'
-lakeSelection <- "Smith Mountain Lake"
-
-
-
 regionalAUs <- st_zm(st_as_sf(pin_get('AUreservoir_EVJ', board = 'rsconnect'))) %>%
   lakeNameStandardization()
+
+
+DEQregionSelection <- 'BRRO'
+lakeSelection <- "Smith Mountain Lake"#filter(regionalAUs %>% st_drop_geometry(), ASSESS_REG %in% DEQregionSelection) %>%
+  #distinct(Lake_Name) %>% arrange(Lake_Name) %>% pull() #"Smith Mountain Lake"
+
+
+
 
 the_data <- filter(regionalAUs, ASSESS_REG %in% DEQregionSelection) 
 lake_filter <- filter(the_data, WATER_NAME %in% lakeSelection)
@@ -46,32 +49,4 @@ stationTable <- read_csv('userDataToUpload/processedStationData/stationTableResu
 
   
   
-  
-# Connect regionalAUs$WATER_NAME to WQS Standards
 
-dplyr::select(stationTable, GNIS_Name, WATER_NAME) %>%
-  distinct(GNIS_Name, WATER_NAME) %>%
-  mutate(Lake_Name = NA) %>%
-  arrange(WATER_NAME) %>%
-  write_csv('lakeName.csv')
-
-
-
-
-library(fuzzyjoin)
-lakesWQS <- st_read('C:/HardDriveBackup/R/GitHub/IR2022/1.preprocessData/GIS/WQS_layers_05082020.gdb', layer = 'lakes_reservoirs_05082020' , fid_column_name = "OBJECTID") %>%
-  st_transform(4326)
-
-unique(lakesWQS$GNIS_Name)
-
-
-#stringdist_left_join(dplyr::select(stations, 'Station_Id'), by = c('StationID' = 'Station_Id'), max_dist = 1) %>%
-  
-               
-unique(stationTable$GNIS_Name)[! unique(stationTable$GNIS_Name) %in% regionalAUs$WATER_NAME]
-
-unique(lakeNutStandards$`Man-made Lake or Reservoir Name`) %in% unique(stationTable$GNIS_Name)
-unique(lakeNutStandards$`Man-made Lake or Reservoir Name`)[!unique(lakeNutStandards$`Man-made Lake or Reservoir Name`) %in% unique(stationTable$GNIS_Name)]
-
-z <- dplyr::select(stationTable, STATION_ID, GNIS_Name, WATER_NAME) %>%
-  left_join(dplyr::select(regionalAUs, WATER_NAME, LOCATION, ID305B), by = c('GNIS_Name' = 'WATER_NAME'))
