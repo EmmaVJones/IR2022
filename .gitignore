@@ -69,6 +69,10 @@ vignettes/*.pdf
 3.automatedAssessment/calculationExamples/
 3.automatedAssessment/WQA_CEDS_templates/
 
+4.LakesApplication/data/
+4.LakesApplication/userDataToUpload/
+4.LakesApplication/AU_working/
+
 4.RiverineApplication/data/
 4.RiverineApplication/userDataToUpload/
 4.RiverineApplication/AU_working/

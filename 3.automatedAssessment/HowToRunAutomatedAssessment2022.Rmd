@@ -272,6 +272,18 @@ Now assess lake stations.
 
 ## do stuff for lakes
 
+```{r}
+stationTableResults <- read_csv('processedStationData/stationTableResults.csv')
+
+lakeStations2 <- mutate(lakeStations, `2020 IR COMMENTS` = NA, `2018 IR COMMENTS` = NA) %>%
+  dplyr::select(names(stationTableResults))
+
+stationTableResults <- bind_rows(stationTableResults, lakeStations2)
+
+```
+
+
+
 
 Now add in comment for estuarine stations to expedite assessor identification of stations
 
@@ -294,6 +306,7 @@ stationTableResults <- bind_rows(stationTableResults, estuarineStationData)
 Now this is the starting point for the app.
 
 ```{r}
+# can use write_csv bc there are no date fields that could be corrupted by function
 write_csv(stationTableResults, 'processedStationData/stationTableResults.csv',
           na = "") # dont write out a character NA in csv
 
