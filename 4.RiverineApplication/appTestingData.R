@@ -55,7 +55,7 @@ stationTable <- filter(stationTable, !STATION_ID %in% lakeStations$STATION_ID) %
 
 
 regionalAUs <- st_zm(st_as_sf(pin_get(paste0(DEQregionSelection, 'workingAUriverine'), board = 'rsconnect'))) 
-regionalAUsForTesting <- regionalAUs
+#regionalAUsForTesting <- regionalAUs
 
 
 

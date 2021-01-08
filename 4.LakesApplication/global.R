@@ -44,3 +44,21 @@ subbasinToVAHU6 <- read_csv('data/subbasinToVAHU6conversion.csv')
 #  st_drop_geometry()#read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
 historicalStationsTable2 <- read_excel('data/tbl_ir_mon_stations2018IRfinal.xlsx')
 
+
+
+
+# Loading screen
+load_data <- function() {
+  Sys.sleep(2)
+  shinyjs::hide("loading_page")
+  shinyjs::show("main_content")
+}
+
+
+withinAssessmentPeriod <- function(x){
+  if((range(unique(x$FDT_DATE_TIME))[1] < assessmentPeriod[1]) | 
+     (range(unique(x$FDT_DATE_TIME))[2] > assessmentPeriod[2])){
+    return('Data included that falls outside of assessment period. Review input data.')
+  }else{return('All input data falls within the assessment period.')}
+}
+

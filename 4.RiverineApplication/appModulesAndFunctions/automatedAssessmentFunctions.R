@@ -47,7 +47,8 @@ changeDEQRegionName <- function(stuff){
 # Lake name standardization
 lakeNameStandardization <- function(x){
   x %>%
-    mutate(Lake_Name = case_when(WATER_NAME %in% c('Smith Lake (Aquia Reservoir)') ~ 'Aquia Reservoir (Smith Lake)',
+    mutate(Lake_Name = case_when(WATER_NAME %in% c('Dan River','Buffalo Creek','Bluestone Creek') ~ 'Kerr Reservoir',
+                                 WATER_NAME %in% c('Smith Lake (Aquia Reservoir)') ~ 'Aquia Reservoir (Smith Lake)',
                                  WATER_NAME %in% c('Claytor Lake (New River)', 'Claytor Lake (Peak Creek)') ~ 'Claytor Lake',
                                  WATER_NAME %in% c('Fairystone Lake (Goblin Town Creek)') ~ 'Fairystone Lake', 
                                  WATER_NAME %in% c('Harwoods Mill Reservoir (PWS)') ~ 'Harwoods Mill Reservoir',
