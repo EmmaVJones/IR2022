@@ -51,31 +51,55 @@ AUs1 <- filter(regionalAUs1, Lake_Name %in% lakeSelection1 & ASSESS_REG %in% DEQ
 #the_data <- filter(regionalAUs, ASSESS_REG %in% DEQregionSelection) 
 #lake_AUs <- filter(the_data, Lake_Name %in% lakeSelection)
 lake_filter1 <- filter_at(stationTable1, vars(starts_with('ID305B')), any_vars(. %in% AUs1$ID305B)) 
-  
+
 
 
 
 # Lake Map
-lakeStations1 <- lake_filter1 %>%
-  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
-           remove = F, # don't remove these lat/lon cols from df
-           crs = 4326) # add projection, needs to be geographic for now bc entering lat/lng
-
-z <- suppressWarnings(st_coordinates(sf::st_centroid(AUs1 %>% group_by(Lake_Name) %>% summarise())))
-
-CreateWebMap(maps = c("Topo","Imagery"), collapsed = TRUE) %>%
-  {if(nrow(AUs1)>1)
-    setView(., z[1], z[2], zoom = 10) 
-    else setView(., z[1], z[2], zoom = 12) } %>%
-  addPolygons(data= AUs1, group = 'Selected Lake',
-              popup=leafpop::popupTable(AUs1, zcol=c('Lake_Name',"ID305B","ASSESS_REG"))) %>%
-  {if(nrow(lakeStations1) > 0)
-    addCircleMarkers(., data = lakeStations1, color='black', fillColor='yellow', radius = 4,
-                     fillOpacity = 0.5,opacity=0.8,weight = 1,stroke=T, group="Monitored Stations",
-                     label = ~STATION_ID, layerId = ~STATION_ID) 
-    else . } %>%
-  addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
-                   overlayGroups = c('Monitored Stations', 'Selected Lake'),
-                   options=layersControlOptions(collapsed=T),
-                   position='topleft')
+#lakeStations1 <- lake_filter1 %>%
+#  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
+#           remove = F, # don't remove these lat/lon cols from df
+#           crs = 4326) # add projection, needs to be geographic for now bc entering lat/lng
+# 
+# z <- suppressWarnings(st_coordinates(sf::st_centroid(AUs1 %>% group_by(Lake_Name) %>% summarise())))
+# 
+# CreateWebMap(maps = c("Topo","Imagery"), collapsed = TRUE) %>%
+#   {if(nrow(AUs1)>1)
+#     setView(., z[1], z[2], zoom = 10) 
+#     else setView(., z[1], z[2], zoom = 12) } %>%
+#   addPolygons(data= AUs1, group = 'Selected Lake',
+#               popup=leafpop::popupTable(AUs1, zcol=c('Lake_Name',"ID305B","ASSESS_REG"))) %>%
+#   {if(nrow(lakeStations1) > 0)
+#     addCircleMarkers(., data = lakeStations1, color='black', fillColor='yellow', radius = 4,
+#                      fillOpacity = 0.5,opacity=0.8,weight = 1,stroke=T, group="Monitored Stations",
+#                      label = ~STATION_ID, layerId = ~STATION_ID) 
+#     else . } %>%
+#   addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+#                    overlayGroups = c('Monitored Stations', 'Selected Lake'),
+#                    options=layersControlOptions(collapsed=T),
+#                    position='topleft')
             
+## Assessment Unit Review
+#dplyr::select(lake_filter1, Lake_Name, VAHU6, Lakes_187B) %>%
+#  group_by(Lake_Name) %>%
+#  summarise(VAHU6 = toString(sort(unique(VAHU6))),
+#            `Section 187` = toString(sort(unique(Lakes_187B))))
+
+conventionalsLake1 <- filter(conventionals, FDT_STA_ID %in% lake_filter1$STATION_ID) %>%
+  left_join(dplyr::select(stationTable1, STATION_ID:VAHU6,
+                          WQS_ID:`Total Phosphorus (ug/L)`),
+            #WQS_ID:`Max Temperature (C)`), 
+            by = c('FDT_STA_ID' = 'STATION_ID')) %>%
+  filter(!is.na(ID305B_1)) %>%
+  pHSpecialStandardsCorrection() #correct pH to special standards where necessary
+
+AUselectionOptions1 <- unique(dplyr::select(lake_filter1, ID305B_1:ID305B_10) %>% 
+         mutate_at(vars(starts_with("ID305B")), as.character) %>%
+         pivot_longer(ID305B_1:ID305B_10, names_to = 'ID305B', values_to = 'keep') %>%
+         pull(keep) )
+selectedAU1 <- AUselectionOptions1[!is.na(AUselectionOptions1) & !(AUselectionOptions1 %in% c("NA", "character(0)", "logical(0)"))][1]
+
+stationSelectionOptions1 <- filter_at(lake_filter1, vars(starts_with("ID305B")), any_vars(. %in% selectedAU1)) %>%
+  distinct(STATION_ID) %>%
+  arrange(STATION_ID) %>%
+  pull()

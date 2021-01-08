@@ -35,16 +35,7 @@ shinyUI(fluidPage(theme="yeti.css",
                                             #dynamicSelectInput("lakeSelection", "Select Lake", multiple = FALSE),
                                             helpText('To begin assessing the selected lake, click the ',
                                                      span(strong('Assessment Unit Review')), ' tab at the top of the navigation bar.'),
-                                            hr(),
-                                            p('Optional.'),
-                                            helpText('After you use the VAHU6 drop down to select your desired watershed, you may
-                                                     preview the stations and AUs contained within the selected watershed by clicking the ',
-                                                     span(strong('Spatially Preview Stations and Assessment Units')),' below.'),
-                                            actionButton('reviewAUs',"Spatially Preview Stations and Assessment Units",class='btn-block'),
-                                            br(),
-                                            helpText('For a quick `30,000 foot view of the watershed`, click the button below to open a map
-                                                     overviewing station statuses.'),
-                                            actionButton('statusOverview','Watershed Status Overview', class='btn-block')  ),
+                                            hr()),
                                           mainPanel(
                                             leafletOutput('VAmap'),
                                             br(),
@@ -65,6 +56,27 @@ shinyUI(fluidPage(theme="yeti.css",
                                             #DT::dataTableOutput('carryoverStationSummary'),
                                             #verbatimTextOutput('test'),
                                             br(), br(), br() # a bit of breathing room
-                                          )
-                                 )#,
+                                          )),
+                                 tabPanel('Assessment Unit Review',
+                                          #fluidRow(column(9, 
+                                          DT::dataTableOutput('selectedLake'),#)),#,
+                                          #column(3,br(),actionButton('pullVAHU6data','Select Watershed for analysis'),
+                                          #      helpText('If the button above is disabled, there are no AUs in the selected VAHU6 watershed.'))),
+                                          hr(),
+                                          uiOutput('AUselection_'),
+                                          h5(strong('AU information from last cycle')),
+                                          DT::dataTableOutput('selectedAU'),br(),
+                                          uiOutput('stationSelection_'),
+                                          fluidRow(column(4, DT::dataTableOutput('stationInfo')),
+                                                   column(4, leafletOutput('stationMap', height = 300, width = 300),
+                                                          helpText("The AUs displayed on the map above represent all AUs associated with the selected
+                                                                  station (listed in a station's ID305B_1:ID305B_10 fields) for context. ")),
+                                                   column(4, 
+                                                          tabsetPanel(
+                                                            tabPanel('2020 Station Table',
+                                                                     DT::dataTableOutput('stationHistoricalInfo1')),
+                                                            tabPanel('2018 Station Table',
+                                                                     DT::dataTableOutput('stationHistoricalInfo2'))))),
+                                          hr()#,
+                                 )
                       )))))

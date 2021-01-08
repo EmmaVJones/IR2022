@@ -103,7 +103,8 @@ shinyServer(function(input, output, session) {
       {if(nrow(lakeStations()) > 0)
         addCircleMarkers(., data = lakeStations(), color='black', fillColor='yellow', radius = 4,
                          fillOpacity = 0.5,opacity=0.8,weight = 1,stroke=T, group="Monitored Stations",
-                         label = ~STATION_ID, layerId = ~STATION_ID) 
+                         label = ~STATION_ID, layerId = ~STATION_ID,
+                         popup=leafpop::popupTable(lakeStations(), zcol=c('STATION_ID',"ID305B_1","ID305B_2","ID305B_3"))) 
         else . } %>%
       addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                        overlayGroups = c('Monitored Stations', 'Selected Lake'),
@@ -130,12 +131,69 @@ shinyServer(function(input, output, session) {
   
   
   
+  
+  ################################ Assessment Unit Review Tab ########################################
+  
+  # Show selected Lake 
+  output$selectedLake <- DT::renderDataTable({
+    z <- dplyr::select(lake_filter(), Lake_Name, VAHU6, Lakes_187B) %>%
+      group_by(Lake_Name) %>%
+      summarise(VAHU6 = toString(sort(unique(VAHU6))),
+                `Section 187` = toString(sort(unique(Lakes_187B))))
+    datatable(z, rownames = FALSE, options= list(pageLength = 1, scrollY = "35px", dom='t'), selection = 'none')})
+  
+  conventionalsLake <- reactive({ req(lake_filter())
+    filter(conventionals, FDT_STA_ID %in% lake_filter1$STATION_ID) %>%
+    left_join(dplyr::select(stationTable1, STATION_ID:VAHU6,
+                            WQS_ID:`Total Phosphorus (ug/L)`),
+              #WQS_ID:`Max Temperature (C)`), 
+              by = c('FDT_STA_ID' = 'STATION_ID')) %>%
+    filter(!is.na(ID305B_1)) %>%
+    pHSpecialStandardsCorrection() }) #correct pH to special standards where necessary
+  
+  
+  output$AUselection_ <- renderUI({req(lake_filter())
+    AUselectionOptions <- unique(dplyr::select(lake_filter(), ID305B_1:ID305B_10) %>% 
+                                    mutate_at(vars(starts_with("ID305B")), as.character) %>%
+                                    pivot_longer(ID305B_1:ID305B_10, names_to = 'ID305B', values_to = 'keep') %>%
+                                    pull(keep) )
+    AUselectionOptions <- AUselectionOptions[!is.na(AUselectionOptions) & !(AUselectionOptions %in% c("NA", "character(0)", "logical(0)"))][1]
+    selectInput('AUselection', 'Assessment Unit Selection', choices = AUselectionOptions)})
+  
+  output$selectedAU <- DT::renderDataTable({req(input$AUselection)
+    z <- filter(regionalAUs(), ID305B %in% input$AUselection) %>% st_set_geometry(NULL) %>% as.data.frame()
+    datatable(z, rownames = FALSE, 
+              options= list(pageLength = nrow(z),scrollX = TRUE, scrollY = "300px", dom='t'),
+              selection = 'none')})
+  
+  output$stationSelection_ <- renderUI({ req(conventionalsLake(), input$AUselection)
+    stationSelectionOptions <- filter_at(lake_filter(), vars(starts_with("ID305B")), any_vars(. %in% input$AUselection)) %>%
+      distinct(STATION_ID) %>% arrange(STATION_ID) %>%  pull()
+    fluidRow(selectInput('stationSelection', 'Station Selection', choices = stationSelectionOptions),
+             helpText("The stations available in the drop down are limited to stations with an ID305B_1:ID305B_10 designation equal 
+                      to the selected AU. All AU's associated with the selected station can be viewed in the map below."))})
+  
+  AUData <- reactive({req(input$AUselection)
+    filter_at(conventionalsLake(), vars(starts_with("ID305B")), any_vars(. %in% input$AUselection) ) }) 
+  
+  stationData <- reactive({req(input$stationSelection)
+    filter(AUData(), FDT_STA_ID %in% input$stationSelection) })
+  
+  stationInfo <- reactive({req(input$stationSelection, AUData())
+    filter(stationTable(), STATION_ID == input$stationSelection) %>% 
+      select(STATION_ID:VAHU6, WQS_ID:`Total Phosphorus (ug/L)`)})
+  
+  
+  output$stationInfo <- DT::renderDataTable({ req(stationInfo())
+    z <- stationInfo() %>%
+      t() %>% as.data.frame() %>% rename(`Station and WQS Information` = 1)
+    DT::datatable(z, options= list(pageLength = nrow(z), scrollY = "250px", dom='t'),
+                  selection = 'none')  })
+  
+  
   output$test <- renderPrint({paste(min(lakeStations()$LONGITUDE), min(lakeStations()$LATITUDE), max(lakeStations()$LONGITUDE), max(lakeStations()$LATITUDE))})
   
   
   
-  #the_data <- reactive({req(regionalAUs(), input$DEQregionSelection)
-  #  filter(regionalAUs(), ASSESS_REG %in% input$DEQregionSelection) })
-  #lake_AUs <- shiny::callModule(dynamicSelect, "lakeSelection", the_data, "Lake_Name" )
   
 })
