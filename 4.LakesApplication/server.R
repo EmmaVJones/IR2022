@@ -6,7 +6,7 @@
 ####vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
 #WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 # placeholder for now, shouldn't be a spatial file
-#historicalStationsTable <- st_read('data/GIS/2020_wqms.shp') %>%
+#historicalStationsTable <-  st_read('data/GIS/va20ir_wqms.shp') %>%
 #  st_drop_geometry()#read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
 #WQMstationFull <- pin_get("WQM-Station-Full", board = "rsconnect")
 #regions <- st_read('data/GIS/AssessmentRegions_simple.shp')
@@ -157,7 +157,7 @@ shinyServer(function(input, output, session) {
                                     mutate_at(vars(starts_with("ID305B")), as.character) %>%
                                     pivot_longer(ID305B_1:ID305B_10, names_to = 'ID305B', values_to = 'keep') %>%
                                     pull(keep) )
-    AUselectionOptions <- AUselectionOptions[!is.na(AUselectionOptions) & !(AUselectionOptions %in% c("NA", "character(0)", "logical(0)"))][1]
+    AUselectionOptions <- AUselectionOptions[!is.na(AUselectionOptions) & !(AUselectionOptions %in% c("NA", "character(0)", "logical(0)"))]
     selectInput('AUselection', 'Assessment Unit Selection', choices = AUselectionOptions)})
   
   output$selectedAU <- DT::renderDataTable({req(input$AUselection)
@@ -189,6 +189,35 @@ shinyServer(function(input, output, session) {
       t() %>% as.data.frame() %>% rename(`Station and WQS Information` = 1)
     DT::datatable(z, options= list(pageLength = nrow(z), scrollY = "250px", dom='t'),
                   selection = 'none')  })
+  
+  output$stationMap <- renderLeaflet({req(nrow(stationInfo()) >0) # to prevent having no lat/lng data for that half second app is catching up after station change
+    point <- dplyr::select(stationInfo(),  STATION_ID, starts_with('ID305B'), LATITUDE, LONGITUDE ) %>%
+      st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
+               remove = F, # don't remove these lat/lon cols from df
+               crs = 4326) # add projection, needs to be geographic for now bc entering lat/lng
+    segmentChoices <- dplyr::select(point, starts_with('ID305B')) %>% st_drop_geometry() %>% as.character()  
+    segment <- filter(regionalAUs(), ID305B %in% segmentChoices)
+    map1 <- mapview(segment,zcol = 'ID305B', label= segment$ID305B, layer.name = 'Assessment Unit (ID305B_1)',
+                    popup= leafpop::popupTable(segment, zcol=c("ID305B","Acres","CYCLE","WATER_NAME")), legend= FALSE) + 
+      mapview(point, color = 'yellow', lwd = 5, label= point$STATION_ID, layer.name = c('Selected Station'),
+              popup=NULL, legend= FALSE)
+    map1@map %>% setView(point$LONGITUDE, point$LATITUDE, zoom = 12) })
+  
+  # Historical Station Information need last cycle stations table final
+  output$stationHistoricalInfo1 <- DT::renderDataTable({ req(nrow(stationInfo()) >0)
+    z <- suppressWarnings(filter(historicalStationsTable, STATION_ID %in% input$stationSelection) %>% 
+                            select(STATION_ID:COMMENTS) %>%
+                            t() %>% as.data.frame() %>% rename(`Station Information From 2020 Cycle` = 'V1')) # need to update each rebuild
+    DT::datatable(z, options= list(pageLength = nrow(z), scrollY = "250px", dom='t'),
+                  selection = 'none')  })
+  
+  output$stationHistoricalInfo2 <- DT::renderDataTable({ req(nrow(stationInfo()) >0)
+    z <- suppressWarnings(filter(historicalStationsTable2, STATION_ID %in% input$stationSelection) %>% 
+                            select(STATION_ID:COMMENTS) %>%
+                            t() %>% as.data.frame() %>% rename(`Station Information From 2018 Cycle` = 'V1')) # need to update each rebuild
+    DT::datatable(z, options= list(pageLength = nrow(z), scrollY = "250px", dom='t'),
+                  selection = 'none')  })
+  
   
   
   output$test <- renderPrint({paste(min(lakeStations()$LONGITUDE), min(lakeStations()$LATITUDE), max(lakeStations()$LONGITUDE), max(lakeStations()$LATITUDE))})
