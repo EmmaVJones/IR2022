@@ -46,8 +46,6 @@ shinyUI(fluidPage(theme="yeti.css",
                                                      overviewing station statuses.'),
                                             actionButton('statusOverview','Watershed Status Overview', class='btn-block')  ),
                                           mainPanel(
-                                            verbatimTextOutput('test'),
-                                            
                                             leafletOutput('VAmap'),
                                             br(),
                                             h5(strong('Assessment Units in Selected VAHU6')),
@@ -58,13 +56,14 @@ shinyUI(fluidPage(theme="yeti.css",
                                                      highlighted in yellow were sampled in the current window, but cannot be analyzed by the
                                                      application because they are not in the input stations table."),
                                             DT::dataTableOutput('stationSummary'),
-                                            br(),
-                                            h5(strong("Stations in Selected VAHU6 that have no data in the current window but were carried 
-                                                      over from last cycle due to an IM designation in one of the 2020IR status fields or
-                                                      the 2020 stations table reports the station was carried over from a previous cycle.")),
-                                            helpText('These stations can be viewed in the application and stations table, but none of the 
-                                                     parameter modules will display data as no data is available in the current window.'),
-                                            DT::dataTableOutput('carryoverStationSummary'),
+                                            #br(),
+                                            #h5(strong("Stations in Selected VAHU6 that have no data in the current window but were carried 
+                                            #          over from last cycle due to an IM designation in one of the 2020IR status fields or
+                                            #          the 2020 stations table reports the station was carried over from a previous cycle.")),
+                                            #helpText('These stations can be viewed in the application and stations table, but none of the 
+                                            #         parameter modules will display data as no data is available in the current window.'),
+                                            #DT::dataTableOutput('carryoverStationSummary'),
+                                            #verbatimTextOutput('test'),
                                             br(), br(), br() # a bit of breathing room
                                           )
                                  )#,

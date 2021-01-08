@@ -52,45 +52,30 @@ AUs1 <- filter(regionalAUs1, Lake_Name %in% lakeSelection1 & ASSESS_REG %in% DEQ
 #lake_AUs <- filter(the_data, Lake_Name %in% lakeSelection)
 lake_filter1 <- filter_at(stationTable1, vars(starts_with('ID305B')), any_vars(. %in% AUs1$ID305B)) 
   
- 
 
 
 
 # Lake Map
-
-z <- st_coordinates(sf::st_centroid(AUs1 %>% group_by(Lake_Name) %>% summarise()))
-#bounds <- st_bbox(AUs) %>% as.numeric()
-lakeStations <- lake_filter %>%
+lakeStations1 <- lake_filter1 %>%
   st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
            remove = F, # don't remove these lat/lon cols from df
            crs = 4326) # add projection, needs to be geographic for now bc entering lat/lng
-CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE) %>%
-  setView(z[1], z[2], zoom = 10) %>%
-  #fitBounds(as.numeric(bounds$xmin), as.numeric(bounds$ymin), as.numeric(bounds$xmax), as.numeric(bounds$ymax)) %>%
-  #fitBounds(min(lakeStations$LONGITUDE), min(lakeStations$LATITUDE), max(lakeStations$LONGITUDE), max(lakeStations$LATITUDE))  %>% 
-  #addPolygons(data= filter(regions, ), group = 'Selected Lake'
+
+z <- suppressWarnings(st_coordinates(sf::st_centroid(AUs1 %>% group_by(Lake_Name) %>% summarise())))
+
+CreateWebMap(maps = c("Topo","Imagery"), collapsed = TRUE) %>%
+  {if(nrow(AUs1)>1)
+    setView(., z[1], z[2], zoom = 10) 
+    else setView(., z[1], z[2], zoom = 12) } %>%
   addPolygons(data= AUs1, group = 'Selected Lake',
               popup=leafpop::popupTable(AUs1, zcol=c('Lake_Name',"ID305B","ASSESS_REG"))) %>%
-  #addCircleMarkers(data = lakeStations, color='black', fillColor='yellow', radius = 4,
-  #                 fillOpacity = 0.5,opacity=0.8,weight = 1,stroke=T, group="Monitored Stations",
-  #                 label = ~STATION_ID, layerId = ~STATION_ID) %>%
+  {if(nrow(lakeStations1) > 0)
+    addCircleMarkers(., data = lakeStations1, color='black', fillColor='yellow', radius = 4,
+                     fillOpacity = 0.5,opacity=0.8,weight = 1,stroke=T, group="Monitored Stations",
+                     label = ~STATION_ID, layerId = ~STATION_ID) 
+    else . } %>%
   addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                    overlayGroups = c('Monitored Stations', 'Selected Lake'),
                    options=layersControlOptions(collapsed=T),
-                   position='topleft') 
-              
+                   position='topleft')
             
-
-leaflet() %>%
-  addTiles() %>%
-  addPolygons(data =AUs)
-mapview(AUs, label= 'ID305B', layer.name = 'Lake Chosen', 
-             popup= leafpop::popupTable(AUs, zcol=c('Lake_Name',"ID305B","ASSESS_REG")), legend= FALSE)
-
-
-# Stations in Lake
-stationSummary <- filter(conventionals, FDT_STA_ID %in% lake_filter$STATION_ID) %>%
-    distinct(FDT_STA_ID, .keep_all = TRUE)  %>% 
-    dplyr::select(FDT_STA_ID:FDT_SPG_CODE, STA_LV2_CODE:Data_Source, Latitude, Longitude) %>% 
-    dplyr::select(-FDT_DATE_TIME)  # drop date time bc confusing to users
-    

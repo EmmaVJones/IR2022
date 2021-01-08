@@ -87,25 +87,28 @@ shinyServer(function(input, output, session) {
     lake_filter() %>%
       st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
                remove = F, # don't remove these lat/lon cols from df
-               crs = 4326) # add projection, needs to be geographic for now bc entering lat/lng
-  })
+               crs = 4326) }) # add projection, needs to be geographic for now bc entering lat/lng
+
   
   # Lake Map
   output$VAmap <- renderLeaflet({ req(AUs()) #, lake_filter()) 
-    z <- st_coordinates(sf::st_centroid(AUs() %>% group_by(Lake_Name) %>% summarise()))
+    z <- suppressWarnings(st_coordinates(sf::st_centroid(AUs() %>% group_by(Lake_Name) %>% summarise())))
     
     CreateWebMap(maps = c("Topo","Imagery"), collapsed = TRUE) %>%
-      setView(z[1], z[2], zoom = 10) %>%
-      #fitBounds(min(lakeStations()$LONGITUDE), min(lakeStations()$LATITUDE), max(lakeStations()$LONGITUDE), max(lakeStations()$LATITUDE))  %>% 
+      {if(nrow(AUs())>1)
+        setView(., z[1], z[2], zoom = 10) 
+        else setView(., z[1], z[2], zoom = 12) } %>%
       addPolygons(data= AUs(), group = 'Selected Lake',
                   popup=leafpop::popupTable(AUs(), zcol=c('Lake_Name',"ID305B","ASSESS_REG"))) %>%
-      #addCircleMarkers(data = lakeStations(), color='black', fillColor='yellow', radius = 4,
-      #                fillOpacity = 0.5,opacity=0.8,weight = 1,stroke=T, group="Monitored Stations",
-      #                 label = ~STATION_ID, layerId = ~STATION_ID) %>%
+      {if(nrow(lakeStations()) > 0)
+        addCircleMarkers(., data = lakeStations(), color='black', fillColor='yellow', radius = 4,
+                         fillOpacity = 0.5,opacity=0.8,weight = 1,stroke=T, group="Monitored Stations",
+                         label = ~STATION_ID, layerId = ~STATION_ID) 
+        else . } %>%
       addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                        overlayGroups = c('Monitored Stations', 'Selected Lake'),
                        options=layersControlOptions(collapsed=T),
-                       position='topleft') })
+                       position='topleft')       })
   
   # Table of AUs within Selected Lake
   output$AUSummary <-  DT::renderDataTable({ req(AUs())

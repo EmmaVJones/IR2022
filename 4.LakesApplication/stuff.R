@@ -38,3 +38,45 @@ output$stationSummary <- DT::renderDataTable({req(stationSummary())
     DT::formatStyle('Analyzed By App', target = 'row', backgroundColor = styleEqual(c('yes','no'), c('lightgray', 'yellow'))) })
 
 
+
+
+
+
+
+
+
+
+
+
+ui <- shinyUI(fluidPage(
+  uiOutput('DEQregionSelectionUI'),
+  uiOutput('lakeSelection_'),
+  verbatimTextOutput('test'),
+  leafletOutput('VAmap')))
+
+server <- shinyServer(function(input, output, session) {
+  stationTable <- reactive({ stationTable1})
+  regionalAUs <- reactive({regionalAUs1})
+  output$DEQregionSelectionUI <- renderUI({selectInput("DEQregionSelection", "Select DEQ Assessment Region", choices = c('BRRO', 'PRO', 'TRO', 'SWRO', 'NRO', 'VRO'))})
+  output$lakeSelection_ <- renderUI({req(regionalAUs(), input$DEQregionSelection)
+    z <- filter(regionalAUs(), ASSESS_REG %in% input$DEQregionSelection & ASSESS_REG %in% input$DEQregionSelection)
+    selectInput('lakeSelection', 'Select Lake', choices = sort(unique(z$Lake_Name)))
+  })
+  
+  AUs <- reactive({req(input$lakeSelection, input$DEQregionSelection, regionalAUs())
+    filter(regionalAUs(), Lake_Name %in% input$lakeSelection & ASSESS_REG %in% input$DEQregionSelection)})
+  
+  output$VAmap <- renderLeaflet({ req(AUs())
+    AUs<- filter(regionalAUs(), Lake_Name %in% input$lakeSelection)
+    mapview(AUs)
+    #mapview(AUs, label= 'ID305B', layer.name = 'Lake Chosen', 
+    #        popup= leafpop::popupTable(AUs, zcol=c('Lake_Name',"ID305B","ASSESS_REG")), legend= FALSE)
+  })
+  
+  output$test <- renderPrint({class(AUs())})
+  
+})
+
+shinyApp(ui, server)
+
+
