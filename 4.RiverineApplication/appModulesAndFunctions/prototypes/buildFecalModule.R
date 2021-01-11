@@ -46,12 +46,12 @@ fecalPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, FECAL_COLI, RMK_FECAL_COLI)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, FECAL_COLI, RMK_FECAL_COLI, LEVEL_FECAL_COLI)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
                   selection = 'none') %>%
-      formatStyle(c('FECAL_COLI','RMK_FECAL_COLI'), 'RMK_FECAL_COLI', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
+      formatStyle(c('FECAL_COLI','RMK_FECAL_COLI', 'LEVEL_FECAL_COLI'), 'LEVEL_FECAL_COLI', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
   

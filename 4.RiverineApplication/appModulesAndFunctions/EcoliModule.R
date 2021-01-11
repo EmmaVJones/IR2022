@@ -1,4 +1,3 @@
-
 EcoliPlotlySingleStationUI <- function(id){
   ns <- NS(id)
   tagList(
@@ -105,12 +104,12 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, ECOLI, RMK_ECOLI)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, ECOLI, RMK_ECOLI, LEVEL_ECOLI)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
                   selection = 'none') %>%
-      formatStyle(c('ECOLI','RMK_ECOLI'), 'RMK_ECOLI', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
+      formatStyle(c('ECOLI','RMK_ECOLI', 'LEVEL_ECOLI'), 'LEVEL_ECOLI', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
   output$plotly <- renderPlotly({
@@ -181,7 +180,7 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
   
   output$oldStdTableSingleSite <- DT::renderDataTable({req(oneStation())
     #get rid of citizen data
-    z1 <- filter(oneStation(), !(RMK_ECOLI %in% c('Level II', 'Level I')))
+    z1 <- filter(oneStation(), !(LEVEL_ECOLI %in% c('Level II', 'Level I')))
     if(nrow(z1) > 1){
       z <- bacteria_Assessment_OLD(z1,  'ECOLI', 126, 235)
       if(nrow(z) > 0 ){
@@ -195,7 +194,7 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
   
   output$rawData <- DT::renderDataTable({
     req(oneStation())
-    z <- dplyr::select(oneStation(), FDT_STA_ID, FDT_DATE_TIME, ECOLI, RMK_ECOLI) %>% 
+    z <- dplyr::select(oneStation(), FDT_STA_ID, FDT_DATE_TIME, ECOLI, RMK_ECOLI, LEVEL_ECOLI) %>% 
       mutate(FDT_DATE_TIME = as.Date(FDT_DATE_TIME, format = '%Y-%m-%D %H:%M:S'))
     DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "400px", dom='ti'),
                   selection = 'single')  })
@@ -230,13 +229,6 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
     req(windowData(), oneStation(), !is.na(oneStationDecisionData()))
     
     windowData <- windowData()
-    
-    # Fix look of single measure
-    if(nrow(windowData) == 1){
-      windowData <- bind_rows(windowData,
-                              tibble(`Date Time` = c(windowData$`Date Time`- days(5), windowData$`Date Time` + days(5))))
-    }
-    
     
     plot_ly(data=windowData) %>%
       add_markers(x= ~`Date Time`, y= ~Value,mode = 'scatter', name="E. coli (CFU / 100 mL)", marker = list(color= '#535559'),
@@ -276,4 +268,3 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
   #  DTproxy %>% selectRows(as.numeric(input$rawData_rows_selected)) })
   
 }
-

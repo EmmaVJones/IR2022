@@ -41,7 +41,7 @@ DOPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   oneStation_original <- reactive({
     req(ns(input$oneStationSelection))
     filter(AUdata(),FDT_STA_ID %in% input$oneStationSelection) %>%
-      filter(!is.na(DO))})
+      filter(!is.na(DO_mg_L))})
   
   # Option to change WQS used for modal
   output$changeWQSUI <- renderUI({
@@ -69,12 +69,12 @@ DOPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   
   # modal parameter data
   output$parameterData <- DT::renderDataTable({  req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, DO, RMK_DO)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, DO_mg_L, RMK_DO, LEVEL_DO)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
                   selection = 'none') %>%
-      formatStyle(c('DO','RMK_DO'), 'RMK_DO',backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray')) })
+      formatStyle(c('DO_mg_L','RMK_DO', 'LEVEL_DO'), 'LEVEL_DO',backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray')) })
   
   output$plotly <- renderPlotly({
     req(input$oneStationSelection, oneStation())
@@ -88,7 +88,7 @@ DOPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
                        tibble(SampleDate = c(dat$SampleDate- days(5), dat$SampleDate + days(5))))
     }
     
-    maxheight <- ifelse(max(dat$DO, na.rm=T) < 10, 12, max(dat$DO, na.rm=T)* 1.2)
+    maxheight <- ifelse(max(dat$DO_mg_L, na.rm=T) < 10, 12, max(dat$DO_mg_L, na.rm=T)* 1.2)
     
     if(input$displayBSAcolors == TRUE){
       box1 <- data.frame(SampleDate = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(10, maxheight, maxheight, 10))
@@ -107,11 +107,11 @@ DOPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
                      hoverinfo="text", name =paste('High Probability of Stress to Aquatic Life')) %>%
         add_lines(data=dat, x=~SampleDate,y=~bottom, mode='line', line = list(color = 'black'),
                   hoverinfo = "text", text="DO Standard", name="DO Standard") %>%
-        add_markers(data=dat, x= ~SampleDate, y= ~DO,mode = 'scatter', name="DO (mg/L)", marker = list(color= '#535559'),
+        add_markers(data=dat, x= ~SampleDate, y= ~DO_mg_L,mode = 'scatter', name="DO (mg/L)", marker = list(color= '#535559'),
                     hoverinfo="text",text=~paste(sep="<br>",
                                                  paste("Date: ",SampleDate),
                                                  paste("Depth: ",FDT_DEPTH, "m"),
-                                                 paste("DO: ",DO," (mg/L)")))%>%
+                                                 paste("DO: ",DO_mg_L," (mg/L)")))%>%
         layout(showlegend=FALSE,
                yaxis=list(title="DO (mg/L)"),
                xaxis=list(title="Sample Date",tickfont = list(size = 10)))
@@ -119,11 +119,11 @@ DOPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
       plot_ly(data=dat)%>%
         add_lines(data=dat, x=~SampleDate,y=~bottom, mode='line', line = list(color = 'black'),
                   hoverinfo = "text", text="DO Standard", name="DO Standard") %>%
-        add_markers(data=dat, x= ~SampleDate, y= ~DO,mode = 'scatter', name="DO (mg/L)", marker = list(color= '#535559'),
+        add_markers(data=dat, x= ~SampleDate, y= ~DO_mg_L,mode = 'scatter', name="DO (mg/L)", marker = list(color= '#535559'),
                     hoverinfo="text",text=~paste(sep="<br>",
                                                  paste("Date: ",SampleDate),
                                                  paste("Depth: ",FDT_DEPTH, "m"),
-                                                 paste("DO: ",DO," (mg/L)")))%>%
+                                                 paste("DO: ",DO_mg_L," (mg/L)")))%>%
         layout(showlegend=FALSE,
                yaxis=list(title="DO (mg/L)"),
                xaxis=list(title="Sample Date",tickfont = list(size = 10)))    }  })

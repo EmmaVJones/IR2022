@@ -1,3 +1,4 @@
+
 TNPlotlySingleStationUI <- function(id){
   ns <- NS(id)
   tagList(
@@ -27,7 +28,7 @@ TNPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   oneStation <- reactive({
     req(ns(input$oneStationSelection))
     filter(AUdata(),FDT_STA_ID %in% input$oneStationSelection) %>%
-      filter(!is.na(NITROGEN))})
+      filter(!is.na(NITROGEN_mg_L))})
   
   # Button to visualize modal table of available parameter data
   observeEvent(input$reviewData,{
@@ -44,12 +45,12 @@ TNPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, NITROGEN, RMK_NITROGEN)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, NITROGEN_mg_L, RMK_NITROGEN, LEVEL_NITROGEN)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
                   selection = 'none') %>%
-      formatStyle(c('NITROGEN','RMK_NITROGEN'), 'RMK_NITROGEN', 
+      formatStyle(c('NITROGEN_mg_L','RMK_NITROGEN', 'LEVEL_NITROGEN'), 'LEVEL_NITROGEN', 
                   backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
@@ -57,6 +58,7 @@ TNPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
     req(input$oneStationSelection, oneStation())
     dat <- oneStation()
     dat$SampleDate <- as.POSIXct(dat$FDT_DATE_TIME, format="%m/%d/%y")
+    
     # Fix look of single measure
     if(nrow(dat) == 1){
       print('yes')
@@ -64,7 +66,9 @@ TNPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
                        tibble(SampleDate = c(dat$SampleDate- days(5), dat$SampleDate + days(5))))
     }
     
-    maxheight <- ifelse(max(dat$NITROGEN, na.rm=T) < 2, 2.5, max(dat$NITROGEN, na.rm=T)* 1.2)
+    maxheight <- ifelse(max(dat$NITROGEN_mg_L, na.rm=T) < 2, 2.5, max(dat$NITROGEN_mg_L, na.rm=T)* 1.2)
+    
+    
     
     if(input$displayBSAcolors == TRUE){
       box1 <- data.frame(SampleDate = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(2, maxheight, maxheight, 2))
@@ -82,21 +86,21 @@ TNPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
                      hoverinfo="text", name =paste('Low Probability of Stress to Aquatic Life')) %>%
         add_polygons(data = box4, x = ~x, y = ~y, fillcolor = "#0072B2",opacity=0.6, line = list(width = 0),
                      hoverinfo="text", name =paste('No Probability of Stress to Aquatic Life')) %>%
-        add_markers(data=dat, x= ~SampleDate, y= ~NITROGEN,mode = 'scatter', name="Total Nitrogen (mg/L)",marker = list(color= '#535559'),
+        add_markers(data=dat, x= ~SampleDate, y= ~NITROGEN_mg_L,mode = 'scatter', name="Total Nitrogen (mg/L)",marker = list(color= '#535559'),
                     hoverinfo="text",text=~paste(sep="<br>",
                                                  paste("Date: ",SampleDate),
                                                  paste("Depth: ",FDT_DEPTH, "m"),
-                                                 paste("Total Nitrogen: ",NITROGEN,"mg/L")))%>%
+                                                 paste("Total Nitrogen: ",NITROGEN_mg_L,"mg/L")))%>%
         layout(showlegend=FALSE,
                yaxis=list(title="Total Nitrogen (mg/L)"),
                xaxis=list(title="Sample Date",tickfont = list(size = 10)))
     } else {
       plot_ly(data=dat)%>%
-        add_markers(data=dat, x= ~SampleDate, y= ~NITROGEN,mode = 'scatter', name="Total Nitrogen (mg/L)",marker = list(color= '#535559'),
+        add_markers(data=dat, x= ~SampleDate, y= ~NITROGEN_mg_L,mode = 'scatter', name="Total Nitrogen (mg/L)",marker = list(color= '#535559'),
                     hoverinfo="text",text=~paste(sep="<br>",
                                                  paste("Date: ",SampleDate),
                                                  paste("Depth: ",FDT_DEPTH, "m"),
-                                                 paste("Total Nitrogen: ",NITROGEN,"mg/L")))%>%
+                                                 paste("Total Nitrogen: ",NITROGEN_mg_L,"mg/L")))%>%
         layout(showlegend=FALSE,
                yaxis=list(title="Total Nitrogen (mg/L)"),
                xaxis=list(title="Sample Date",tickfont = list(size = 10)))
@@ -106,3 +110,4 @@ TNPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   })
   
 }
+

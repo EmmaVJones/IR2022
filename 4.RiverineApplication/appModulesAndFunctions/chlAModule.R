@@ -26,7 +26,7 @@ chlAPlotlySingleStation <- function(input,output,session, AUdata, stationSelecte
   oneStation <- reactive({
     req(ns(input$oneStationSelection))
     filter(AUdata(),FDT_STA_ID %in% input$oneStationSelection) %>%
-      filter(!is.na(CHLOROPHYLL))})
+      filter(!is.na(CHLOROPHYLL_A_ug_L))})
   
   # Button to visualize modal table of available parameter data
   observeEvent(input$reviewData,{
@@ -43,12 +43,12 @@ chlAPlotlySingleStation <- function(input,output,session, AUdata, stationSelecte
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, CHLOROPHYLL, RMK_CHLOROPHYLL)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, CHLOROPHYLL_A_ug_L, RMK_CHLOROPHYLL_A, LEVEL_CHLOROPHYLL_A)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
                   selection = 'none') %>%
-      formatStyle(c('CHLOROPHYLL','RMK_CHLOROPHYLL'), 'RMK_CHLOROPHYLL', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
+      formatStyle(c('CHLOROPHYLL_A_ug_L','RMK_CHLOROPHYLL_A','LEVEL_CHLOROPHYLL_A'), 'LEVEL_CHLOROPHYLL_A', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
   
@@ -57,11 +57,11 @@ chlAPlotlySingleStation <- function(input,output,session, AUdata, stationSelecte
     dat <- oneStation()
     dat$SampleDate <- as.POSIXct(dat$FDT_DATE_TIME, format="%m/%d/%y")
     plot_ly(data=dat)%>%
-      add_markers(x= ~SampleDate, y= ~CHLOROPHYLL,mode = 'scatter', name="Chlorophyll a (ug/L)",marker = list(color= '#535559'),
+      add_markers(x= ~SampleDate, y= ~CHLOROPHYLL_A_ug_L,mode = 'scatter', name="Chlorophyll a (ug/L)",marker = list(color= '#535559'),
                   hoverinfo="text",text=~paste(sep="<br>",
                                                paste("Date: ",SampleDate),
                                                paste("Depth: ",FDT_DEPTH, "m"),
-                                               paste("Chlorophyll a: ",CHLOROPHYLL,"ug/L")))%>%
+                                               paste("Chlorophyll a: ",CHLOROPHYLL_A_ug_L,"ug/L")))%>%
       layout(showlegend=FALSE,
              yaxis=list(title="Chlorophyll a (ug/L)"),
              xaxis=list(title="Sample Date",tickfont = list(size = 10))) })

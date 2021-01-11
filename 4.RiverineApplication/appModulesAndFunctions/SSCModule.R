@@ -1,3 +1,4 @@
+
 SSCPlotlySingleStationUI <- function(id){
   ns <- NS(id)
   tagList(
@@ -25,7 +26,7 @@ SSCPlotlySingleStation <- function(input,output,session, AUdata, stationSelected
   oneStation <- reactive({
     req(ns(input$oneStationSelection))
     filter(AUdata(),FDT_STA_ID %in% input$oneStationSelection) %>%
-      filter(!is.na(SSC))})
+      filter(!is.na(SSC_mg_L))})
   
   # Button to visualize modal table of available parameter data
   observeEvent(input$reviewData,{
@@ -42,12 +43,12 @@ SSCPlotlySingleStation <- function(input,output,session, AUdata, stationSelected
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, SSC, `RMK_SSC`)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, SSC_mg_L, RMK_SSC, LEVEL_SSC)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
                   selection = 'none') %>%
-      formatStyle(c('SSC','RMK_SSC'), 'RMK_SSC', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
+      formatStyle(c('SSC_mg_L','RMK_SSC', 'LEVEL_SSC'), 'LEVEL_SSC', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
   output$plotly <- renderPlotly({
@@ -57,11 +58,11 @@ SSCPlotlySingleStation <- function(input,output,session, AUdata, stationSelected
     
     
     plot_ly(data=dat)%>%
-      add_markers(data=dat, x= ~SampleDate, y= ~SSC,mode = 'scatter', name="Suspended Sediment Concentration (units) ",marker = list(color= '#535559'),
+      add_markers(data=dat, x= ~SampleDate, y= ~SSC_mg_L,mode = 'scatter', name="Suspended Sediment Concentration (units) ",marker = list(color= '#535559'),
                   hoverinfo="text",text=~paste(sep="<br>",
                                                paste("Date: ",SampleDate),
                                                paste("Depth: ",FDT_DEPTH, "m"),
-                                               paste("Suspended Sediment Concentration: ",SSC,"units")))%>%
+                                               paste("Suspended Sediment Concentration: ",SSC_mg_L,"units")))%>%
       layout(showlegend=FALSE,
              yaxis=list(title="Suspended Sediment Concentration (units)"),
              xaxis=list(title="Sample Date",tickfont = list(size = 10)))

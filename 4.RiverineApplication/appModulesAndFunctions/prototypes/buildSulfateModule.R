@@ -41,11 +41,11 @@ DSulfatePlotlySingleStation <- function(input,output,session, AUdata, stationSel
   oneStation <- reactive({
     req(ns(input$oneStationSelection))
     filter(AUdata(),FDT_STA_ID %in% input$oneStationSelection) %>%
-      mutate(`Parameter Rounded to WQS Format` = round(SULFATE_TOTAL, digits = 0),
+      mutate(`Parameter Rounded to WQS Format` = round(SULFATE_TOTAL_mg_L, digits = 0),
              PWSlimit = 250)})
   # because we are dealing with two variables here, do NOT filter by NA occurrences in case you drop unintended rows
-      #filter(!is.na(SULFATE_DISS)) %>%
-      #filter(!is.na(SULFATE_TOTAL)) })
+      #filter(!is.na(SULFATE_DISS_mg_L)) %>%
+      #filter(!is.na(SULFATE_TOTAL_mg_L)) })
   
   # Option to change WQS used for modal
   output$changeWQSUI <- renderUI({
@@ -71,13 +71,14 @@ DSulfatePlotlySingleStation <- function(input,output,session, AUdata, stationSel
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, SULFATE_DISS, RMK_SULFATE_DISS, SULFATE_TOTAL, RMK_SULFATE_TOTAL)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, SULFATE_DISS_mg_L, RMK_SULFATE_DISS, LEVEL_SULFATE_DISS,
+                                     SULFATE_TOTAL_mg_L, RMK_SULFATE_TOTAL, LEVEL_SULFATE_TOTAL)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
                   selection = 'none') %>%
-      formatStyle(c('SULFATE_DISS','RMK_SULFATE_DISS'), 'RMK_SULFATE_DISS', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray')) %>%
-      formatStyle(c('SULFATE_TOTAL','RMK_SULFATE_TOTAL'), 'RMK_SULFATE_TOTAL', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))  })
+      formatStyle(c('SULFATE_DISS_mg_L','RMK_SULFATE_DISS', 'LEVEL_SULFATE_DISS'), 'LEVEL_SULFATE_DISS', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray')) %>%
+      formatStyle(c('SULFATE_TOTAL_mg_L','RMK_SULFATE_TOTAL', 'LEVEL_SULFATE_TOTAL'), 'LEVEL_SULFATE_TOTAL', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))  })
   
   
   output$plotly <- renderPlotly({
@@ -94,7 +95,7 @@ DSulfatePlotlySingleStation <- function(input,output,session, AUdata, stationSel
     }
     
     if(input$sulfateType == 'Dissolved Sulfate'){
-      maxheight <- ifelse(max(dat$SULFATE_DISS, na.rm=T) < 75, 100, max(dat$SULFATE_DISS, na.rm=T)* 1.2)
+      maxheight <- ifelse(max(dat$SULFATE_DISS_mg_L, na.rm=T) < 75, 100, max(dat$SULFATE_DISS_mg_L, na.rm=T)* 1.2)
       
       if(input$displayBSAcolors == TRUE){
         box1 <- data.frame(SampleDate = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(75, maxheight, maxheight, 75))
@@ -112,21 +113,21 @@ DSulfatePlotlySingleStation <- function(input,output,session, AUdata, stationSel
                        hoverinfo="text", name =paste('Low Probability of Stress to Aquatic Life')) %>%
           add_polygons(data = box4, x = ~x, y = ~y, fillcolor = "#0072B2",opacity=0.6, line = list(width = 0),
                        hoverinfo="text", name =paste('No Probability of Stress to Aquatic Life')) %>%
-          add_markers(data=dat, x= ~SampleDate, y= ~SULFATE_DISS,mode = 'scatter', name="Dissolved Sulfate (mg/L)",marker = list(color= '#535559'),
+          add_markers(data=dat, x= ~SampleDate, y= ~SULFATE_DISS_mg_L,mode = 'scatter', name="Dissolved Sulfate (mg/L)",marker = list(color= '#535559'),
                       hoverinfo="text",text=~paste(sep="<br>",
                                                    paste("Date: ",SampleDate),
                                                    paste("Depth: ",FDT_DEPTH, "m"),
-                                                   paste("Dissolved Sulfate: ",SULFATE_DISS,"mg/L")))%>%
+                                                   paste("Dissolved Sulfate: ",SULFATE_DISS_mg_L,"mg/L")))%>%
           layout(showlegend=FALSE,
                  yaxis=list(title="Dissolved Sulfate (mg/L)"),
                  xaxis=list(title="Sample Date",tickfont = list(size = 10)))
       } else {
         plot_ly(data=dat)%>%
-          add_markers(data=dat, x= ~SampleDate, y= ~SULFATE_DISS,mode = 'scatter', name="Dissolved Sulfate (mg/L)",marker = list(color= '#535559'),
+          add_markers(data=dat, x= ~SampleDate, y= ~SULFATE_DISS_mg_L,mode = 'scatter', name="Dissolved Sulfate (mg/L)",marker = list(color= '#535559'),
                       hoverinfo="text",text=~paste(sep="<br>",
                                                    paste("Date: ",SampleDate),
                                                    paste("Depth: ",FDT_DEPTH, "m"),
-                                                   paste("Dissolved Sulfate: ",SULFATE_DISS,"mg/L")))%>%
+                                                   paste("Dissolved Sulfate: ",SULFATE_DISS_mg_L,"mg/L")))%>%
           layout(showlegend=FALSE,
                  yaxis=list(title="Dissolved Sulfate (mg/L)"),
                  xaxis=list(title="Sample Date",tickfont = list(size = 10)))
@@ -138,21 +139,21 @@ DSulfatePlotlySingleStation <- function(input,output,session, AUdata, stationSel
         plot_ly(data=dat)%>%
           add_lines(data=dat, x=~SampleDate,y=~PWSlimit, mode='line', line = list(color = 'black'),
                     hoverinfo = "text", text = "Sulfate PWS Criteria (250,000 ug/L)", name="Sulfate PWS Criteria (250 mg/L)") %>%
-          add_markers(data=dat, x= ~SampleDate, y= ~SULFATE_TOTAL,mode = 'scatter', name="Total Sulfate (mg/L)", marker = list(color= '#535559'),
+          add_markers(data=dat, x= ~SampleDate, y= ~SULFATE_TOTAL_mg_L,mode = 'scatter', name="Total Sulfate (mg/L)", marker = list(color= '#535559'),
                       hoverinfo="text",text=~paste(sep="<br>",
                                                    paste("Date: ",SampleDate),
                                                    paste("Depth: ",FDT_DEPTH, "m"),
-                                                   paste("Total Sulfate: ",SULFATE_TOTAL," (mg/L)")))%>%
+                                                   paste("Total Sulfate: ",SULFATE_TOTAL_mg_L," (mg/L)")))%>%
           layout(showlegend=FALSE,
                  yaxis=list(title="Total Sulfate (mg/L)"),
                  xaxis=list(title="Sample Date",tickfont = list(size = 10)))
       } else {
         plot_ly(data=dat)%>%
-          add_markers(data=dat, x= ~SampleDate, y= ~SULFATE_TOTAL,mode = 'scatter', name="Total Sulfate (mg/L)", marker = list(color= '#535559'),
+          add_markers(data=dat, x= ~SampleDate, y= ~SULFATE_TOTAL_mg_L,mode = 'scatter', name="Total Sulfate (mg/L)", marker = list(color= '#535559'),
                       hoverinfo="text",text=~paste(sep="<br>",
                                                    paste("Date: ",SampleDate),
                                                    paste("Depth: ",FDT_DEPTH, "m"),
-                                                   paste("Total Sulfate: ",SULFATE_TOTAL," (mg/L)")))%>%
+                                                   paste("Total Sulfate: ",SULFATE_TOTAL_mg_L," (mg/L)")))%>%
           layout(showlegend=FALSE,
                  yaxis=list(title="Total Sulfate (mg/L)"),
                  xaxis=list(title="Sample Date",tickfont = list(size = 10)))
@@ -165,7 +166,7 @@ DSulfatePlotlySingleStation <- function(input,output,session, AUdata, stationSel
     req(oneStation())
     if(input$changeWQS == TRUE){
       z <- filter(oneStation(), `Parameter Rounded to WQS Format` > PWSlimit) %>%
-        dplyr::select(FDT_DATE_TIME, SULFATE_TOTAL, RMK_SULFATE_TOTAL, Criteria = PWSlimit, `Parameter Rounded to WQS Format`) 
+        dplyr::select(FDT_DATE_TIME, SULFATE_TOTAL_mg_L, LEVEL_SULFATE_TOTAL, Criteria = PWSlimit, `Parameter Rounded to WQS Format`) 
     } else { z <- NULL}
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
               selection = 'none') })
@@ -173,10 +174,10 @@ DSulfatePlotlySingleStation <- function(input,output,session, AUdata, stationSel
   output$stationTSulfateExceedanceRate <- renderDataTable({
     req(input$oneStationSelection, oneStation())
     if(input$changeWQS == TRUE){
-      totalSulfate <- dplyr::select(oneStation(), FDT_DATE_TIME, FDT_DEPTH, RMK_SULFATE_TOTAL) %>%
-        filter(!(RMK_SULFATE_TOTAL %in% c('Level II', 'Level I'))) %>% # get lower levels out
-        filter(!is.na(SULFATE_TOTAL)) %>% #get rid of NA's
-        mutate(`Parameter Rounded to WQS Format` = round(SULFATE_TOTAL, digits = 0),  # round to WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
+      totalSulfate <- dplyr::select(oneStation(), FDT_DATE_TIME, FDT_DEPTH, SULFATE_TOTAL_mg_L, LEVEL_SULFATE_TOTAL) %>%
+        filter(!(LEVEL_SULFATE_TOTAL %in% c('Level II', 'Level I'))) %>% # get lower levels out
+        filter(!is.na(SULFATE_TOTAL_mg_L)) %>% #get rid of NA's
+        mutate(`Parameter Rounded to WQS Format` = round(SULFATE_TOTAL_mg_L, digits = 0),  # round to WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
                limit = 250) %>%
         rename(parameter = !!names(.[5])) %>% # rename columns to make functions easier to apply
         mutate(exceeds = ifelse(parameter > limit, T, F)) # Identify where above NH3 WQS limit
@@ -208,7 +209,7 @@ server <- function(input,output,session){
                 by = c('FDT_STA_ID' = 'STATION_ID')) %>%
       filter(!is.na(ID305B_1)) %>%
       pHSpecialStandardsCorrection() %>%
-      filter(!is.na(CHLORIDE))})
+      filter(!is.na(SULFATE_DISS_mg_L))})
   
   callModule(DSulfatePlotlySingleStation,'DSulfate', AUData, stationSelected)
   

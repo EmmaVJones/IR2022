@@ -341,9 +341,9 @@ shinyServer(function(input, output, session) {
   
   # Run longer analyses first
   ecoli <- reactive({req(stationData())
-    bacteriaAssessmentDecision(stationData(), 'ECOLI', 'RMK_ECOLI', 10, 410, 126)})
+    bacteriaAssessmentDecision(stationData(), 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126)})
   enter <- reactive({req(stationData())
-    bacteriaAssessmentDecision(stationData(), 'ENTEROCOCCI', 'RMK_ENTEROCOCCI', 10, 130, 35)})
+    bacteriaAssessmentDecision(stationData(), 'ENTEROCOCCI', 'LEVEL_ENTEROCOCCI', 10, 130, 35)})
   ammoniaAnalysisStation <- reactive({req(stationData())
     z <- filter(ammoniaAnalysis, StationID %in% unique(stationData()$FDT_STA_ID)) %>%
       map(1) 
@@ -367,9 +367,9 @@ shinyServer(function(input, output, session) {
                                          metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
                                                              dplyr::select(ARSENIC:ZINC), 'SED_MET'),
                                          benthicAssessment(stationData(), VSCIresults),
-                                         countNutrients(stationData(), PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP') %>% 
+                                         countNutrients(stationData(), PHOSPHORUS_mg_L, LEVEL_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP') %>% 
                                            mutate(NUT_TP_STAT = ifelse(NUT_TP_STAT != "S", "Review", NA)), # flag OE but don't show a real assessment decision
-                                         countNutrients(stationData(), CHLOROPHYLL, RMK_CHLOROPHYLL, NA) %>% quickStats('NUT_CHLA') %>%
+                                         countNutrients(stationData(), CHLOROPHYLL_A_ug_L, LEVEL_CHLOROPHYLL_A, NA) %>% quickStats('NUT_CHLA') %>%
                                            mutate(NUT_CHLA_STAT = NA)) %>% # don't show a real assessment decision) %>%
       mutate(COMMENTS = NA) %>%
       dplyr::select(-ends_with(c('exceedanceRate','Assessment Decision')))
@@ -412,9 +412,9 @@ shinyServer(function(input, output, session) {
       
     } else {
       PWSconcat <- cbind(tibble(STATION_ID = unique(stationData()$FDT_STA_ID)),
-                         assessPWS(stationData(), NITRATE, RMK_NITRATE, 10, 'PWS_Nitrate'),
-                         assessPWS(stationData(), CHLORIDE, RMK_CHLORIDE, 250, 'PWS_Chloride'),
-                         assessPWS(stationData(), SULFATE_TOTAL, RMK_SULFATE_TOTAL, 250, 'PWS_Total_Sulfate')) %>%
+                         assessPWS(stationData(), NITRATE, LEVEL_NITRATE, 10, 'PWS_Nitrate'),
+                         assessPWS(stationData(), CHLORIDE, LEVEL_CHLORIDE, 250, 'PWS_Chloride'),
+                         assessPWS(stationData(), SULFATE_TOTAL, LEVEL_SULFATE_TOTAL, 250, 'PWS_Total_Sulfate')) %>%
         dplyr::select(-ends_with('exceedanceRate')) 
       
       DT::datatable(PWSconcat, escape=F, rownames = F, options= list(scrollX = TRUE, pageLength = nrow(PWSconcat), dom='t'),

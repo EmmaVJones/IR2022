@@ -2,8 +2,8 @@
 source('global.R')
 
 DEQregionSelection <- 'BRRO'
-basinSelection <- "James-Middle"#'James-Upper'#"Roanoke"#"Roanoke"#'James-Upper'#
-HUC6Selection <- "JM01"#'JM16'#'RU09'#'RL12'#
+basinSelection <- 'James-Upper'#"James-Middle"##"Roanoke"#"Roanoke"#'James-Upper'#
+HUC6Selection <- "JU11"#"JM01"#'JM16'#'RU09'#'RL12'#
 
 
 conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%

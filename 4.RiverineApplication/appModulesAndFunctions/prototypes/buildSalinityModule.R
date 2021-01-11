@@ -1,4 +1,4 @@
-source('appTestingData.R')
+#source('appTestingData.R')
 
 
 
@@ -47,12 +47,12 @@ salinityPlotlySingleStation <- function(input,output,session, AUdata, stationSel
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, FDT_SALINITY, RMK_FDT_SALINITY)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, FDT_SALINITY, RMK_FDT_SALINITY, LEVEL_FDT_SALINITY)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
                   selection = 'none') %>%
-      formatStyle(c('FDT_SALINITY','RMK_FDT_SALINITY'), 'RMK_FDT_SALINITY', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
+      formatStyle(c('FDT_SALINITY','RMK_FDT_SALINITY', 'LEVEL_FDT_SALINITY'), 'LEVEL_FDT_SALINITY', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
   output$plotly <- renderPlotly({

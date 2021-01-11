@@ -1,4 +1,5 @@
 
+
 ClPlotlySingleStationUI <- function(id){
   ns <- NS(id)
   tagList(
@@ -37,8 +38,8 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   oneStation <- reactive({
     req(ns(input$oneStationSelection))
     filter(AUdata(),FDT_STA_ID %in% input$oneStationSelection) %>%
-      filter(!is.na(NITRATE)) %>%
-      mutate(`Parameter Rounded to WQS Format` = round(CHLORIDE, digits = 0),
+      filter(!is.na(CHLORIDE_mg_L)) %>%
+      mutate(`Parameter Rounded to WQS Format` = round(CHLORIDE_mg_L, digits = 0),
              PWSlimit = 250)})
   
   # Option to change WQS used for modal
@@ -65,12 +66,12 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, CHLORIDE, RMK_CHLORIDE)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, CHLORIDE_mg_L, RMK_CHLORIDE, LEVEL_CHLORIDE)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
                   selection = 'none') %>%
-      formatStyle(c('CHLORIDE','RMK_CHLORIDE'), 'RMK_CHLORIDE', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
+      formatStyle(c('CHLORIDE_mg_L','RMK_CHLORIDE', 'LEVEL_CHLORIDE'), 'LEVEL_CHLORIDE', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
   output$plotly <- renderPlotly({
@@ -86,7 +87,7 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
                               PWSlimit = c(250, 250)))
     }
     
-    maxheight <- ifelse(max(dat$CHLORIDE, na.rm=T) < 50, 55, max(dat$CHLORIDE, na.rm=T)* 1.2)
+    maxheight <- ifelse(max(dat$CHLORIDE_mg_L, na.rm=T) < 50, 55, max(dat$CHLORIDE_mg_L, na.rm=T)* 1.2)
     
     if(input$displayBSAcolors == TRUE){
       box1 <- data.frame(SampleDate = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(50, maxheight, maxheight, 50))
@@ -106,11 +107,11 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
                        hoverinfo="text", name =paste('No Probability of Stress to Aquatic Life')) %>%
           add_lines(data=dat, x=~SampleDate,y=~PWSlimit, mode='line', line = list(color = 'black'),
                     hoverinfo = "text", text= "PWS Criteria (250 mg/L)", name="PWS Criteria (250 mg/L)") %>%
-          add_markers(data=dat, x= ~SampleDate, y= ~CHLORIDE,mode = 'scatter', name="Dissolved Chloride (mg/L)",marker = list(color= '#535559'),
+          add_markers(data=dat, x= ~SampleDate, y= ~CHLORIDE_mg_L,mode = 'scatter', name="Dissolved Chloride (mg/L)",marker = list(color= '#535559'),
                       hoverinfo="text",text=~paste(sep="<br>",
                                                    paste("Date: ",SampleDate),
                                                    paste("Depth: ",FDT_DEPTH, "m"),
-                                                   paste("Dissolved Chloride: ",CHLORIDE,"mg/L")))%>%
+                                                   paste("Dissolved Chloride: ",CHLORIDE_mg_L,"mg/L")))%>%
           layout(showlegend=FALSE,
                  yaxis=list(title="Dissolved Chloride (mg/L)"),
                  xaxis=list(title="Sample Date",tickfont = list(size = 10)))
@@ -124,11 +125,11 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
                        hoverinfo="text", name =paste('Low Probability of Stress to Aquatic Life')) %>%
           add_polygons(data = box4, x = ~x, y = ~y, fillcolor = "#0072B2",opacity=0.6, line = list(width = 0),
                        hoverinfo="text", name =paste('No Probability of Stress to Aquatic Life')) %>%
-          add_markers(data=dat, x= ~SampleDate, y= ~CHLORIDE, mode = 'scatter', name="Dissolved Chloride (mg/L)",marker = list(color= '#535559'),
+          add_markers(data=dat, x= ~SampleDate, y= ~CHLORIDE_mg_L, mode = 'scatter', name="Dissolved Chloride (mg/L)",marker = list(color= '#535559'),
                       hoverinfo="text",text=~paste(sep="<br>",
                                                    paste("Date: ",SampleDate),
                                                    paste("Depth: ",FDT_DEPTH, "m"),
-                                                   paste("Dissolved Chloride: ",CHLORIDE,"mg/L")))%>%
+                                                   paste("Dissolved Chloride: ",CHLORIDE_mg_L,"mg/L")))%>%
           layout(showlegend=FALSE,
                  yaxis=list(title="Dissolved Chloride (mg/L)"),
                  xaxis=list(title="Sample Date",tickfont = list(size = 10)))
@@ -139,21 +140,21 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
         plot_ly(data=dat)%>%
           add_lines(data=dat, x=~SampleDate,y=~PWSlimit, mode='line', line = list(color = 'black'),
                     hoverinfo = "text", text= "PWS Criteria (250 mg/L)", name="PWS Criteria (250 mg/L)") %>%
-          add_markers(data=dat, x= ~SampleDate, y= ~CHLORIDE,mode = 'scatter', name="Dissolved Chloride (mg/L)",marker = list(color= '#535559'),
+          add_markers(data=dat, x= ~SampleDate, y= ~CHLORIDE_mg_L,mode = 'scatter', name="Dissolved Chloride (mg/L)",marker = list(color= '#535559'),
                       hoverinfo="text",text=~paste(sep="<br>",
                                                    paste("Date: ",SampleDate),
                                                    paste("Depth: ",FDT_DEPTH, "m"),
-                                                   paste("Dissolved Chloride: ",CHLORIDE,"mg/L")))%>%
+                                                   paste("Dissolved Chloride: ",CHLORIDE_mg_L,"mg/L")))%>%
           layout(showlegend=FALSE,
                  yaxis=list(title="Dissolved Chloride (mg/L)"),
                  xaxis=list(title="Sample Date",tickfont = list(size = 10)))
       } else {
         plot_ly(data=dat)%>%
-          add_markers(data=dat, x= ~SampleDate, y= ~CHLORIDE,mode = 'scatter', name="Dissolved Chloride (mg/L)",marker = list(color= '#535559'),
+          add_markers(data=dat, x= ~SampleDate, y= ~CHLORIDE_mg_L,mode = 'scatter', name="Dissolved Chloride (mg/L)",marker = list(color= '#535559'),
                       hoverinfo="text",text=~paste(sep="<br>",
                                                    paste("Date: ",SampleDate),
                                                    paste("Depth: ",FDT_DEPTH, "m"),
-                                                   paste("Dissolved Chloride: ",CHLORIDE,"mg/L")))%>%
+                                                   paste("Dissolved Chloride: ",CHLORIDE_mg_L,"mg/L")))%>%
           layout(showlegend=FALSE,
                  yaxis=list(title="Dissolved Chloride (mg/L)"),
                  xaxis=list(title="Sample Date",tickfont = list(size = 10)))
@@ -166,7 +167,7 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
     req(oneStation())
     if(input$changeWQS == TRUE){
       z <- filter(oneStation(), `Parameter Rounded to WQS Format` > PWSlimit) %>%
-        dplyr::select(FDT_DATE_TIME, CHLORIDE, RMK_CHLORIDE, Criteria = PWSlimit, `Parameter Rounded to WQS Format`) 
+        dplyr::select(FDT_DATE_TIME, CHLORIDE_mg_L, LEVEL_CHLORIDE, Criteria = PWSlimit, `Parameter Rounded to WQS Format`) 
     } else { z <- NULL}
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
               selection = 'none') })
@@ -175,10 +176,10 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   output$stationExceedanceRate <- renderDataTable({
     req(input$oneStationSelection, oneStation())
     if(input$changeWQS == TRUE){
-      chloride <- dplyr::select(oneStation(), FDT_DATE_TIME, FDT_DEPTH, CHLORIDE, RMK_CHLORIDE) %>%
-        filter(!(RMK_CHLORIDE %in% c('Level II', 'Level I'))) %>% # get lower levels out
-        filter(!is.na(CHLORIDE)) %>% #get rid of NA's
-        mutate(`Parameter Rounded to WQS Format` = round(CHLORIDE, digits = 0),  # round to WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
+      chloride <- dplyr::select(oneStation(), FDT_DATE_TIME, FDT_DEPTH, CHLORIDE_mg_L, LEVEL_CHLORIDE) %>%
+        filter(!(LEVEL_CHLORIDE %in% c('Level II', 'Level I'))) %>% # get lower levels out
+        filter(!is.na(CHLORIDE_mg_L)) %>% #get rid of NA's
+        mutate(`Parameter Rounded to WQS Format` = round(CHLORIDE_mg_L, digits = 0),  # round to WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
                limit = 250) %>%
         rename(parameter = !!names(.[5])) %>% # rename columns to make functions easier to apply
         mutate(exceeds = ifelse(parameter > limit, T, F)) # Identify where above NH3 WQS limit

@@ -46,12 +46,12 @@ SpCondPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, FDT_SPECIFIC_CONDUCTANCE, RMK_FDT_SPECIFIC_CONDUCTANCE)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, FDT_SPECIFIC_CONDUCTANCE, RMK_FDT_SPECIFIC_CONDUCTANCE, LEVEL_FDT_SPECIFIC_CONDUCTANCE)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
                   selection = 'none') %>%
-      formatStyle(c('FDT_SPECIFIC_CONDUCTANCE','RMK_FDT_SPECIFIC_CONDUCTANCE'), 'RMK_FDT_SPECIFIC_CONDUCTANCE', 
+      formatStyle(c('FDT_SPECIFIC_CONDUCTANCE','RMK_FDT_SPECIFIC_CONDUCTANCE','LEVEL_FDT_SPECIFIC_CONDUCTANCE'), 'LEVEL_FDT_SPECIFIC_CONDUCTANCE', 
                   backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
@@ -65,11 +65,11 @@ SpCondPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
     if(nrow(dat) == 1){
       print('yes')
       dat <- bind_rows(dat,
-                       tibble(SampleDate = c(dat$SampleDate- days(5), dat$SampleDate + days(5)),
-                              PWSlimit = c(10, 10)))
+                       tibble(SampleDate = c(dat$SampleDate- days(5), dat$SampleDate + days(5))))
     }
     
     maxheight <- ifelse(max(dat$FDT_SPECIFIC_CONDUCTANCE, na.rm=T) < 500, 600, max(dat$FDT_SPECIFIC_CONDUCTANCE, na.rm=T)* 1.2)
+    
     
     if(input$displayBSAcolors == TRUE){
       box1 <- data.frame(SampleDate = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(500, maxheight, maxheight, 500))
@@ -110,3 +110,5 @@ SpCondPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
   })
   
 }
+
+

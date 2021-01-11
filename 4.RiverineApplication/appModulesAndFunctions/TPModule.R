@@ -11,7 +11,9 @@ TPPlotlySingleStationUI <- function(id){
       helpText('All data presented in the interactive plot is raw data. Rounding rules are appropriately applied to the 
                assessment functions utilized by the application.'),
       plotlyOutput(ns('plotly')) ,
-      br(), br(),br()
+      br(), br(), br()
+      
+      
       # TP 0.2 limit no longer used after 12/21/2020 email with Tish/Amanda
       #h5('Total Phosphorus exceedances above 0.2 mg/L for the ',span(strong('selected site')),' are highlighted below to highlight
       #   potenial observed effects for Aquatic Life Use.'),
@@ -37,7 +39,7 @@ TPPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   oneStation <- reactive({
     req(ns(input$oneStationSelection))
     filter(AUdata(),FDT_STA_ID %in% input$oneStationSelection) %>%
-      filter(!is.na(PHOSPHORUS))})
+      filter(!is.na(PHOSPHORUS_mg_L))})
   
   # Button to visualize modal table of available parameter data
   observeEvent(input$reviewData,{
@@ -54,12 +56,12 @@ TPPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, PHOSPHORUS, RMK_PHOSPHORUS)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, PHOSPHORUS_mg_L, RMK_PHOSPHORUS, LEVEL_PHOSPHORUS)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
                   selection = 'none') %>%
-      formatStyle(c('PHOSPHORUS','RMK_PHOSPHORUS'), 'RMK_PHOSPHORUS', 
+      formatStyle(c('PHOSPHORUS_mg_L','RMK_PHOSPHORUS', 'LEVEL_PHOSPHORUS'), 'LEVEL_PHOSPHORUS', 
                   backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
@@ -75,7 +77,7 @@ TPPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
                        tibble(SampleDate = c(dat$SampleDate- days(5), dat$SampleDate + days(5))))
     }
     
-    maxheight <- ifelse(max(dat$PHOSPHORUS, na.rm=T) < 0.1, 0.12, max(dat$PHOSPHORUS, na.rm=T)* 1.2)
+    maxheight <- ifelse(max(dat$PHOSPHORUS_mg_L, na.rm=T) < 0.1, 0.12, max(dat$PHOSPHORUS_mg_L, na.rm=T)* 1.2)
     
     if(input$displayBSAcolors == TRUE){
       box1 <- data.frame(SampleDate = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(0.1, maxheight, maxheight, 0.1))
@@ -92,27 +94,28 @@ TPPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
                      hoverinfo="text", name =paste('Low Probability of Stress to Aquatic Life')) %>%
         add_polygons(data = box4, x = ~x, y = ~y, fillcolor = "#0072B2",opacity=0.6, line = list(width = 0),
                      hoverinfo="text", name =paste('No Probability of Stress to Aquatic Life')) %>%
-        add_markers(data=dat, x= ~SampleDate, y= ~PHOSPHORUS,mode = 'scatter', name="Total Phosphorus (mg/L)",marker = list(color= '#535559'),
+        add_markers(data=dat, x= ~SampleDate, y= ~PHOSPHORUS_mg_L,mode = 'scatter', name="Total Phosphorus (mg/L)",marker = list(color= '#535559'),
                     hoverinfo="text",text=~paste(sep="<br>",
                                                  paste("Date: ",SampleDate),
                                                  paste("Depth: ",FDT_DEPTH, "m"),
-                                                 paste("Total Phosphorus: ",PHOSPHORUS,"mg/L")))%>%
+                                                 paste("Total Phosphorus: ",PHOSPHORUS_mg_L,"mg/L")))%>%
         layout(showlegend=FALSE,
                yaxis=list(title="Total Phosphorus (mg/L)"),
                xaxis=list(title="Sample Date",tickfont = list(size = 10)))
     } else {
       plot_ly(data=dat)%>%
-        add_markers(data=dat, x= ~SampleDate, y= ~PHOSPHORUS,mode = 'scatter', name="Total Phosphorus (mg/L)",marker = list(color= '#535559'),
+        add_markers(data=dat, x= ~SampleDate, y= ~PHOSPHORUS_mg_L,mode = 'scatter', name="Total Phosphorus (mg/L)",marker = list(color= '#535559'),
                     hoverinfo="text",text=~paste(sep="<br>",
                                                  paste("Date: ",SampleDate),
                                                  paste("Depth: ",FDT_DEPTH, "m"),
-                                                 paste("Total Phosphorus: ",PHOSPHORUS,"mg/L")))%>%
+                                                 paste("Total Phosphorus: ",PHOSPHORUS_mg_L,"mg/L")))%>%
         layout(showlegend=FALSE,
                yaxis=list(title="Total Phosphorus (mg/L)"),
                xaxis=list(title="Sample Date",tickfont = list(size = 10)))
     }
     
   })
+  
   # TP 0.2 limit no longer used after 12/21/2020 email with Tish/Amanda
   #output$rangeTableSingleSite <- renderDataTable({
   #  req(oneStation())

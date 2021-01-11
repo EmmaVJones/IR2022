@@ -1,4 +1,4 @@
-source('appTestingData.R')
+#source('appTestingData.R')
 
 
 
@@ -95,7 +95,7 @@ AmmoniaPlotlySingleStation <- function(input,output,session, AUdata, stationSele
   oneStation <- reactive({
     req(ns(input$oneStationSelection))
     filter(AUdata(), FDT_STA_ID %in% input$oneStationSelection) %>%
-      filter(!is.na(AMMONIA))})
+      filter(!is.na(AMMONIA_mg_L))})
   
   output$optionsUI_ <- renderUI({req(nrow(oneStation()) > 0)
     defaultTrout <- ifelse(unique(oneStation()$CLASS) %in% c('V','VI'), TRUE, FALSE)
@@ -126,12 +126,12 @@ AmmoniaPlotlySingleStation <- function(input,output,session, AUdata, stationSele
     # modal parameter data
     output$parameterData <- DT::renderDataTable({
       req(oneStation())
-      parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, AMMONIA, RMK_AMMONIA)
+      parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, AMMONIA_mg_L, RMK_AMMONIA, LEVEL_AMMONIA)
       
       DT::datatable(parameterFilter, rownames = FALSE, 
                     options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
                     selection = 'none') %>%
-        formatStyle(c('AMMONIA','RMK_AMMONIA'), 'RMK_AMMONIA', 
+        formatStyle(c('AMMONIA_mg_L','RMK_AMMONIA', 'LEVEL_AMMONIA'), 'LEVEL_AMMONIA', 
                     backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
     })
   
@@ -147,11 +147,11 @@ AmmoniaPlotlySingleStation <- function(input,output,session, AUdata, stationSele
           #add_polygons(x = ~SampleDate, y = ~y, data = box1, fillcolor = "#B0B3B7",opacity=0.6, line = list(width = 0),
           #             hoverinfo="text", name =paste('Most recent three years of data in assessment window')) %>%
           
-          add_markers(data=dat, x= ~SampleDate, y= ~AMMONIA,mode = 'scatter', name="Ammonia (mg/L as N)", marker = list(color= ~over),#list(color = '#D11814'),#for testing
+          add_markers(data=dat, x= ~SampleDate, y= ~AMMONIA_mg_L,mode = 'scatter', name="Ammonia (mg/L as N)", marker = list(color= ~over),#list(color = '#D11814'),#for testing
                       hoverinfo="text",text=~paste(sep="<br>",
                                                    paste("Date: ",SampleDate),
                                                    #paste("Depth: ",FDT_DEPTH, "m"),
-                                                   paste("Ammonia: ", AMMONIA,"mg/L as N"),
+                                                   paste("Ammonia: ", AMMONIA_mg_L,"mg/L as N"),
                                                    paste('Acute Ammonia Limit: ',format(acuteNH3limit, digits=3), "mg/L as N"),
                                                    paste('Temperature: ', FDT_TEMP_CELCIUS, '(Celsius)'),
                                                    paste('pH: ', FDT_FIELD_PH, '(unitless)')))%>%
@@ -166,7 +166,7 @@ AmmoniaPlotlySingleStation <- function(input,output,session, AUdata, stationSele
   output$rangeTableSingleSite <- renderDataTable({
     req(nrow(oneStation()) > 0)
     z <- filter(oneStationAnalysis(), acuteExceedance == TRUE) %>%
-      dplyr::select(FDT_DATE_TIME:FDT_FIELD_PH, 'AMMONIA Rounded to WQS Format' = AMMONIA, acuteNH3limit)
+      dplyr::select(FDT_DATE_TIME:FDT_FIELD_PH, 'AMMONIA Rounded to WQS Format' = AMMONIA_mg_L, acuteNH3limit)
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t'),
               selection = 'none') })
   
@@ -228,10 +228,10 @@ AmmoniaPlotlySingleStation <- function(input,output,session, AUdata, stationSele
     
     
     plot_ly(data=windowData()) %>%
-      add_markers(x= ~`Date Time`, y= ~AMMONIA, mode = 'scatter', name="Ammonia (mg/L as N)", marker = list(color= '#535559'),
+      add_markers(x= ~`Date Time`, y= ~AMMONIA_mg_L, mode = 'scatter', name="Ammonia (mg/L as N)", marker = list(color= '#535559'),
                   hoverinfo="text",text=~paste(sep="<br>",
                                                paste("Date: ",`Date Time`),
-                                               paste("Ammonia: ",AMMONIA,"mg/L as N"))) %>%
+                                               paste("Ammonia: ",AMMONIA_mg_L,"mg/L as N"))) %>%
       add_lines(data=windowData(), x=~`Date Time`, y=~`30dayAmmoniaAvg`, mode='line', line = list(color = 'orange', dash= 'dash'),
                 hoverinfo = "text", text= ~paste("30 day Window Ammonia Average: ", `30dayAmmoniaAvg`," mg/L as N", sep=''), 
                 name="30 Day Window Ammonia Average") %>%
@@ -292,10 +292,10 @@ AmmoniaPlotlySingleStation <- function(input,output,session, AUdata, stationSele
     req(fourDayWindowData())
     
     plot_ly(data=fourDayWindowData()) %>%
-      add_markers(x= ~`Date Time`, y= ~AMMONIA, mode = 'scatter', name="Ammonia (mg/L as N)", marker = list(color= '#535559'),
+      add_markers(x= ~`Date Time`, y= ~AMMONIA_mg_L, mode = 'scatter', name="Ammonia (mg/L as N)", marker = list(color= '#535559'),
                   hoverinfo="text",text=~paste(sep="<br>",
                                                paste("Date: ",`Date Time`),
-                                               paste("Ammonia: ",AMMONIA,"mg/L as N"))) %>%
+                                               paste("Ammonia: ",AMMONIA_mg_L,"mg/L as N"))) %>%
       add_lines(data=fourDayWindowData(), x=~`Date Time`, y=~`fourDayAmmoniaAvg`, mode='line', line = list(color = 'orange', dash= 'dash'),
                 hoverinfo = "text", text= ~paste("4 day Window Ammonia Average: ", `fourDayAmmoniaAvg`," mg/L as N", sep=''), 
                 name="4 Day Window Ammonia Average") %>%

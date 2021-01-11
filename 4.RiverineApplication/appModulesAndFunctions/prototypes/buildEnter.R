@@ -1,4 +1,4 @@
-source('appTestingData.R')
+#source('appTestingData.R')
   
 EnteroPlotlySingleStationUI <- function(id){
   ns <- NS(id)
@@ -106,11 +106,11 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
     req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, ENTEROCOCCI, RMK_ENTEROCOCCI)
+    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, ENTEROCOCCI, RMK_ENTEROCOCCI, LEVEL_ENTEROCOCCI)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'), selection = 'none')   %>%
-      formatStyle(c('ENTEROCOCCI','RMK_ENTEROCOCCI'), 'RMK_ENTEROCOCCI', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
+      formatStyle(c('ENTEROCOCCI','RMK_ENTEROCOCCI', 'LEVEL_ENTEROCOCCI'), 'LEVEL_ENTEROCOCCI', backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
   output$plotly <- renderPlotly({
@@ -181,7 +181,7 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
   
   output$oldStdTableSingleSite <- DT::renderDataTable({req(oneStation())
     #get rid of citizen data
-    z1 <- filter(oneStation(), !(RMK_ENTEROCOCCI %in% c('Level II', 'Level I')))
+    z1 <- filter(oneStation(), !(LEVEL_ENTEROCOCCI %in% c('Level II', 'Level I')))
     if(nrow(z1) > 1){
       z <- bacteria_Assessment_OLD(z1,  'ENTEROCOCCI', 35, 104)
       if(nrow(z) > 0 ){
@@ -194,7 +194,7 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
   
   output$rawData <- DT::renderDataTable({
     req(oneStation())
-    z <- dplyr::select(oneStation(), FDT_STA_ID, FDT_DATE_TIME, ENTEROCOCCI, RMK_ENTEROCOCCI) %>% 
+    z <- dplyr::select(oneStation(), FDT_STA_ID, FDT_DATE_TIME, ENTEROCOCCI, RMK_ENTEROCOCCI, LEVEL_ENTEROCOCCI) %>% 
       mutate(FDT_DATE_TIME = as.Date(FDT_DATE_TIME, format = '%Y-%m-%D %H:%M:S'))
     DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "400px", dom='ti'), 
                   selection = 'single')    })
@@ -347,7 +347,7 @@ server <- function(input,output,session){
   
   stationSelected <- reactive({input$stationSelection})
   enter <- reactive({req(stationData())
-    bacteriaAssessmentDecision(stationData(), 'ENTEROCOCCI', 'RMK_ENTEROCOCCI', 10, 130, 35)})
+    bacteriaAssessmentDecision(stationData(), 'ENTEROCOCCI', 'LEVEL_ENTEROCOCCI', 10, 130, 35)})
   
   callModule(EnteroPlotlySingleStation,'Entero', AUData, stationSelected, enter)#siteData$ecoli)
   
