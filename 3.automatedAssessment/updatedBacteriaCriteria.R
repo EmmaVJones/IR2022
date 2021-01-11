@@ -9,21 +9,22 @@
 #  left_join(stationTable, by = c('FDT_STA_ID' = 'STATION_ID'))
 
 # add some high frequency data
-#stationData <- bind_rows(stationData,
-#                         data.frame(FDT_STA_ID = c('2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61', 
+# stationData <- bind_rows(stationData,
+#                         data.frame(FDT_STA_ID = c('2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61',
 #                                                  '2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61', '2-JKS023.61'),
 #                           FDT_DATE_TIME= as.POSIXct(c('2019-02-12 10:00:00', '2019-02-13 10:00:00', '2019-02-14 10:00:00', '2019-02-15 10:00:00', '2019-02-16 10:00:00',
 #                                           '2019-02-17 10:00:00', '2019-02-18 10:00:00', '2019-02-19 10:00:00', '2019-02-20 10:00:00', '2019-02-21 10:00:00',
 #                                           '2019-02-22 10:00:00','2019-02-23 10:00:00','2019-02-24 10:00:00')),
 #                          ECOLI = c(22, 33, 44, 55, 66, 77, 88, 99, 100, 800, 450, 400, 430),
-#                          RMK_ECOLI = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA)))
+#                          LEVEL_ECOLI = c('Level II', 'Level II', 'Level II', 'Level I', 'Level III', NA, NA, NA, NA, NA, NA, NA, NA)))
+#                          #LEVEL_ECOLI = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA)))
 
 
 #x <- stationData
 #bacteriaField <- 'ECOLI' #
 ##  'ENTEROCOCCI'
-#bacteriaRemark <- 'RMK_ECOLI' #  
-##  'RMK_ENTEROCOCCI'
+#bacteriaRemark <- 'LEVEL_ECOLI' #  
+##  'LEVEL_ENTEROCOCCI'
 #sampleRequirement <- 10
 #STV <- 410 #
 ##130
@@ -54,7 +55,8 @@ bacteriaExceedances_NEW <- function(x, # input dataframe with bacteria data
   
   # Data reorg to enable both types of bacteria assessment from a single function
   x2 <- dplyr::select(x, FDT_STA_ID, FDT_DATE_TIME, !! bacteriaField, !! bacteriaRemark) %>%
-    rename(Value = bacteriaField) %>%
+    rename(Value = bacteriaField, LEVEL_Value = bacteriaRemark) %>%
+    filter(! LEVEL_Value %in% c('Level II', 'Level I')) %>% # get lower levels out
     filter(!is.na(Value))
   
   if(nrow(x2) > 0){
@@ -123,7 +125,7 @@ bacteriaExceedances_NEW <- function(x, # input dataframe with bacteria data
   return(out) 
 }
 
-#y <- bacteriaExceedances_NEW(stationData, 'ECOLI', 'RMK_ECOLI', 10, 410, 126)
+#y <- bacteriaExceedances_NEW(stationData, 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126)
 
 
 
@@ -300,9 +302,9 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
   }
 
 # To get just info for station table  
-#xxx <- bacteriaAssessmentDecision(stationData, 'ECOLI', 'RMK_ECOLI', 10, 410, 126) %>%
+#xxx <- bacteriaAssessmentDecision(stationData, 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126) %>%
 #  dplyr::select(StationID:ECOLI_STAT)
-#xxx <- bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'RMK_ENTEROCOCCI', 10, 130, 35) %>%
+#xxx <- bacteriaAssessmentDecision(stationData, 'ENTEROCOCCI', 'LEVEL_ENTEROCOCCI', 10, 130, 35) %>%
 #  dplyr::select(StationID:ENTER_STAT)
 
 
@@ -313,15 +315,16 @@ bacteriaAssessmentDecisionClass <- function(x){ # input dataframe with bacteria 
                                             
   if(unique(x$CLASS) %in% c('I', 'II')){
     return(
-    bacteriaAssessmentDecision(x, 'ENTEROCOCCI', 'RMK_ENTEROCOCCI', 10, 130, 35) %>%
+    bacteriaAssessmentDecision(x, 'ENTEROCOCCI', 'LEVEL_ENTEROCOCCI', 10, 130, 35) %>%
       mutate(ECOLI_EXC = as.numeric(NA), ECOLI_SAMP = as.numeric(NA), ECOLI_GM_EXC = as.numeric(NA), ECOLI_GM_SAMP = as.numeric(NA), 
              ECOLI_STAT = as.character(NA), ECOLI_STATECOLI_VERBOSE = as.character(NA)) %>%
       dplyr::select(StationID, ECOLI_EXC, ECOLI_SAMP, ECOLI_GM_EXC, ECOLI_GM_SAMP, ECOLI_STAT, ECOLI_STATECOLI_VERBOSE, ENTER_EXC, 
                     ENTER_SAMP, ENTER_GM_EXC, ENTER_GM_SAMP, ENTER_STAT, ENTER_STATENTER_VERBOSE) )
   } else {
     return(
-      bacteriaAssessmentDecision(x, 'ECOLI', 'RMK_ECOLI', 10, 410, 126) %>%
+      bacteriaAssessmentDecision(x, 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126) %>%
       dplyr::select(StationID:ECOLI_STATECOLI_VERBOSE) %>% 
       mutate(ENTER_EXC = as.numeric(NA), ENTER_SAMP = as.numeric(NA), ENTER_GM_EXC = as.numeric(NA), ENTER_GM_SAMP = as.numeric(NA), 
              ENTER_STAT = as.character(NA), ENTER_STATENTER_VERBOSE = as.character(NA)) ) }
 }
+#bacteriaAssessmentDecisionClass(x)

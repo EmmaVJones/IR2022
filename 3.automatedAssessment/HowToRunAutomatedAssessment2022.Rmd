@@ -163,6 +163,9 @@ stationTableResults <- stationsTemplate
 # save ammonia results (based on default assessment information) for use in app to speed rendering
 ammoniaAnalysis <- tibble()
 
+# For testing citmon level info
+#conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect")
+#conventionals$FDT_STA_ID[1:53] <- '1AACO018.48'
 
 # time it:
 startTime <- Sys.time()
@@ -231,12 +234,12 @@ for(i in 1:nrow(stationTable)){
     
       # Nutrient: TP (lakes have real standards; riverine no longer uses 0.2 mg/L as an observed effect for Aquatic life use)
       # NUT_TP_EXC, NUT_TP_SAMP, NUT_TP_STAT
-      countNutrients(stationData, PHOSPHORUS, RMK_PHOSPHORUS, NA) %>% quickStats('NUT_TP') %>% 
+      countNutrients(stationData, PHOSPHORUS_mg_L, LEVEL_PHOSPHORUS, NA) %>% quickStats('NUT_TP') %>% 
         mutate(NUT_TP_STAT = ifelse(NUT_TP_STAT != "S", "Review", NA)), # flag OE but don't show a real assessment decision
     
       # Nutrients: Chl a (lakes)
       #NUT_CHLA_EXC, NUT_CHLA_SAMP, NUT_CHLA_STAT
-      countNutrients(stationData, CHLOROPHYLL, RMK_CHLOROPHYLL, NA) %>% quickStats('NUT_CHLA') %>%
+      countNutrients(stationData, CHLOROPHYLL_A_ug_L, LEVEL_CHLOROPHYLL_A, NA) %>% quickStats('NUT_CHLA') %>%
         mutate(NUT_CHLA_STAT = NA)) %>% # don't show a real assessment decision
     
       # COMMENTS

@@ -47,7 +47,8 @@ changeDEQRegionName <- function(stuff){
 # Lake name standardization
 lakeNameStandardization <- function(x){
   x %>%
-    mutate(Lake_Name = case_when(WATER_NAME %in% c('Smith Lake (Aquia Reservoir)') ~ 'Aquia Reservoir (Smith Lake)',
+    mutate(Lake_Name = case_when(WATER_NAME %in% c('Dan River','Buffalo Creek','Bluestone Creek') ~ 'Kerr Reservoir',
+                                 WATER_NAME %in% c('Smith Lake (Aquia Reservoir)') ~ 'Aquia Reservoir (Smith Lake)',
                                  WATER_NAME %in% c('Claytor Lake (New River)', 'Claytor Lake (Peak Creek)') ~ 'Claytor Lake',
                                  WATER_NAME %in% c('Fairystone Lake (Goblin Town Creek)') ~ 'Fairystone Lake', 
                                  WATER_NAME %in% c('Harwoods Mill Reservoir (PWS)') ~ 'Harwoods Mill Reservoir',
@@ -150,8 +151,8 @@ stationTableComments <- function(stations, previousStationTable,
 
 #Max Temperature Exceedance Function
 tempExceedances <- function(x){
-  dplyr::select(x,FDT_DATE_TIME,FDT_TEMP_CELCIUS, RMK_FDT_TEMP_CELCIUS, `Max Temperature (C)`)%>% # Just get relevant columns, 
-    filter(!(RMK_FDT_TEMP_CELCIUS %in% c('Level II', 'Level I'))) %>% # get lower levels out
+  dplyr::select(x,FDT_DATE_TIME,FDT_TEMP_CELCIUS, LEVEL_FDT_TEMP_CELCIUS, `Max Temperature (C)`)%>% # Just get relevant columns, 
+    filter(!(LEVEL_FDT_TEMP_CELCIUS %in% c('Level II', 'Level I'))) %>% # get lower levels out
     filter(!is.na(FDT_TEMP_CELCIUS))%>% #get rid of NA's
     rename(parameter = !!names(.[2]), limit = !!names(.[4])) %>% # rename columns to make functions easier to apply
     # Round to Even Rule
@@ -164,9 +165,9 @@ tempExceedances <- function(x){
 
 # Minimum DO Exceedance function
 DOExceedances_Min <- function(x){
-  dplyr::select(x,FDT_DATE_TIME,DO,RMK_DO,`Dissolved Oxygen Min (mg/L)`)%>% # Just get relevant columns, 
-    filter(!(RMK_DO %in% c('Level II', 'Level I'))) %>% # get lower levels out
-    filter(!is.na(DO)) %>% 
+  dplyr::select(x,FDT_DATE_TIME,DO_mg_L,LEVEL_DO,`Dissolved Oxygen Min (mg/L)`)%>% # Just get relevant columns, 
+    filter(!(LEVEL_DO %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    filter(!is.na(DO_mg_L)) %>% 
     rename(parameter = !!names(.[2]), limit = !!names(.[4])) %>% # rename columns to make functions easier to apply
     # Round to Even Rule
     mutate(parameterRound = signif(parameter, digits = 2), # two significant figures based on  https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
@@ -177,16 +178,16 @@ DOExceedances_Min <- function(x){
 
 # Daily Average exceedance function
 DO_Assessment_DailyAvg <- function(x){ 
-  dplyr::select(x,FDT_STA_ID,FDT_DATE_TIME, FDT_DATE_TIME,FDT_DEPTH,DO,RMK_DO,`Dissolved Oxygen Min (mg/L)`,`Dissolved Oxygen Daily Avg (mg/L)`)%>% # Just get relevant columns, 
-    filter(!(RMK_DO %in% c('Level II', 'Level I'))) %>% # get lower levels out
-    filter(!is.na(DO)) %>% #get rid of NA's
+  dplyr::select(x,FDT_STA_ID,FDT_DATE_TIME, FDT_DATE_TIME,FDT_DEPTH,DO_mg_L,LEVEL_DO,`Dissolved Oxygen Min (mg/L)`,`Dissolved Oxygen Daily Avg (mg/L)`)%>% # Just get relevant columns, 
+    filter(!(LEVEL_DO %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    filter(!is.na(DO_mg_L)) %>% #get rid of NA's
     mutate(date = as.Date(FDT_DATE_TIME, format="%m/%d/%Y"), 
            limit = `Dissolved Oxygen Daily Avg (mg/L)`) %>% 
     group_by(date) %>%
     mutate(n_Samples_Daily = n()) %>% # how many samples per day?
     filter(n_Samples_Daily > 1) %>%
     # Daily average with average rounded to even
-    mutate(DO_DailyAverage = signif(mean(DO), digits = 2),  # two significant figures based on  https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
+    mutate(DO_DailyAverage = signif(mean(DO_mg_L), digits = 2),  # two significant figures based on  https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
            exceeds = ifelse(DO_DailyAverage < `Dissolved Oxygen Daily Avg (mg/L)`,T,F)) %>% 
     ungroup() %>% 
     dplyr::select(-c(FDT_DATE_TIME, `Dissolved Oxygen Min (mg/L)`))
@@ -204,8 +205,8 @@ pHSpecialStandardsCorrection <- function(x){
 }
 
 pHExceedances <- function(x){
-  pH <- dplyr::select(x,FDT_DATE_TIME,FDT_DEPTH,FDT_FIELD_PH,RMK_FDT_FIELD_PH,`pH Min`,`pH Max`)%>% # Just get relevant columns, 
-    filter(!(RMK_FDT_FIELD_PH %in% c('Level II', 'Level I'))) %>% # get lower levels out
+  pH <- dplyr::select(x,FDT_DATE_TIME,FDT_DEPTH,FDT_FIELD_PH,LEVEL_FDT_FIELD_PH,`pH Min`,`pH Max`)%>% # Just get relevant columns, 
+    filter(!(LEVEL_FDT_FIELD_PH %in% c('Level II', 'Level I'))) %>% # get lower levels out
     filter(!is.na(FDT_FIELD_PH)) #get rid of NA's
     
   # only run analysis if WQS exist for station
@@ -261,9 +262,9 @@ assessPWS <- function(x, fieldName, commentName, PWSlimit, outputName){
     return(quickStats(parameterData, outputName)) #%>% dplyr::select(-ends_with('STAT')))    
   } }
 
-#assessPWS(x, NITRATE, RMK_NITRATE, 10, 'PWS_Nitrate')
-#assessPWS(x, CHLORIDE, RMK_CHLORIDE, 250, 'PWS_Chloride')
-#assessPWS(x, SULFATE_TOTAL, RMK_SULFATE_TOTAL, 250, 'PWS_Total_Sulfate')
+#assessPWS(x, NITRATE_mg_L, LEVEL_NITRATE, 10, 'PWS_Nitrate')
+#assessPWS(x, CHLORIDE_mg_L, LEVEL_CHLORIDE, 250, 'PWS_Chloride')
+#assessPWS(x, SULFATE_TOTAL_mg_L, LEVEL_SULFATE_TOTAL, 250, 'PWS_Total_Sulfate')
 
 
 # Nutrients pseudo-assessment functions (for Riverine applications)
@@ -280,8 +281,8 @@ countNutrients <- function(x, fieldName, commentName, nutrientLimit){
     mutate(limit = nutrientLimit, 
            exceeds = ifelse(parameter > limit, T, F)) # Identify where above WQS limit
 }
-#countNutrients(x, PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP') # but no longer use 0.2 riverine flag after 12/21/2020 email with Tish/Amanda
-#countNutrients(x, CHLOROPHYLL, RMK_CHLOROPHYLL, NA)  %>% quickStats('NUT_CHLA')
+#countNutrients(x, PHOSPHORUS_mg_L, LEVEL_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP') # but no longer use 0.2 riverine flag after 12/21/2020 email with Tish/Amanda
+#countNutrients(x, CHLOROPHYLL_A_ug_L, LEVEL_CHLOROPHYLL_A, NA)  %>% quickStats('NUT_CHLA')
 
 
 
@@ -329,7 +330,7 @@ fourDayAverageAnalysis <- function(chronicWindowData, chronicWindowResults){
     if(nrow(fourDayWindow) > 1){
       fourDayResultsi <- fourDayWindow %>%
         summarize(WindowStart = min(FDT_DATE_TIME),
-          `fourDayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA, na.rm = T), digits = 2))) %>% # two sigfigs for comparison to chronic criteria
+          `fourDayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA_mg_L, na.rm = T), digits = 2))) %>% # two sigfigs for comparison to chronic criteria
         bind_cols(dplyr::select(chronicWindowResults,`fourDayAvglimit`)) %>%
         mutate(fourDayExceedance = `fourDayAmmoniaAvg` > `fourDayAvglimit`)
       fourDayResults <- bind_rows(fourDayResults, 
@@ -354,10 +355,10 @@ freshwaterNH3limit <- function(x, # dataframe with station data
                                mussels,# T/F condition
                                earlyLife# T/F condition
 ){
-  x <- filter(x, !(RMK_FDT_TEMP_CELCIUS %in% c('Level II', 'Level I')) |
-                !(RMK_FDT_FIELD_PH %in% c('Level II', 'Level I'))) %>% # get lower levels out
-    filter(!is.na(AMMONIA)) %>% #get rid of NA's
-    dplyr::select(FDT_DATE_TIME, FDT_DEPTH, FDT_TEMP_CELCIUS, FDT_FIELD_PH, AMMONIA)
+  x <- filter(x, !(LEVEL_FDT_TEMP_CELCIUS %in% c('Level II', 'Level I')) |
+                !(LEVEL_FDT_FIELD_PH %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    filter(!is.na(AMMONIA_mg_L)) %>% #get rid of NA's
+    dplyr::select(FDT_DATE_TIME, FDT_DEPTH, FDT_TEMP_CELCIUS, FDT_FIELD_PH, AMMONIA_mg_L)
   # If no data, return nothing
   if(nrow(x)==0){return(NULL)}
   
@@ -366,7 +367,7 @@ freshwaterNH3limit <- function(x, # dataframe with station data
     # Acute Criteria
     acute <- x %>%
       rowwise() %>%
-      mutate(ammoniaRound = as.numeric(signif(AMMONIA, digits = 2)),
+      mutate(ammoniaRound = as.numeric(signif(AMMONIA_mg_L, digits = 2)),
              acuteNH3limit = as.numeric(signif(
                min(((0.275 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (39.0 / (1 + 10^(FDT_FIELD_PH - 7.204)))),
                    (0.7249 * ( (0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * (23.12 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS))) )), digits = 2)),
@@ -382,7 +383,7 @@ freshwaterNH3limit <- function(x, # dataframe with station data
       if(nrow(chronicWindowData) > 1){ # need 2 or more data points to run a chronic or 4 day 
         chronicWindowResultsi <- chronicWindowData %>%
           summarise(WindowStart = min(FDT_DATE_TIME),
-                    `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
+                    `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA_mg_L, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
                     TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T), #don't round to even bc more calculations to follow with data
                     pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>% #don't round to even bc more calculations to follow with data
           # Chronic Criteria mussels == T & earlyLife == T
@@ -416,7 +417,7 @@ freshwaterNH3limit <- function(x, # dataframe with station data
     # Acute Criteria
     acute <- x %>%
       rowwise() %>%
-      mutate(ammoniaRound = as.numeric(signif(AMMONIA, digits = 2)),
+      mutate(ammoniaRound = as.numeric(signif(AMMONIA_mg_L, digits = 2)),
              acuteNH3limit = as.numeric(signif(
                min(((0.275 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (39.0 / (1 + 10^(FDT_FIELD_PH - 7.204)))),
                    (0.7249 * ( (0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * (62.15 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS))) )), digits = 2)),
@@ -432,7 +433,7 @@ freshwaterNH3limit <- function(x, # dataframe with station data
       if(nrow(chronicWindowData) > 1){ # need 2 or more data points to run a chronic or 4 day 
       chronicWindowResultsi <- chronicWindowData %>%
         summarise(WindowStart = min(FDT_DATE_TIME),
-                  `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
+                  `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA_mg_L, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
                   TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T), #don't round to even bc more calculations to follow with data
                   pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>% #don't round to even bc more calculations to follow with data
         # Chronic Criteria mussels == F & earlyLife == T
@@ -467,7 +468,7 @@ freshwaterNH3limit <- function(x, # dataframe with station data
     # Acute Criteria
     acute <- x %>%
       rowwise() %>%
-      mutate(ammoniaRound = as.numeric(signif(AMMONIA, digits = 2)),
+      mutate(ammoniaRound = as.numeric(signif(AMMONIA_mg_L, digits = 2)),
              acuteNH3limit = as.numeric(signif(0.7249 * ((0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * min(51.93, (23.12 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)),
              acuteExceedance = ammoniaRound > acuteNH3limit) 
     # Chronic is calculated on 30 day windows, so we need to average temperature and pH within each 30 day window before we can calculate a
@@ -481,7 +482,7 @@ freshwaterNH3limit <- function(x, # dataframe with station data
       if(nrow(chronicWindowData) > 1){ # need 2 or more data points to run a chronic or 4 day 
       chronicWindowResultsi <- chronicWindowData %>%
         summarise(WindowStart = min(FDT_DATE_TIME),
-                  `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
+                  `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA_mg_L, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
                   TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T), #don't round to even bc more calculations to follow with data
                   pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>% #don't round to even bc more calculations to follow with data
         # Chronic Criteria mussels == T & earlyLife == T
@@ -518,7 +519,7 @@ freshwaterNH3limit <- function(x, # dataframe with station data
     # Acute Criteria
     acute <- x %>%
       rowwise() %>%
-      mutate(ammoniaRound = as.numeric(signif(AMMONIA, digits = 2)),
+      mutate(ammoniaRound = as.numeric(signif(AMMONIA_mg_L, digits = 2)),
              acuteNH3limit = as.numeric(signif(0.7249 * ((0.0114 / (1 + 10^(7.204 - FDT_FIELD_PH))) + (1.6181 / (1 + 10^(FDT_FIELD_PH - 7.204)))) * min(51.93, (62.15 * 10^(0.036 * (20 - FDT_TEMP_CELCIUS)))), digits = 2)),
              acuteExceedance = ammoniaRound > acuteNH3limit)  
     # Chronic is calculated on 30 day windows, so we need to average temperature and pH within each 30 day window before we can calculate a
@@ -532,7 +533,7 @@ freshwaterNH3limit <- function(x, # dataframe with station data
       if(nrow(chronicWindowData) > 1){ # need 2 or more data points to run a chronic or 4 day 
       chronicWindowResultsi <- chronicWindowData %>%
         summarise(WindowStart = min(FDT_DATE_TIME),
-                  `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
+                  `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA_mg_L, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
                   TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T), #don't round to even bc more calculations to follow with data
                   pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>% #don't round to even bc more calculations to follow with data
         # Chronic Criteria mussels == F & earlyLife == T
