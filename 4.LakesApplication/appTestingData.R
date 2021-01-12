@@ -19,6 +19,18 @@ lakeNutStandards <- read_csv('data/9VAC25-260-187lakeNutrientStandards.csv')
 stationTable1 <- read_csv('userDataToUpload/processedStationData/stationTableResults.csv',
                          col_types = cols(COMMENTS = col_character())) %>%# force to character bc parsing can incorrectly guess logical based on top 1000 rows
   filter_at(vars(starts_with('TYPE')), any_vars(. == 'L')) %>% # keep only lake stations
+  
+  
+  
+  
+  # station table issue needs to be resolved
+  distinct(STATION_ID, .keep_all = T) %>%
+  
+  
+  
+  
+  
+  
   # add WQS information to stations
   left_join(WQSlookup, by = c('STATION_ID'='StationID')) %>%
   mutate(CLASS_BASIN = paste(CLASS,substr(BASIN, 1,1), sep="_")) %>%
@@ -30,7 +42,8 @@ stationTable1 <- read_csv('userDataToUpload/processedStationData/stationTableRes
   left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
               distinct(WQM_STA_ID, .keep_all = TRUE), by = c('STATION_ID' = 'WQM_STA_ID')) %>% # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
   lakeNameStandardization() %>% # standardize lake names
-  left_join(lakeNutStandards, by = c('Lake_Name'))
+  left_join(lakeNutStandards, by = c('Lake_Name')) %>%
+  mutate(lakeStation = TRUE)
 
 
 
@@ -91,7 +104,9 @@ conventionalsLake1 <- filter(conventionals, FDT_STA_ID %in% lake_filter1$STATION
             #WQS_ID:`Max Temperature (C)`), 
             by = c('FDT_STA_ID' = 'STATION_ID')) %>%
   filter(!is.na(ID305B_1)) %>%
-  pHSpecialStandardsCorrection() #correct pH to special standards where necessary
+  pHSpecialStandardsCorrection() %>% #correct pH to special standards where necessary
+  thermoclineDepth() # adds thermocline information and SampleDate
+
 
 AUselectionOptions1 <- unique(dplyr::select(lake_filter1, ID305B_1:ID305B_10) %>% 
          mutate_at(vars(starts_with("ID305B")), as.character) %>%

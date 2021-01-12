@@ -77,6 +77,24 @@ shinyUI(fluidPage(theme="yeti.css",
                                                                      DT::dataTableOutput('stationHistoricalInfo1')),
                                                             tabPanel('2018 Station Table',
                                                                      DT::dataTableOutput('stationHistoricalInfo2'))))),
-                                          hr()#,
+                                          hr(),
+                                          h3('Station Results for Review'),
+                                          helpText('This table outputs the site specific results for direct export to the Station Table. It also serves to highlight
+                                                  where exceedances are present and should be reviewed in the individual parameter visualization tabs below.'),
+                                          h4('Stations Table Results'),
+                                          helpText('Parameters are highlighted
+                                                  in different colors to indicate further review may be necessary. Parameters highlighted in yellow have at least one 
+                                                  violation of a standard. When BENTHIC_STAT is highlighed, it indicates there is benthic data present for that site
+                                                  and the assessor should review that information with the Regional Biologist. Parameters highlighted in red exceed the 10.5% exceedance rate. Both scenarios warrant further
+                                                  investigation and may requre comments in the Station Table and ADB.'),
+                                          h5(strong('If no station table appears, then there is no data within the assessment window for the selected station.'), 
+                                             'Please investigate the Historical Station Information table above for information as to why this station is
+                                             included in the application.'),
+                                          DT::dataTableOutput('stationTableDataSummary'), br(),
+                                          h4('PWS violations'),
+                                          helpText(span("Any PWS violations should noted in a station's COMMENT field of the Stations Table. The table below organizes 
+                                                  PWS information to expedite the comment process.", strong('Note: PWS criteria are only applicable at intake.'))),
+                                          DT::dataTableOutput('PWStable'),
+                                          br(),hr(),br()#,
                                  )
                       )))))

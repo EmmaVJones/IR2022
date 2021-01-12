@@ -43,6 +43,16 @@ shinyServer(function(input, output, session) {
     read_csv('userDataToUpload/processedStationData/stationTableResults.csv',
              col_types = cols(COMMENTS = col_character())) %>%# force to character bc parsing can incorrectly guess logical based on top 1000 rows
       filter_at(vars(starts_with('TYPE')), any_vars(. == 'L')) %>% # keep only lake stations
+      
+      
+      
+      # station table issue needs to be resolved
+      distinct(STATION_ID, .keep_all = T) %>%
+      
+      
+      
+      
+      
       # add WQS information to stations
       left_join(WQSlookup, by = c('STATION_ID'='StationID')) %>%
       mutate(CLASS_BASIN = paste(CLASS,substr(BASIN, 1,1), sep="_")) %>%
@@ -54,7 +64,8 @@ shinyServer(function(input, output, session) {
       left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
                   distinct(WQM_STA_ID, .keep_all = TRUE), by = c('STATION_ID' = 'WQM_STA_ID')) %>% # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
       lakeNameStandardization() %>% # standardize lake names
-      left_join(lakeNutStandards, by = c('Lake_Name'))
+      left_join(lakeNutStandards, by = c('Lake_Name')) %>%
+      mutate(lakeStation = TRUE)
   }) #for testing
   #######################################
   
@@ -143,14 +154,15 @@ shinyServer(function(input, output, session) {
     datatable(z, rownames = FALSE, options= list(pageLength = 1, scrollY = "35px", dom='t'), selection = 'none')})
   
   conventionalsLake <- reactive({ req(lake_filter())
-    filter(conventionals, FDT_STA_ID %in% lake_filter1$STATION_ID) %>%
-    left_join(dplyr::select(stationTable1, STATION_ID:VAHU6,
+    filter(conventionals, FDT_STA_ID %in% lake_filter()$STATION_ID) %>%
+    left_join(dplyr::select(stationTable(), STATION_ID:VAHU6,
                             WQS_ID:`Total Phosphorus (ug/L)`),
               #WQS_ID:`Max Temperature (C)`), 
               by = c('FDT_STA_ID' = 'STATION_ID')) %>%
     filter(!is.na(ID305B_1)) %>%
-    pHSpecialStandardsCorrection() }) #correct pH to special standards where necessary
-  
+    pHSpecialStandardsCorrection() %>% #correct pH to special standards where necessary
+      thermoclineDepth() }) # adds thermocline information and SampleDate
+
   
   output$AUselection_ <- renderUI({req(lake_filter())
     AUselectionOptions <- unique(dplyr::select(lake_filter(), ID305B_1:ID305B_10) %>% 
@@ -219,8 +231,66 @@ shinyServer(function(input, output, session) {
                   selection = 'none')  })
   
   
+  ## Station Table View Section
   
-  output$test <- renderPrint({paste(min(lakeStations()$LONGITUDE), min(lakeStations()$LATITUDE), max(lakeStations()$LONGITUDE), max(lakeStations()$LATITUDE))})
+  # Run longer analyses first
+  ecoli <- reactive({req(stationData())
+    bacteriaAssessmentDecision(stationData(), 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126)})
+  ammoniaAnalysisStation <- reactive({req(stationData())
+    z <- filter(ammoniaAnalysis, StationID %in% unique(stationData()$FDT_STA_ID)) %>%
+      map(1) 
+    z$AmmoniaAnalysis })
+  
+  observe({
+    req(nrow(ecoli()) > 0)# need to tell the app to wait for data to exist in these objects before smashing data together or will bomb out when switching between VAHU6's on the Watershed Selection Page
+    siteData$stationTableOutput <- cbind(StationTableStartingData(stationData()),
+                                         tempExceedances(stationData()) %>% quickStats('TEMP'),
+                                         DOExceedances_Min(stationData()) %>% quickStats('DO'), 
+                                         pHExceedances(stationData()) %>% quickStats('PH'),
+                                         ecoli() %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),
+                                         tibble(ENTER_EXC = NA, ENTER_SAMP = NA, ENTER_SAMP = NA, ENTER_GM_EXC = NA, ENTER_GM_SAMP = NA, ENTER_STAT = NA),
+                                         ammoniaDecision(list(acute = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'acute'),
+                                                              chronic = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'chronic'),
+                                                              fourDay = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'four-day'))) ) %>% #, 
+      
+      #metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
+      #                     dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
+      # metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
+      #                    dplyr::select(ARSENIC:ZINC), 'SED_MET'),
+      
+      #countNutrients(stationData(), PHOSPHORUS_mg_L, LEVEL_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP') %>% 
+      #   mutate(NUT_TP_STAT = ifelse(NUT_TP_STAT != "S", "Review", NA)), # flag OE but don't show a real assessment decision
+      # countNutrients(stationData(), CHLOROPHYLL_A_ug_L, LEVEL_CHLOROPHYLL_A, NA) %>% quickStats('NUT_CHLA') %>%
+      #  mutate(NUT_CHLA_STAT = NA)) %>% # don't show a real assessment decision) %>%
+      mutate(COMMENTS = NA) %>%
+      dplyr::select(-ends_with(c('exceedanceRate','Assessment Decision')))
+  })
+  
+  
+  output$stationTableDataSummary <- DT::renderDataTable({
+    req(stationData()$FDT_STA_ID == input$stationSelection, siteData$stationTableOutput)
+    datatable(siteData$stationTableOutput, extensions = 'Buttons', escape=F, rownames = F, editable = TRUE,
+              options= list(scrollX = TRUE, pageLength = nrow(siteData$stationTableOutput),
+                            # hide certain columns
+                            dom='Bt', buttons=list('copy',
+                                                   list(extend='csv',filename=paste('AssessmentResults_',paste(assessmentCycle,input$stationSelection, collapse = "_"),Sys.Date(),sep='')),
+                                                   list(extend='excel',filename=paste('AssessmentResults_',paste(assessmentCycle,input$stationSelection, collapse = "_"),Sys.Date(),sep='')))),
+              selection = 'none') %>% 
+      formatStyle(c('TEMP_EXC','TEMP_SAMP','TEMP_STAT'), 'TEMP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+      formatStyle(c('DO_EXC','DO_SAMP','DO_STAT'), 'DO_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+      formatStyle(c('PH_EXC','PH_SAMP','PH_STAT'), 'PH_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+      formatStyle(c('ECOLI_EXC','ECOLI_SAMP','ECOLI_GM_EXC','ECOLI_GM_SAMP','ECOLI_STAT'), 'ECOLI_STAT', backgroundColor = styleEqual(c('IM'), c('red'))) %>%
+      formatStyle(c('AMMONIA_EXC','AMMONIA_STAT'), 'AMMONIA_STAT', backgroundColor = styleEqual(c('Review', 'IM'), c('yellow','red')))# %>%
+    #formatStyle(c('WAT_MET_EXC','WAT_MET_STAT'), 'WAT_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+    #formatStyle(c('SED_MET_EXC','SED_MET_STAT'), 'SED_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+    #formatStyle(c('BENTHIC_STAT'), 'BENTHIC_STAT', backgroundColor = styleEqual(c('Review'), c('yellow'))) %>%
+    #formatStyle(c('NUT_TP_EXC','NUT_TP_SAMP'), 'NUT_TP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) 
+    
+    
+  })
+
+  
+  #output$test <- renderPrint({paste(min(lakeStations()$LONGITUDE), min(lakeStations()$LATITUDE), max(lakeStations()$LONGITUDE), max(lakeStations()$LATITUDE))})
   
   
   

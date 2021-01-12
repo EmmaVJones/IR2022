@@ -77,6 +77,13 @@ historicalStationsTable2 <- read_excel('data/tbl_ir_mon_stations2018IRfinal.xlsx
 ```
 
 
+## Bring in lake nutrient standards
+
+```{r lake nutrient standards}
+lakeNutStandards <- read_csv('data/9VAC25-260-187lakeNutrientStandards.csv')
+```
+
+
 
 # Workflow
 
@@ -107,9 +114,11 @@ stationTable <- left_join(stationTable, WQSlookup, by = c('STATION_ID'='StationI
   dplyr::select(-c(CLASS.y,CLASS_BASIN)) %>%
   rename('CLASS' = 'CLASS.x') %>%
   left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
-              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('STATION_ID' = 'WQM_STA_ID'))
+              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('STATION_ID' = 'WQM_STA_ID')) %>%
   # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
-  
+  lakeNameStandardization() %>% # standardize lake names
+  left_join(lakeNutStandards, by = c('Lake_Name'))
+
 
 
 missingWQS <- filter(stationTable, is.na(CLASS))
@@ -178,7 +187,12 @@ for(i in 1:nrow(stationTable)){
   # pull one station data
   stationData <- filter(conventionals, FDT_STA_ID %in% stationTable$STATION_ID[i]) %>%
     left_join(stationTable, by = c('FDT_STA_ID' = 'STATION_ID')) %>%
-    pHSpecialStandardsCorrection() # correct pH to special standards where necessary
+    pHSpecialStandardsCorrection() %>% # correct pH to special standards where necessary
+    # special lake steps
+    {if(stationTable$STATION_ID[i] %in% lakeStations$STATION_ID)
+      mutate(., lakeStation = TRUE) %>%
+        thermoclineDepth() # adds thermocline information and SampleDate
+      else mutate(., lakeStation = FALSE) }
   
   # Previous station table comments
   comments <- stationTableComments(unique(stationData$FDT_STA_ID), stationTable, '2020', historicalStationsTable2, '2018')
@@ -200,6 +214,8 @@ for(i in 1:nrow(stationTable)){
       StationTableStartingData(stationData),
       tempExceedances(stationData) %>% quickStats('TEMP'),
       DOExceedances_Min(stationData) %>% quickStats('DO'), 
+      DO_Assessment_DailyAvg(stationData) %>% quickStats('DO_Daily_Avg'), # run DO daily average status and tuck results into comments later
+      # this will be removed for lake stations later since it does not apply
       pHExceedances(stationData) %>% quickStats('PH'),
       bacteriaAssessmentDecisionClass(stationData),
       
@@ -243,11 +259,13 @@ for(i in 1:nrow(stationTable)){
         mutate(NUT_CHLA_STAT = NA)) %>% # don't show a real assessment decision
     
       # COMMENTS
-      mutate(COMMENTS = paste0('ECOLI Comment: ', ECOLI_STATECOLI_VERBOSE,
+      mutate(COMMENTS = paste0('DO_Daily_Avg_STAT: ', DO_Daily_Avg_STAT, 
+                               ' | ECOLI Comment: ', ECOLI_STATECOLI_VERBOSE,
                                ' | ENTEROCOCCI Comment: ', ENTER_STATENTER_VERBOSE,
                                ' | AMMONIA Comment: ', `Assessment Decision`)) %>%
       left_join(comments, by = 'STATION_ID') %>%
-      dplyr::select(-ends_with(c('exceedanceRate', 'VERBOSE', 'Assessment Decision', 'StationID'))) # to match Bulk Upload template but helpful to keep visible til now for testing
+      dplyr::select(-ends_with(c('exceedanceRate', 'VERBOSE', 'Assessment Decision', 'StationID',
+                                 'DO_Daily_Avg_EXC', 'DO_Daily_Avg_SAMP', 'DO_Daily_Avg_STAT'))) # to match Bulk Upload template but helpful to keep visible til now for testing
   } else {# pull what you can from last cycle and flag as carry over
     results <- filter(stationTable, STATION_ID == stationTable$STATION_ID[i]) %>%
       dplyr::select(STATION_ID:VAHU6, COMMENTS) %>%

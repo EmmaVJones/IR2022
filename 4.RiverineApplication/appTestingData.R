@@ -49,8 +49,9 @@ stationTable <- filter(stationTable, !STATION_ID %in% lakeStations$STATION_ID) %
   dplyr::select(-c(CLASS.y,CLASS_BASIN)) %>%
   rename('CLASS' = 'CLASS.x') %>%
   left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
-              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('STATION_ID' = 'WQM_STA_ID'))
+              distinct(WQM_STA_ID, .keep_all = TRUE), by = c('STATION_ID' = 'WQM_STA_ID')) %>%
 # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
+  mutate(lakeStation = FALSE)
 
 
 

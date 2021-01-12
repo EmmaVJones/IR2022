@@ -148,33 +148,6 @@ stationTableComments <- function(stations, previousStationTable,
 
 
 
-# Calculate daily thermocline depth and designate Epilimnion vs Hypolimnion
-thermoclineDepth <- function(stationData){
-  stationData <- stationData %>%
-    mutate(SampleDate = as.Date(FDT_DATE_TIME)) %>%
-    group_by(FDT_STA_ID, SampleDate) 
-  
-  dailyThermDepth <- dplyr::select(stationData, FDT_STA_ID, SampleDate, FDT_DEPTH, FDT_TEMP_CELCIUS) %>%
-    mutate(DepthDiff = c(NA, diff(FDT_DEPTH)),
-           TempDiff = c(NA, diff(FDT_TEMP_CELCIUS))) %>%
-    filter(DepthDiff == 1) # get rid of changes less than 1 meter depth
-  # Alt route in case shallow lake
-  if(nrow(dailyThermDepth) > 0){
-    dailyThermDepth <- filter(dailyThermDepth, TempDiff <= -1)
-    # one more catch if no thermocline established
-    if(nrow(dailyThermDepth) > 0){
-      dailyThermDepth <- summarise(dailyThermDepth, ThermoclineDepth = min(FDT_DEPTH) - 0.5) %>% ungroup() 
-    } else {
-      dailyThermDepth <- summarise(stationData, ThermoclineDepth = NA) %>% ungroup()  }
-  } else {
-    dailyThermDepth <- summarise(stationData, ThermoclineDepth = NA) %>% ungroup() }
-    
-  
-  full_join(stationData, dailyThermDepth, by = c('FDT_STA_ID', 'SampleDate')) %>%
-    mutate(LakeStratification= ifelse(FDT_DEPTH < ThermoclineDepth,"Epilimnion","Hypolimnion"))%>% ungroup() 
-}
-# stationData %>% thermoclineDepth()
-
 
 #Max Temperature Exceedance Function
 tempExceedances <- function(x){
@@ -190,17 +163,12 @@ tempExceedances <- function(x){
 #  quickStats('TEMP')
 
 
-
 # Minimum DO Exceedance function
 DOExceedances_Min <- function(x){
-  # special step for lake stations, remove samples based on lake assessment guidance 
-  if(!is.na(unique(x$Lakes_187B)) & unique(x$Lakes_187B) == 'y'){
-    x <- filter(x, LakeStratification %in% c("Epilimnion", NA)) } # only use epilimnion or unstratified samples for analysis
-  
-  dplyr::select(x, FDT_DATE_TIME, FDT_DEPTH, DO_mg_L, LEVEL_DO, `Dissolved Oxygen Min (mg/L)`)%>% # Just get relevant columns, 
+  dplyr::select(x,FDT_DATE_TIME,DO_mg_L,LEVEL_DO,`Dissolved Oxygen Min (mg/L)`)%>% # Just get relevant columns, 
     filter(!(LEVEL_DO %in% c('Level II', 'Level I'))) %>% # get lower levels out
     filter(!is.na(DO_mg_L)) %>% 
-    rename(parameter = !!names(.[3]), limit = !!names(.[5])) %>% # rename columns to make functions easier to apply
+    rename(parameter = !!names(.[2]), limit = !!names(.[4])) %>% # rename columns to make functions easier to apply
     # Round to Even Rule
     mutate(parameterRound = signif(parameter, digits = 2), # two significant figures based on  https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
            exceeds = ifelse(parameterRound < limit, T, F))# Identify where below min DO 
@@ -210,27 +178,21 @@ DOExceedances_Min <- function(x){
 
 # Daily Average exceedance function
 DO_Assessment_DailyAvg <- function(x){ 
-  # Don't apply this function to lake stations
-  #if(unique(x$lakeStation) == FALSE){
-  ### special step for lake stations, remove samples based on lake assessment guidance 
-  ###if(!is.na(unique(x$Lakes_187B)) & unique(x$Lakes_187B) == 'y'){
-  ###  x <- filter(x, LakeStratification %in% c("Epilimnion", NA)) } # only use epilimnion or unstratified samples for analysis
-    
-    dplyr::select(x,FDT_STA_ID,FDT_DATE_TIME, FDT_DEPTH,DO_mg_L,LEVEL_DO,`Dissolved Oxygen Min (mg/L)`,`Dissolved Oxygen Daily Avg (mg/L)`)%>% # Just get relevant columns, 
-      filter(!(LEVEL_DO %in% c('Level II', 'Level I'))) %>% # get lower levels out
-      filter(!is.na(DO_mg_L)) %>% #get rid of NA's
-      mutate(date = as.Date(FDT_DATE_TIME, format="%m/%d/%Y"), 
-             limit = `Dissolved Oxygen Daily Avg (mg/L)`) %>% 
-      group_by(date) %>%
-      mutate(n_Samples_Daily = n()) %>% # how many samples per day?
-      filter(n_Samples_Daily > 1) %>%
-      # Daily average with average rounded to even
-      mutate(DO_DailyAverage = signif(mean(DO_mg_L), digits = 2),  # two significant figures based on  https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
-             exceeds = ifelse(DO_DailyAverage < `Dissolved Oxygen Daily Avg (mg/L)`,T,F)) %>% 
-      ungroup() %>% 
-      dplyr::select(-c(FDT_DATE_TIME, `Dissolved Oxygen Min (mg/L)`)) 
+  dplyr::select(x,FDT_STA_ID,FDT_DATE_TIME, FDT_DATE_TIME,FDT_DEPTH,DO_mg_L,LEVEL_DO,`Dissolved Oxygen Min (mg/L)`,`Dissolved Oxygen Daily Avg (mg/L)`)%>% # Just get relevant columns, 
+    filter(!(LEVEL_DO %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    filter(!is.na(DO_mg_L)) %>% #get rid of NA's
+    mutate(date = as.Date(FDT_DATE_TIME, format="%m/%d/%Y"), 
+           limit = `Dissolved Oxygen Daily Avg (mg/L)`) %>% 
+    group_by(date) %>%
+    mutate(n_Samples_Daily = n()) %>% # how many samples per day?
+    filter(n_Samples_Daily > 1) %>%
+    # Daily average with average rounded to even
+    mutate(DO_DailyAverage = signif(mean(DO_mg_L), digits = 2),  # two significant figures based on  https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
+           exceeds = ifelse(DO_DailyAverage < `Dissolved Oxygen Daily Avg (mg/L)`,T,F)) %>% 
+    ungroup() %>% 
+    dplyr::select(-c(FDT_DATE_TIME, `Dissolved Oxygen Min (mg/L)`))
 }
-#DO_Assessment_DailyAvg(x) %>% quickStats(., 'DO_Daily_Avg') 
+#DO_Assessment_DailyAvg(x) %>% quickStats('DO_Daily_Avg')
 
 # pH range Exceedance Function
 pHSpecialStandardsCorrection <- function(x){
@@ -243,11 +205,7 @@ pHSpecialStandardsCorrection <- function(x){
 }
 
 pHExceedances <- function(x){
-  # special step for lake stations, remove samples based on lake assessment guidance 
-  if(!is.na(unique(x$Lakes_187B)) & unique(x$Lakes_187B) == 'y'){
-    x <- filter(x, LakeStratification %in% c("Epilimnion", NA)) } # only use epilimnion or unstratified samples for analysis
-  
-  pH <- dplyr::select(x, FDT_DATE_TIME, FDT_DEPTH, FDT_FIELD_PH, LEVEL_FDT_FIELD_PH, `pH Min`, `pH Max`)%>% # Just get relevant columns, 
+  pH <- dplyr::select(x,FDT_DATE_TIME,FDT_DEPTH,FDT_FIELD_PH,LEVEL_FDT_FIELD_PH,`pH Min`,`pH Max`)%>% # Just get relevant columns, 
     filter(!(LEVEL_FDT_FIELD_PH %in% c('Level II', 'Level I'))) %>% # get lower levels out
     filter(!is.na(FDT_FIELD_PH)) #get rid of NA's
     
@@ -397,13 +355,8 @@ freshwaterNH3limit <- function(x, # dataframe with station data
                                mussels,# T/F condition
                                earlyLife# T/F condition
 ){
-  # remove any data that shouldn't be considered
   x <- filter(x, !(LEVEL_FDT_TEMP_CELCIUS %in% c('Level II', 'Level I')) |
                 !(LEVEL_FDT_FIELD_PH %in% c('Level II', 'Level I'))) %>% # get lower levels out
-    # lake stations should only be surface sample
-    {if(unique(x$lakeStation) == TRUE)
-      filter(., FDT_DEPTH <= 0.3)
-      else . } %>%
     filter(!is.na(AMMONIA_mg_L)) %>% #get rid of NA's
     dplyr::select(FDT_DATE_TIME, FDT_DEPTH, FDT_TEMP_CELCIUS, FDT_FIELD_PH, AMMONIA_mg_L)
   # If no data, return nothing
