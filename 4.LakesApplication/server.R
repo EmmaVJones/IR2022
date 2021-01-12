@@ -248,7 +248,7 @@ shinyServer(function(input, output, session) {
                                          DOExceedances_Min(stationData()) %>% quickStats('DO'), 
                                          pHExceedances(stationData()) %>% quickStats('PH'),
                                          ecoli() %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),
-                                         tibble(ENTER_EXC = NA, ENTER_SAMP = NA, ENTER_SAMP = NA, ENTER_GM_EXC = NA, ENTER_GM_SAMP = NA, ENTER_STAT = NA),
+                                         tibble(ENTER_EXC = NA, ENTER_SAMP = NA, ENTER_GM_EXC = NA, ENTER_GM_SAMP = NA, ENTER_STAT = NA),
                                          ammoniaDecision(list(acute = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'acute'),
                                                               chronic = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'chronic'),
                                                               fourDay = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'four-day'))) ) %>% #, 
@@ -285,10 +285,37 @@ shinyServer(function(input, output, session) {
     #formatStyle(c('SED_MET_EXC','SED_MET_STAT'), 'SED_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
     #formatStyle(c('BENTHIC_STAT'), 'BENTHIC_STAT', backgroundColor = styleEqual(c('Review'), c('yellow'))) %>%
     #formatStyle(c('NUT_TP_EXC','NUT_TP_SAMP'), 'NUT_TP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) 
-    
-    
   })
 
+  #### Data Sub Tab ####---------------------------------------------------------------------------------------------------
+  
+  # Display Data 
+  output$AURawData <- DT::renderDataTable({ req(AUData())
+    DT::datatable(AUData(), extensions = 'Buttons', escape=F, rownames = F, 
+                  options= list(scrollX = TRUE, pageLength = nrow(AUData()), scrollY = "300px", 
+                                dom='Btf', buttons=list('copy',
+                                                        list(extend='csv',filename=paste('AUData_',paste(input$stationSelection, collapse = "_"),Sys.Date(),sep='')),
+                                                        list(extend='excel',filename=paste('AUData_',paste(input$stationSelection, collapse = "_"),Sys.Date(),sep='')))),
+                  selection = 'none')})
+  # Summarize data
+  output$stationDataTableRecords <- renderText({req(AUData())
+    paste(nrow(AUData()), 'records were retrieved for',as.character(input$AUselection),sep=' ')})
+  output$uniqueStationDataTableRecords <- renderTable({req(AUData())
+    plyr::count(AUData(), vars = c("FDT_STA_ID")) %>% dplyr::rename('Number of Records'='freq')})
+  output$stationDataTableAssessmentWindow <- renderText({req(AUData())
+    withinAssessmentPeriod(AUData())})
+  
+  
+  # Need this as a reactive to regenerate below modules when user changes station 
+  stationSelected <- reactive({input$stationSelection})
+  
+  
+  ## Thermocline Sub Tab  ##------------------------------------------------------------------------------------------------------
+  
+  callModule(thermoclinePlotlySingleStation,'thermocline', AUData, stationSelected)
+  
+  ## Temperature Sub Tab ##------------------------------------------------------------------------------------------------------
+  #callModule(temperaturePlotlySingleStation,'temperature', AUData, stationSelected)
   
   #output$test <- renderPrint({paste(min(lakeStations()$LONGITUDE), min(lakeStations()$LATITUDE), max(lakeStations()$LONGITUDE), max(lakeStations()$LATITUDE))})
   

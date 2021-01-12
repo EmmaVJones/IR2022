@@ -12,7 +12,7 @@ shinyUI(fluidPage(theme="yeti.css",
                                  ".shiny-output-error { visibility: hidden; }",
                                  ".shiny-output-error:before { visibility: hidden; }"
                       ),
-                      navbarPage(paste("VDEQ ",assessmentCycle," IR Riverine Assessment Tool", sep=''),
+                      navbarPage(paste("VDEQ ",assessmentCycle," IR Lakes Assessment Tool", sep=''),
                                  # add back in
                                  
                                  
@@ -95,6 +95,31 @@ shinyUI(fluidPage(theme="yeti.css",
                                           helpText(span("Any PWS violations should noted in a station's COMMENT field of the Stations Table. The table below organizes 
                                                   PWS information to expedite the comment process.", strong('Note: PWS criteria are only applicable at intake.'))),
                                           DT::dataTableOutput('PWStable'),
-                                          br(),hr(),br()#,
+                                          br(),hr(),br(),
+                                          h3('Assessment Unit Raw Data Review and Visualization'),
+                                          tabsetPanel(
+                                            tabPanel('Conventionals Data',
+                                                     tabsetPanel(
+                                                       tabPanel('Raw Data',br(),
+                                                                DT::dataTableOutput('AURawData'),
+                                                                h4('Data Summary'),
+                                                                h5('Records Retrieved in Assessment Unit:'),
+                                                                fluidRow(column(1),column(10,textOutput('stationDataTableRecords'))),
+                                                                h5('Field and Lab Data in Assessment Window:'),
+                                                                fluidRow(column(1),column(10,tableOutput('uniqueStationDataTableRecords'))),
+                                                                h5('Assessment Window:'),
+                                                                fluidRow(column(1),column(10,textOutput('stationDataTableAssessmentWindow'))), br(),br()),
+                                                       tabPanel('Thermocline',
+                                                                helpText('Review each site using the single site visualization section. The results from this analysis are carried
+                                                                         over to temperature and pH assessment decisions.'),
+                                                                thermoclinePlotlySingleStationUI('thermocline'))#,
+                                                       # tabPanel('Temperature',
+                                                       #          helpText('Review each site using the single site visualization section. The results from this analysis are reflected
+                                                       #                  in the TEMP_EXC, TEMP_SAMP, and TEMP_STAT columns in the station table.',
+                                                       #                   span('Users may adjust the WQS used for analysis in this modal by choosing a standard from
+                                                       #                        the `WQS for Analysis` drop down. The default WQS chosen is the WQS provided by the assessor
+                                                       #                        to the WQS Metadata Attribution App.', style="color:red")),
+                                                       #          temperaturePlotlySingleStationUI('temperature'))
+                                                       )))#,
                                  )
                       )))))

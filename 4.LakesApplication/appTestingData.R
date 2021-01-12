@@ -120,17 +120,22 @@ stationSelectionOptions1 <- filter_at(lake_filter1, vars(starts_with("ID305B")),
   pull()
 stationSelection1 <- stationSelectionOptions1[1]
 
+AUData1 <- filter_at(conventionalsLake1, vars(starts_with("ID305B")), any_vars(. %in% selectedAU1) )
+
+stationData1 <- filter(AUData1, FDT_STA_ID %in% stationSelection1) 
+
+
 stationInfo1 <- filter(stationTable1, STATION_ID == stationSelection1) %>% 
   select(STATION_ID:VAHU6, WQS_ID:`Total Phosphorus (ug/L)`)
 
-point <- dplyr::select(stationInfo1,  STATION_ID, starts_with('ID305B'), LATITUDE, LONGITUDE ) %>%
-  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
-           remove = F, # don't remove these lat/lon cols from df
-           crs = 4326) # add projection, needs to be geographic for now bc entering lat/lng
-segmentChoices <- dplyr::select(point, starts_with('ID305B')) %>% st_drop_geometry() %>% as.character()  
-segment <- filter(regionalAUs1, ID305B %in% segmentChoices)
-map1 <- mapview(segment,zcol = 'ID305B', label= segment$ID305B, layer.name = 'Assessment Unit (ID305B_1)',
-                popup= leafpop::popupTable(segment, zcol=c("ID305B","Acres","CYCLE","WATER_NAME")), legend= FALSE) + 
-  mapview(point, color = 'yellow', lwd = 5, label= point$STATION_ID, layer.name = c('Selected Station'),
-          popup=NULL, legend= FALSE)
-map1@map %>% setView(point$LONGITUDE, point$LATITUDE, zoom = 12)
+# point <- dplyr::select(stationInfo1,  STATION_ID, starts_with('ID305B'), LATITUDE, LONGITUDE ) %>%
+#   st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
+#            remove = F, # don't remove these lat/lon cols from df
+#            crs = 4326) # add projection, needs to be geographic for now bc entering lat/lng
+# segmentChoices <- dplyr::select(point, starts_with('ID305B')) %>% st_drop_geometry() %>% as.character()  
+# segment <- filter(regionalAUs1, ID305B %in% segmentChoices)
+# map1 <- mapview(segment,zcol = 'ID305B', label= segment$ID305B, layer.name = 'Assessment Unit (ID305B_1)',
+#                 popup= leafpop::popupTable(segment, zcol=c("ID305B","Acres","CYCLE","WATER_NAME")), legend= FALSE) + 
+#   mapview(point, color = 'yellow', lwd = 5, label= point$STATION_ID, layer.name = c('Selected Station'),
+#           popup=NULL, legend= FALSE)
+# map1@map %>% setView(point$LONGITUDE, point$LATITUDE, zoom = 12)
