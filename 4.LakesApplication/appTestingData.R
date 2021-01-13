@@ -143,20 +143,25 @@ stationInfo1 <- filter(stationTable1, STATION_ID == stationSelection1) %>%
 
 ## Ecoli has to run daily AU medians before can be run through scripts
 
-# save individual ecoli results for later
+# save individual ecoli results for later, human understandable
 AUmedians <- AUData1 %>%
   filter(ID305B_1 %in% selectedAU1) %>% # run ecoli by only 1 AU at a time
   group_by(SampleDate) %>%
-  filter(! LEVEL_ECOLI %in% c('Level I', 'Level II')) %>%
   filter(!is.na(ECOLI)) %>%
-  mutate(ECOLI_Station = ECOLI,
-         ECOLI = median(ECOLI, na.rm = TRUE),
-         FDT_STA_ID = unique(ID305B_1)) %>%
-  dplyr::select(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, SampleDate, ECOLI, ECOLI_Station, RMK_ECOLI, LEVEL_ECOLI) %>%
-  ungroup()
+  mutate(EcoliDailyMedian = median(ECOLI, na.rm = TRUE)) %>%
+  dplyr::select(ID305B_1, FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, SampleDate, EcoliDailyMedian, ECOLI, RMK_ECOLI, LEVEL_ECOLI) %>%
+  arrange(SampleDate) %>% ungroup()
+  
 
-# need to run analysis on only one point per day
-AUmediansForAnalysis <- distinct(AUmedians, SampleDate, .keep_all = T) 
+# need to run analysis on only one point per day, function understandable
+AUmediansForAnalysis <- AUmedians %>%
+  filter(! LEVEL_ECOLI %in% c('Level I', 'Level II')) %>%
+  mutate(ECOLI_Station = ECOLI,
+         ECOLI = EcoliDailyMedian,
+         FDT_STA_ID = unique(ID305B_1),
+         FDT_DATE_TIME = SampleDate) %>%
+  dplyr::select(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, SampleDate, ECOLI, ECOLI_Station, RMK_ECOLI, LEVEL_ECOLI) %>%
+  distinct(SampleDate, .keep_all = T) 
 
 # x <- AUmediansForAnalysis
 # bacteriaField <- 'ECOLI'
@@ -167,3 +172,30 @@ AUmediansForAnalysis <- distinct(AUmedians, SampleDate, .keep_all = T)
 
 z <- bacteriaAssessmentDecision(AUmediansForAnalysis, 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126) %>%
   dplyr::select(StationID:ECOLI_STATECOLI_VERBOSE)
+
+z <- dplyr::select(AUmediansForAnalysis,#medianAUForAnalysis(), 
+                   SampleDate, ECOLI) %>% 
+  rename('Daily E.coli Median' = 'ECOLI')
+
+
+# dat <- AUmedians %>%
+#   mutate(newSTV = 410, geomean = 126, oldSTV = 235)
+# plot_ly(data=dat) %>%
+#   add_markers(x= ~SampleDate, y= ~ECOLI,mode = 'scatter', name="E. coli (CFU / 100 mL)", 
+#               color = ~FDT_STA_ID, #list(color= '#535559'),
+#               colors = "Dark2",
+#               hoverinfo="text",text=~paste(sep="<br>",
+#                                            paste("FDT_STA_ID: ",FDT_STA_ID),
+#                                            paste("Date: ",SampleDate),
+#                                            paste("Depth: ",FDT_DEPTH, "m"),
+#                                            paste("E. coli: ",ECOLI,"CFU / 100 mL"),
+#                                            paste("Level: ",LEVEL_ECOLI)))%>%
+#   add_lines(data=dat, x=~SampleDate,y=~newSTV, mode='line', line = list(color = '#484a4c',dash = 'dot'),
+#             hoverinfo = "text", text= "New STV: 410 CFU / 100 mL", name="New STV: 410 CFU / 100 mL") %>%
+#   add_lines(data=dat, x=~SampleDate,y=~oldSTV, mode='line', line = list(color = 'black'),
+#             hoverinfo = "text", text= "Old SSM: 235 CFU / 100 mL", name="Old SSM: 235 CFU / 100 mL") %>%
+#   add_lines(data=dat, x=~SampleDate,y=~geomean, mode='line', line = list(color = 'black', dash= 'dash'),
+#             hoverinfo = "text", text= "Geomean Criteria: 126 CFU / 100 mL", name="Geomean Criteria: 126 CFU / 100 mL") %>%
+#   layout(showlegend=FALSE,
+#          yaxis=list(title="E. coli (CFU / 100 mL)"),
+#          xaxis=list(title="Sample Date",tickfont = list(size = 10)))

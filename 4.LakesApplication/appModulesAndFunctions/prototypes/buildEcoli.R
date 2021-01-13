@@ -273,15 +273,19 @@ EcoliPlotlySingleStation <- function(input,output,session, AUdata, stationSelect
 
 
 ui <- fluidPage(
+  #verbatimTextOutput('testtest'),
   helpText('Review each site using the single site visualization section. There are no WQS for Total Nitrogen.'),
   uiOutput('AUselection_'),
   h5(strong('AU information from last cycle')),
-  DT::dataTableOutput('selectedAU'),br(),
+#  DT::dataTableOutput('selectedAU'),br(),
   uiOutput('stationSelection_'),
   tabsetPanel(
+    
+    tabPanel('Assessment Unit Analysis',
+             EcoliPlotlyAUUI('EcoliAU')),
+    # really should be first but second for testing
     tabPanel('Single Station Analysis',
-             EcoliPlotlySingleStationUI('Ecoli')),
-    tabPanel('Assessment Unit Analysis'))
+             EcoliPlotlySingleStationUI('Ecoli')))
 )
 
 server <- function(input,output,session){
@@ -324,13 +328,14 @@ server <- function(input,output,session){
                    lakeNameStandardization())  }) # for testing
   
   conventionalsLake <- reactive({#eventReactive( input$pullHUCdata, {
-    filter(conventionals, FDT_STA_ID %in% lake_filter1$STATION_ID) %>%
-      left_join(dplyr::select(stationTable(), STATION_ID:VAHU6,
-                              WQS_ID:CLASS_DESCRIPTION),
+    filter(conventionals, FDT_STA_ID %in% stationSelectionOptions1) %>% #lake_filter1$STATION_ID) %>%
+      left_join(dplyr::select(stationTable(), STATION_ID:VAHU6, lakeStation,
+                              WQS_ID:`Total Phosphorus (ug/L)`),
                 #WQS_ID:`Max Temperature (C)`), 
                 by = c('FDT_STA_ID' = 'STATION_ID')) %>%
       filter(!is.na(ID305B_1)) %>%
-      pHSpecialStandardsCorrection() }) #correct pH to special standards where necessary
+      pHSpecialStandardsCorrection() %>% #correct pH to special standards where necessary
+      thermoclineDepth() }) # adds thermocline information and SampleDate
   
   output$AUselection_ <- renderUI({ req(conventionalsLake())
     selectInput('AUselection', 'Assessment Unit Selection', choices = unique(conventionalsLake()$ID305B_1))  })
@@ -357,10 +362,38 @@ server <- function(input,output,session){
     filter(AUData(), FDT_STA_ID %in% input$stationSelection) })
   
   stationSelected <- reactive({input$stationSelection})
+  
   ecoli <- reactive({req(stationData())
     bacteriaAssessmentDecision(stationData(), 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126)})
   
-  callModule(EcoliPlotlySingleStation,'Ecoli', AUData, stationSelected, ecoli)#siteData$ecoli)
+  # save individual ecoli results for later
+  AUmedians <- reactive({ req(AUData(), input$AUselection)
+    AUData() %>%
+      filter(ID305B_1 %in% input$AUselection) %>%# run ecoli by only 1 AU at a time
+      group_by(SampleDate) %>%
+      filter(!is.na(ECOLI)) %>%
+      mutate(EcoliDailyMedian = median(ECOLI, na.rm = TRUE)) %>%
+      dplyr::select(ID305B_1, FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, SampleDate, EcoliDailyMedian, ECOLI, RMK_ECOLI, LEVEL_ECOLI) %>%
+      arrange(SampleDate) %>% ungroup() })
+  
+  # need to run analysis on only one point per day
+  AUmediansForAnalysis <- reactive({req(AUmedians())
+    AUmedians() %>% 
+      filter(! LEVEL_ECOLI %in% c('Level I', 'Level II')) %>%
+      mutate(ECOLI_Station = ECOLI,
+             ECOLI = EcoliDailyMedian,
+             FDT_STA_ID = unique(ID305B_1),
+             FDT_DATE_TIME = SampleDate) %>%
+      dplyr::select(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, SampleDate, ECOLI, ECOLI_Station, RMK_ECOLI, LEVEL_ECOLI) %>%
+      distinct(SampleDate, .keep_all = T) })
+  
+  #output$testtest <- renderPrint({AUmedians()})
+  
+  ecoliAU <- reactive({req(AUmediansForAnalysis())
+    bacteriaAssessmentDecision(AUmediansForAnalysis(), 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126)})
+  
+  
+  callModule(EcoliPlotlyAU,'EcoliAU', AUData, AUmedians, AUmediansForAnalysis, ecoliAU)
   
 }
 
