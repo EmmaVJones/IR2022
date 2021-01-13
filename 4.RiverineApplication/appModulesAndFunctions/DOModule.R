@@ -130,7 +130,7 @@ DOPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
     z <- DOExceedances_Min(oneStation()) %>%
       rename("DO" = 'parameter', 'Criteria' = 'limit', 'Parameter Rounded to WQS Format' = 'parameterRound') %>%
       filter(exceeds == TRUE) %>%
-      dplyr::select(-exceeds)
+      dplyr::select(-c(exceeds, FDT_STA_ID))
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t'),
               selection = 'none')})
   

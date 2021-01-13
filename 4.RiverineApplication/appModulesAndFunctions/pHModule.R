@@ -135,7 +135,7 @@ pHPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
     z <- pHExceedances(oneStation()) %>%
       filter(exceeds == TRUE) %>%
       rename('Outside WQS Criteria' = 'exceeds', 'Parameter Rounded to WQS Format' = 'parameterRound') %>%
-      dplyr::select(-c(FDT_DEPTH, limit, interval))
+      dplyr::select(-c(FDT_STA_ID, FDT_DEPTH, limit, interval))
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "300px", dom='t'),
               selection = 'none')})
   

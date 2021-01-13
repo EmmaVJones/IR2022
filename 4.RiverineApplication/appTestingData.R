@@ -88,7 +88,7 @@ carryoverStations <- filter(stationTable, VAHU6 %in% huc6_filter$VAHU6 & str_det
 ## Assessment Unit Review Tab
 
 conventionals_HUC <- filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>%
-    left_join(dplyr::select(stationTable, STATION_ID:VAHU6,
+    left_join(dplyr::select(stationTable, STATION_ID:VAHU6,lakeStation,
                             WQS_ID:EPA_ECO_US_L3NAME),
                             #WQS_ID:`Max Temperature (C)`), 
               by = c('FDT_STA_ID' = 'STATION_ID')) %>%

@@ -240,7 +240,7 @@ shinyServer(function(input, output, session) {
   # Pull Conventionals data for selected AU on click
   conventionals_HUC <- reactive({#eventReactive( input$pullHUCdata, {
     filter(conventionals, Huc6_Vahu6 %in% huc6_filter()$VAHU6) %>%
-      left_join(dplyr::select(stationTable(), STATION_ID:VAHU6,
+      left_join(dplyr::select(stationTable(), STATION_ID:VAHU6,lakeStation,
                               WQS_ID:EPA_ECO_US_L3NAME),
                               #WQS_ID:`Max Temperature (C)`), 
                 by = c('FDT_STA_ID' = 'STATION_ID')) %>%
