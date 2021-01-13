@@ -155,7 +155,7 @@ shinyServer(function(input, output, session) {
   
   conventionalsLake <- reactive({ req(lake_filter())
     filter(conventionals, FDT_STA_ID %in% lake_filter()$STATION_ID) %>%
-    left_join(dplyr::select(stationTable(), STATION_ID:VAHU6,
+    left_join(dplyr::select(stationTable(), STATION_ID:VAHU6, lakeStation,
                             WQS_ID:`Total Phosphorus (ug/L)`),
               #WQS_ID:`Max Temperature (C)`), 
               by = c('FDT_STA_ID' = 'STATION_ID')) %>%
@@ -311,13 +311,18 @@ shinyServer(function(input, output, session) {
   
   
   ## Thermocline Sub Tab  ##------------------------------------------------------------------------------------------------------
-  
   callModule(thermoclinePlotlySingleStation,'thermocline', AUData, stationSelected)
   
   ## Temperature Sub Tab ##------------------------------------------------------------------------------------------------------
-  #callModule(temperaturePlotlySingleStation,'temperature', AUData, stationSelected)
+  callModule(temperaturePlotlySingleStation,'temperature', AUData, stationSelected)
   
-  #output$test <- renderPrint({paste(min(lakeStations()$LONGITUDE), min(lakeStations()$LATITUDE), max(lakeStations()$LONGITUDE), max(lakeStations()$LATITUDE))})
+  ## Dissolved Oxygen Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(DOPlotlySingleStation,'DO', AUData, stationSelected)
+  
+  ## pH Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(pHPlotlySingleStation,'pH', AUData, stationSelected)
+  
+  output$test <- renderPrint({glimpse(AUData())})
   
   
   

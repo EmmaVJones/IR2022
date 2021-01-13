@@ -96,6 +96,7 @@ shinyUI(fluidPage(theme="yeti.css",
                                                   PWS information to expedite the comment process.", strong('Note: PWS criteria are only applicable at intake.'))),
                                           DT::dataTableOutput('PWStable'),
                                           br(),hr(),br(),
+                                          #verbatimTextOutput('test'),
                                           h3('Assessment Unit Raw Data Review and Visualization'),
                                           tabsetPanel(
                                             tabPanel('Conventionals Data',
@@ -112,14 +113,22 @@ shinyUI(fluidPage(theme="yeti.css",
                                                        tabPanel('Thermocline',
                                                                 helpText('Review each site using the single site visualization section. The results from this analysis are carried
                                                                          over to temperature and pH assessment decisions.'),
-                                                                thermoclinePlotlySingleStationUI('thermocline'))#,
-                                                       # tabPanel('Temperature',
-                                                       #          helpText('Review each site using the single site visualization section. The results from this analysis are reflected
-                                                       #                  in the TEMP_EXC, TEMP_SAMP, and TEMP_STAT columns in the station table.',
-                                                       #                   span('Users may adjust the WQS used for analysis in this modal by choosing a standard from
-                                                       #                        the `WQS for Analysis` drop down. The default WQS chosen is the WQS provided by the assessor
-                                                       #                        to the WQS Metadata Attribution App.', style="color:red")),
-                                                       #          temperaturePlotlySingleStationUI('temperature'))
+                                                                thermoclinePlotlySingleStationUI('thermocline')),
+                                                        tabPanel('Temperature',
+                                                                 helpText('Review each site using the single site visualization section. The results from this analysis are reflected
+                                                                         in the TEMP_EXC, TEMP_SAMP, and TEMP_STAT columns in the station table.',
+                                                                          span('Users may view AU level assessment results below.', style="color:red")),
+                                                                 temperaturePlotlySingleStationUI('temperature')),
+                                                       tabPanel('Dissolved Oxygen',
+                                                                helpText('Review each site using the single site visualization section. The results from this analysis are reflected
+                                                                         in the DO_EXC, DO_SAMP, and DO_STAT columns in the station table.',
+                                                                         span('Users may view AU level assessment results below.', style="color:red")),
+                                                                DOPlotlySingleStationUI('DO')),
+                                                       tabPanel('pH',
+                                                                helpText('Review each site using the single site visualization section. The results from this analysis are reflected
+                                                                         in the PH_EXC, PH_SAMP, and PH_STAT columns in the station table.',
+                                                                         span('Users may view AU level assessment results below.', style="color:red")),
+                                                                pHPlotlySingleStationUI('pH'))
                                                        )))#,
                                  )
                       )))))

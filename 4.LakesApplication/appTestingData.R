@@ -99,7 +99,7 @@ lake_filter1 <- filter_at(stationTable1, vars(starts_with('ID305B')), any_vars(.
 #            `Section 187` = toString(sort(unique(Lakes_187B))))
 
 conventionalsLake1 <- filter(conventionals, FDT_STA_ID %in% lake_filter1$STATION_ID) %>%
-  left_join(dplyr::select(stationTable1, STATION_ID:VAHU6,
+  left_join(dplyr::select(stationTable1, STATION_ID:VAHU6, lakeStation,
                           WQS_ID:`Total Phosphorus (ug/L)`),
             #WQS_ID:`Max Temperature (C)`), 
             by = c('FDT_STA_ID' = 'STATION_ID')) %>%

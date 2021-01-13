@@ -194,13 +194,20 @@ tempExceedances <- function(x){
 # Minimum DO Exceedance function
 DOExceedances_Min <- function(x){
   # special step for lake stations, remove samples based on lake assessment guidance 
-  if(!is.na(unique(x$Lakes_187B)) & unique(x$Lakes_187B) == 'y'){
-    x <- filter(x, LakeStratification %in% c("Epilimnion", NA)) } # only use epilimnion or unstratified samples for analysis
+  if(unique(x$lakeStation) == TRUE){
+    if(!is.na(unique(x$Lakes_187B)) & unique(x$Lakes_187B) == 'y'){
+      x <- filter(x, LakeStratification %in% c("Epilimnion", NA)) %>% # only use epilimnion or unstratified samples for analysis
+        dplyr::select(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, DO_mg_L, LEVEL_DO, `Dissolved Oxygen Min (mg/L)`, LakeStratification) # Just get relevant columns,
+    } else {
+      x <- dplyr::select(x, FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, DO_mg_L, LEVEL_DO, `Dissolved Oxygen Min (mg/L)`, LakeStratification) }# Just get relevant columns,
+  } else {
+    x <- dplyr::select(x, FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, DO_mg_L, LEVEL_DO, `Dissolved Oxygen Min (mg/L)`) # Just get relevant columns, 
+  }
   
-  dplyr::select(x, FDT_DATE_TIME, FDT_DEPTH, DO_mg_L, LEVEL_DO, `Dissolved Oxygen Min (mg/L)`)%>% # Just get relevant columns, 
+  x %>%
     filter(!(LEVEL_DO %in% c('Level II', 'Level I'))) %>% # get lower levels out
     filter(!is.na(DO_mg_L)) %>% 
-    rename(parameter = !!names(.[3]), limit = !!names(.[5])) %>% # rename columns to make functions easier to apply
+    rename(parameter = !!names(.[4]), limit = !!names(.[6])) %>% # rename columns to make functions easier to apply
     # Round to Even Rule
     mutate(parameterRound = signif(parameter, digits = 2), # two significant figures based on  https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
            exceeds = ifelse(parameterRound < limit, T, F))# Identify where below min DO 
@@ -244,11 +251,16 @@ pHSpecialStandardsCorrection <- function(x){
 
 pHExceedances <- function(x){
   # special step for lake stations, remove samples based on lake assessment guidance 
-  if(!is.na(unique(x$Lakes_187B)) & unique(x$Lakes_187B) == 'y'){
-    x <- filter(x, LakeStratification %in% c("Epilimnion", NA)) } # only use epilimnion or unstratified samples for analysis
+  if(unique(x$lakeStation) == TRUE){
+    if(!is.na(unique(x$Lakes_187B)) & unique(x$Lakes_187B) == 'y'){
+      x <- filter(x, LakeStratification %in% c("Epilimnion", NA)) %>% # only use epilimnion or unstratified samples for analysis
+        dplyr::select(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, FDT_FIELD_PH, LEVEL_FDT_FIELD_PH, `pH Min`, `pH Max`, LakeStratification) # Just get relevant columns,
+    } else {
+      x <- dplyr::select(x, FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, FDT_FIELD_PH, LEVEL_FDT_FIELD_PH, `pH Min`, `pH Max`, LakeStratification) }# Just get relevant columns,
+  } else {
+    x <- dplyr::select(x, FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, FDT_FIELD_PH, LEVEL_FDT_FIELD_PH, `pH Min`, `pH Max`) }# Just get relevant columns, 
   
-  pH <- dplyr::select(x, FDT_DATE_TIME, FDT_DEPTH, FDT_FIELD_PH, LEVEL_FDT_FIELD_PH, `pH Min`, `pH Max`)%>% # Just get relevant columns, 
-    filter(!(LEVEL_FDT_FIELD_PH %in% c('Level II', 'Level I'))) %>% # get lower levels out
+  pH <- filter(x, !(LEVEL_FDT_FIELD_PH %in% c('Level II', 'Level I'))) %>% # get lower levels out
     filter(!is.na(FDT_FIELD_PH)) #get rid of NA's
     
   # only run analysis if WQS exist for station
