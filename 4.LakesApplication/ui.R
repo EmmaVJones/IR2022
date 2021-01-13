@@ -128,7 +128,12 @@ shinyUI(fluidPage(theme="yeti.css",
                                                                 helpText('Review each site using the single site visualization section. The results from this analysis are reflected
                                                                          in the PH_EXC, PH_SAMP, and PH_STAT columns in the station table.',
                                                                          span('Users may view AU level assessment results below.', style="color:red")),
-                                                                pHPlotlySingleStationUI('pH'))
+                                                                pHPlotlySingleStationUI('pH')),
+                                                       tabPanel('E. coli',
+                                                                tabsetPanel(
+                                                                  tabPanel('Single Station Analysis',
+                                                                           EcoliPlotlySingleStationUI('Ecoli')),
+                                                                  tabPanel('Assessment Unit Analysis')))
                                                        )))#,
                                  )
                       )))))

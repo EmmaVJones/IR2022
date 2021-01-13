@@ -278,16 +278,28 @@ ui <- fluidPage(
   h5(strong('AU information from last cycle')),
   DT::dataTableOutput('selectedAU'),br(),
   uiOutput('stationSelection_'),
-  EcoliPlotlySingleStationUI('Ecoli')
+  tabsetPanel(
+    tabPanel('Single Station Analysis',
+             EcoliPlotlySingleStationUI('Ecoli')),
+    tabPanel('Assessment Unit Analysis'))
 )
 
 server <- function(input,output,session){
   # for testing
   stationTable <- reactive({
-    stationTable <-  read_csv('userDataToUpload/processedStationData/stationTableResults.csv')
-    # Remove stations that don't apply to application
-    lakeStations <- filter_at(stationTable, vars(starts_with('TYPE')), any_vars(. == 'L'))
-    stationTable <- filter(stationTable, !STATION_ID %in% lakeStations$STATION_ID) %>%
+    read_csv('userDataToUpload/processedStationData/stationTableResults.csv',
+             col_types = cols(COMMENTS = col_character())) %>%# force to character bc parsing can incorrectly guess logical based on top 1000 rows
+      filter_at(vars(starts_with('TYPE')), any_vars(. == 'L')) %>% # keep only lake stations
+      
+      
+      
+      # station table issue needs to be resolved
+      distinct(STATION_ID, .keep_all = T) %>%
+      
+      
+      
+      
+      
       # add WQS information to stations
       left_join(WQSlookup, by = c('STATION_ID'='StationID')) %>%
       mutate(CLASS_BASIN = paste(CLASS,substr(BASIN, 1,1), sep="_")) %>%
@@ -295,22 +307,24 @@ server <- function(input,output,session){
       # Fix for Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard)
       left_join(WQSvalues, by = 'CLASS_BASIN') %>%
       dplyr::select(-c(CLASS.y,CLASS_BASIN)) %>%
-      rename('CLASS' = 'CLASS.x') 
-    # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
-    
-    return(stationTable)
-  }) #for testing
+      rename('CLASS' = 'CLASS.x') %>%
+      left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
+                  distinct(WQM_STA_ID, .keep_all = TRUE), by = c('STATION_ID' = 'WQM_STA_ID')) %>% # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
+      lakeNameStandardization() %>% # standardize lake names
+      left_join(lakeNutStandards, by = c('Lake_Name')) %>%
+      mutate(lakeStation = TRUE)
+  })  #for testing
   
   # Pull AU data from server
   # for testing
   # Pull AU data from server
   regionalAUs <- reactive({ 
-    req(input$pullAUs)
     withProgress(message = 'Reading in Large Spatial File',
-                 regionalAUsForTesting ) }) # for testing
+                 st_zm(st_as_sf(pin_get('AUreservoir_EVJ', board = 'rsconnect')) ) %>%
+                   lakeNameStandardization())  }) # for testing
   
-  conventionals_HUC <- reactive({#eventReactive( input$pullHUCdata, {
-    filter(conventionals, Huc6_Vahu6 %in% 'JU11') %>%
+  conventionalsLake <- reactive({#eventReactive( input$pullHUCdata, {
+    filter(conventionals, FDT_STA_ID %in% lake_filter1$STATION_ID) %>%
       left_join(dplyr::select(stationTable(), STATION_ID:VAHU6,
                               WQS_ID:CLASS_DESCRIPTION),
                 #WQS_ID:`Max Temperature (C)`), 
@@ -318,16 +332,16 @@ server <- function(input,output,session){
       filter(!is.na(ID305B_1)) %>%
       pHSpecialStandardsCorrection() }) #correct pH to special standards where necessary
   
-  output$AUselection_ <- renderUI({ req(conventionals_HUC())
-    selectInput('AUselection', 'Assessment Unit Selection', choices = unique(conventionals_HUC()$ID305B_1))  })
+  output$AUselection_ <- renderUI({ req(conventionalsLake())
+    selectInput('AUselection', 'Assessment Unit Selection', choices = unique(conventionalsLake()$ID305B_1))  })
   
-  output$selectedAU <- DT::renderDataTable({req(conventionals_HUC(),input$AUselection)
+  output$selectedAU <- DT::renderDataTable({req(conventionalsLake(),input$AUselection)
     z <- filter(regionalAUs(), ID305B %in% input$AUselection) %>% st_set_geometry(NULL) %>% as.data.frame()
     datatable(z, rownames = FALSE, 
               options= list(pageLength = nrow(z),scrollX = TRUE, scrollY = "300px", dom='t'))})
   
-   output$stationSelection_ <- renderUI({ req(conventionals_HUC(), input$AUselection)
-     z <- filter(conventionals_HUC(), ID305B_1 %in% input$AUselection | ID305B_2 %in% input$AUselection | 
+   output$stationSelection_ <- renderUI({ req(conventionalsLake(), input$AUselection)
+     z <- filter(conventionalsLake(), ID305B_1 %in% input$AUselection | ID305B_2 %in% input$AUselection | 
                    ID305B_3 %in% input$AUselection | ID305B_4 %in% input$AUselection | ID305B_5 %in% input$AUselection | 
                    ID305B_6 %in% input$AUselection | ID305B_7 %in% input$AUselection | ID305B_8 %in% input$AUselection | 
                    ID305B_9 %in% input$AUselection | ID305B_10 %in% input$AUselection) %>%
@@ -337,7 +351,7 @@ server <- function(input,output,session){
                       to the selected AU. All AU's associated with the selected station can be viewed in the map below."))})
    
    AUData <- eventReactive( input$AUselection, {
-     filter_at(conventionals_HUC(), vars(starts_with("ID305B")), any_vars(. %in% input$AUselection) ) }) 
+     filter_at(conventionalsLake(), vars(starts_with("ID305B")), any_vars(. %in% input$AUselection) ) }) 
   
   stationData <- eventReactive( input$stationSelection, {
     filter(AUData(), FDT_STA_ID %in% input$stationSelection) })

@@ -139,3 +139,31 @@ stationInfo1 <- filter(stationTable1, STATION_ID == stationSelection1) %>%
 #   mapview(point, color = 'yellow', lwd = 5, label= point$STATION_ID, layer.name = c('Selected Station'),
 #           popup=NULL, legend= FALSE)
 # map1@map %>% setView(point$LONGITUDE, point$LATITUDE, zoom = 12)
+
+
+## Ecoli has to run daily AU medians before can be run through scripts
+
+# save individual ecoli results for later
+AUmedians <- AUData1 %>%
+  filter(ID305B_1 %in% selectedAU1) %>% # run ecoli by only 1 AU at a time
+  group_by(SampleDate) %>%
+  filter(! LEVEL_ECOLI %in% c('Level I', 'Level II')) %>%
+  filter(!is.na(ECOLI)) %>%
+  mutate(ECOLI_Station = ECOLI,
+         ECOLI = median(ECOLI, na.rm = TRUE),
+         FDT_STA_ID = unique(ID305B_1)) %>%
+  dplyr::select(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, SampleDate, ECOLI, ECOLI_Station, RMK_ECOLI, LEVEL_ECOLI) %>%
+  ungroup()
+
+# need to run analysis on only one point per day
+AUmediansForAnalysis <- distinct(AUmedians, SampleDate, .keep_all = T) 
+
+# x <- AUmediansForAnalysis
+# bacteriaField <- 'ECOLI'
+# bacteriaRemark <- 'LEVEL_ECOLI'
+# sampleRequirement <- 10
+# STV <- 410
+# geomeanCriteria <- 126
+
+z <- bacteriaAssessmentDecision(AUmediansForAnalysis, 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126) %>%
+  dplyr::select(StationID:ECOLI_STATECOLI_VERBOSE)

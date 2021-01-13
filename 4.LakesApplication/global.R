@@ -19,8 +19,8 @@ source('appModulesAndFunctions/updatedBacteriaCriteria.R')
 source('appModulesAndFunctions/multipleDependentSelectizeArguments.R')
 source('appModulesAndFunctions/automatedAssessmentFunctions.R')
 
-modulesToReadIn <- c('thermocline','temperature','DO','pH')#,'Ecoli', 'Enteroccoci','SpCond','salinity','TN','chlA','Enteroccoci', 'TP','sulfate','Ammonia', 
-#                     'Chloride', 'Nitrate','metals', 'fecalColiform','SSC','Benthics')
+modulesToReadIn <- c('thermocline','temperature','DO','pH', 'Ecoli')#'TN','chlA','TP','sulfate','Ammonia', 
+#                     'Chloride', 'Nitrate','metals', 
 for (i in 1:length(modulesToReadIn)){
   source(paste('appModulesAndFunctions/',modulesToReadIn[i],'Module.R',sep=''))
 }
@@ -61,4 +61,52 @@ withinAssessmentPeriod <- function(x){
     return('Data included that falls outside of assessment period. Review input data.')
   }else{return('All input data falls within the assessment period.')}
 }
+
+## Old bacteria methods just hanging on
+
+bacteria_ExceedancesSTV_OLD <- function(x, STVlimit){                                    
+  x %>% rename(parameter = !!names(.[2])) %>% # rename columns to make functions easier to apply
+    mutate(limit = STVlimit, exceeds = ifelse(parameter > limit, T, F)) # Single Sample Maximum 
+}
+
+bacteria_ExceedancesGeomeanOLD <- function(x, bacteriaType, geomeanLimit){
+  if(nrow(x) > 0){
+    suppressWarnings(mutate(x, SampleDate = format(FDT_DATE_TIME,"%m/%d/%y"), # Separate sampling events by day
+                            previousSample=lag(SampleDate,1),
+                            previousSampleBacteria=lag(!! bacteriaType,1)) %>% # Line up previous sample with current sample line
+                       rowwise() %>% 
+                       mutate(sameSampleMonth= as.numeric(strsplit(SampleDate,'/')[[1]][1])  -  as.numeric(strsplit(previousSample,'/')[[1]][1])) %>% # See if sample months are the same, e.g. more than one sample per calendar month
+                       filter(sameSampleMonth == 0 | is.na(sameSampleMonth)) %>% # keep only rows with multiple samples per calendar month  or no previous sample (NA) to then test for geomean
+                       # USING CALENDAR MONTH BC THAT'S HOW WRITTEN IN GUIDANCE, rolling 4 wk windows would have been more appropriate
+                       mutate(sampleMonthYear = paste(month(as.Date(SampleDate,"%m/%d/%y")),year(as.Date(SampleDate,"%m/%d/%y")),sep='/')) %>% # grab sample month and year to group_by() for next analysis
+                       group_by(sampleMonthYear) %>%
+                       mutate(geoMeanCalendarMonth =  EnvStats::geoMean(as.numeric(get(bacteriaType)), na.rm = TRUE), # Calculate geomean
+                              limit = geomeanLimit, samplesPerMonth = n()))
+  }
+}
+# How bacteria is assessed
+bacteria_Assessment_OLD <- function(x, bacteriaType, geomeanLimit, STVlimit){
+  if(nrow(x)>1){
+    bacteria <- dplyr::select(x,FDT_DATE_TIME, !! bacteriaType)%>% # Just get relevant columns, 
+      filter(!is.na(!!bacteriaType)) #get rid of NA's
+    # Geomean Analysis (if enough n)
+    if(nrow(bacteria)>0){
+      bacteriaGeomean <- bacteria_ExceedancesGeomeanOLD(bacteria, bacteriaType, geomeanLimit) %>%     
+        distinct(sampleMonthYear, .keep_all = T) %>%
+        filter(samplesPerMonth > 4, geoMeanCalendarMonth > limit) %>% # minimum sampling rule for geomean to apply
+        mutate(exceeds = TRUE) %>%
+        dplyr::select(sampleMonthYear, geoMeanCalendarMonth, limit, exceeds, samplesPerMonth)
+      geomeanResults <- quickStats(bacteriaGeomean, bacteriaType) %>%
+        mutate(`Assessment Method` = 'Old Monthly Geomean')
+      geomeanResults[,4] <- ifelse(is.na(geomeanResults[,4]),NA, dplyr::recode(geomeanResults[,4], 'Review' = paste('Review if ', bacteriaType,'_VIO > 1',sep='')))
+      
+      # Single Sample Maximum Analysis
+      bacteriaSSM <- bacteria_ExceedancesSTV_OLD(bacteria, STVlimit) 
+      SSMresults <- quickStats(bacteriaSSM, bacteriaType) %>% mutate(`Assessment Method` = 'Old Single Sample Maximum')
+      return( rbind(geomeanResults, SSMresults) )
+    }
+  }
+  
+}
+
 

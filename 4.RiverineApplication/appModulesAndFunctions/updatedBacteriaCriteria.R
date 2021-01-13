@@ -312,6 +312,9 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
 
 ## outermost function to decide which bacteria should be assessed based on WQS Class
 bacteriaAssessmentDecisionClass <- function(x){ # input dataframe with bacteria data
+  # lake stations should only be surface sample
+  if(unique(x$lakeStation) == TRUE){
+    x <- filter(x, FDT_DEPTH <= 0.3) }
                                             
   if(unique(x$CLASS) %in% c('I', 'II')){
     return(

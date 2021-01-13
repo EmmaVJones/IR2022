@@ -324,6 +324,12 @@ shinyServer(function(input, output, session) {
   
   output$test <- renderPrint({glimpse(AUData())})
   
+  ## E. coli Sub Tab ##------------------------------------------------------------------------------------------------------
+  # single station tab
+  callModule(EcoliPlotlySingleStation,'Ecoli', AUData, stationSelected, ecoli)
+  # AU tab
+  #callModule(EcoliPlotlySingleStation,'Ecoli', AUData, stationSelected, ecoli)
+  
   
   
   
