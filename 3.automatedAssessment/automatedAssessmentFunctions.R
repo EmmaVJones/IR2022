@@ -476,12 +476,15 @@ freshwaterNH3limit <- function(x, # dataframe with station data
                                mussels,# T/F condition
                                earlyLife# T/F condition
 ){
+  # If no data, return nothing
+  if(nrow(x)==0){return(NULL)}
+  
   # remove any data that shouldn't be considered
   x <- filter(x, !(LEVEL_FDT_TEMP_CELCIUS %in% c('Level II', 'Level I')) |
                 !(LEVEL_FDT_FIELD_PH %in% c('Level II', 'Level I'))) %>% # get lower levels out
     # lake stations should only be surface sample
     {if(unique(x$lakeStation) == TRUE)
-      filter(., FDT_DEPTH <= 0.3)
+      filter(., FDT_DEPTH <= 1)
       else . } %>%
     filter(!is.na(AMMONIA_mg_L)) %>% #get rid of NA's
     dplyr::select(FDT_DATE_TIME, FDT_DEPTH, FDT_TEMP_CELCIUS, FDT_FIELD_PH, AMMONIA_mg_L)

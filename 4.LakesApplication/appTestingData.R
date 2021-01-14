@@ -20,18 +20,6 @@ stationTable1 <- read_csv('userDataToUpload/processedStationData/stationTableRes
                          col_types = cols(COMMENTS = col_character(),
                                           LACUSTRINE = col_character())) %>%# force to character bc parsing can incorrectly guess logical based on top 1000 rows
   filter_at(vars(starts_with('TYPE')), any_vars(. == 'L')) %>% # keep only lake stations
-  
-  
-  
-  
-  # station table issue needs to be resolved
-  distinct(STATION_ID, .keep_all = T) %>%
-  
-  
-  
-  
-  
-  
   # add WQS information to stations
   left_join(WQSlookup, by = c('STATION_ID'='StationID')) %>%
   mutate(CLASS_BASIN = paste(CLASS,substr(BASIN, 1,1), sep="_")) %>%
@@ -113,7 +101,8 @@ AUselectionOptions1 <- unique(dplyr::select(lake_filter1, ID305B_1:ID305B_10) %>
          mutate_at(vars(starts_with("ID305B")), as.character) %>%
          pivot_longer(ID305B_1:ID305B_10, names_to = 'ID305B', values_to = 'keep') %>%
          pull(keep) )
-selectedAU1 <- AUselectionOptions1[!is.na(AUselectionOptions1) & !(AUselectionOptions1 %in% c("NA", "character(0)", "logical(0)"))][1]
+#selectedAU1 <- AUselectionOptions1[!is.na(AUselectionOptions1) & !(AUselectionOptions1 %in% c("NA", "character(0)", "logical(0)"))][1]
+selectedAU1 <- 'VAW-L12L_ROA01A02'
 
 stationSelectionOptions1 <- filter_at(lake_filter1, vars(starts_with("ID305B")), any_vars(. %in% selectedAU1)) %>%
   distinct(STATION_ID) %>%
@@ -122,6 +111,9 @@ stationSelectionOptions1 <- filter_at(lake_filter1, vars(starts_with("ID305B")),
 stationSelection1 <- stationSelectionOptions1[1]
 
 AUData1 <- filter_at(conventionalsLake1, vars(starts_with("ID305B")), any_vars(. %in% selectedAU1) )
+
+# just for nutrients
+AUData11 <- filter(AUData1, ID305B_1 %in% selectedAU1)
 
 stationData1 <- filter(AUData1, FDT_STA_ID %in% stationSelection1) 
 

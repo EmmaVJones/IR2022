@@ -48,7 +48,7 @@ shinyServer(function(input, output, session) {
       
       
       # station table issue needs to be resolved
-      distinct(STATION_ID, .keep_all = T) %>%
+      #distinct(STATION_ID, .keep_all = T) %>%
       
       
       
@@ -353,7 +353,11 @@ shinyServer(function(input, output, session) {
   # AU tab
   callModule(EcoliPlotlyAU,'EcoliAU', AUData, AUmedians, AUmediansForAnalysis, ecoliAU)
   
+  ## For Nutrients
+  AUselection <- reactive({as.character(input$AUselection)})
   
+  ## Chlorophyll a Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(chlAPlotlySingleStation,'chlA', AUData, stationSelected, AUselection)
   
   
 })

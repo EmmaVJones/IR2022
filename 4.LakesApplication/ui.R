@@ -134,7 +134,12 @@ shinyUI(fluidPage(theme="yeti.css",
                                                                   tabPanel('Single Station Analysis',
                                                                            EcoliPlotlySingleStationUI('Ecoli')),
                                                                   tabPanel('Assessment Unit Analysis',
-                                                                           EcoliPlotlyAUUI('EcoliAU'))))
+                                                                           EcoliPlotlyAUUI('EcoliAU')))),
+                                                       tabPanel('Chlorophyll a',
+                                                                helpText('Review each site using the single site visualization section. The results from this analysis are reflected
+                                                                         in the CHLA_EXC, CHLA_SAMP, and CHLA_STAT columns in the station table.',
+                                                                         span('Users may view AU level assessment results below.', style="color:red")),
+                                                                chlAPlotlySingleStationUI('chlA'))
                                                        )))#,
                                  )
                       )))))

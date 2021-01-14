@@ -298,7 +298,7 @@ server <- function(input,output,session){
       
       
       # station table issue needs to be resolved
-      distinct(STATION_ID, .keep_all = T) %>%
+      #distinct(STATION_ID, .keep_all = T) %>%
       
       
       
