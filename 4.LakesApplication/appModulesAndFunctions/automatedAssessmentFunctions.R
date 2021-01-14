@@ -340,6 +340,95 @@ countNutrients <- function(x, fieldName, commentName, nutrientLimit){
 
 
 
+#### Chlorophyll a Assessment Functions ---------------------------------------------------------------------------------------------------
+x$LACUSTRINE
+x$Lakes_187B
+x$lakeStation 
+# this runs regardless of lacustrine or 187 status for information purposes
+chlA_analysis <- function(x){
+#  if(unique(x$Lakes_187B) == 'y'){
+#    x <- filter(x, LACUSTRINE == TRUE)  }
+  
+  chla <- filter(x, !is.na(CHLOROPHYLL_A_ug_L)) %>%
+    filter(!( LEVEL_CHLOROPHYLL_A %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    dplyr::select(FDT_STA_ID, FDT_DEPTH, FDT_DATE_TIME, SampleDate, CHLOROPHYLL_A_ug_L, `Chlorophyll a (ug/L)`, LACUSTRINE)%>%
+    mutate(Year= year(FDT_DATE_TIME), Month=month(FDT_DATE_TIME)) %>%
+    filter(Month %in% c(4, 5, 6, 7, 8, 9, 10)) # make sure only assess valid sample months
+  if(length(unique(chla$FDT_STA_ID)) > 1){
+    chlaResults <- chla %>%
+      group_by(Month, Year) %>%
+      mutate(samplesPerMonth = n(),
+             medianCHLOROPHYLL_A_ug_L = median(CHLOROPHYLL_A_ug_L, na.rm = T)) %>%
+      ungroup() %>%
+      dplyr::select(Year, Month, samplesPerMonth, medianCHLOROPHYLL_A_ug_L, `Chlorophyll a (ug/L)`) %>%
+      distinct(Year, Month, .keep_all = TRUE) %>%
+      group_by(Year) %>%
+      mutate(samplesPerYear = n(),
+              pct90 = quantile(medianCHLOROPHYLL_A_ug_L, 0.9),
+             `90th Percentile Rounded to WQS Format` = signif(pct90, digits = 2),  # two significant figures based on WQS https://lis.virginia.gov/cgi-bin/legp604.exe?000+reg+9VAC25-260-187&000+reg+9VAC25-260-187
+             chlA_Exceedance = ifelse(`90th Percentile Rounded to WQS Format` > `Chlorophyll a (ug/L)`, T, F)) 
+  } else {
+    chlaResults <- chla %>%
+      group_by(Year) %>%
+      mutate(samplesPerYear = n(),
+             pct90 = quantile(CHLOROPHYLL_A_ug_L, 0.9),
+             chlA_Exceedance = ifelse(pct90 > `Chlorophyll a (ug/L)`, T, F)) %>%
+      dplyr::select(FDT_STA_ID, Year, samplesPerYear, pct90, `Chlorophyll a (ug/L)`, chlA_Exceedance, LACUSTRINE) %>%
+      distinct(Year, .keep_all=T)
+  }
+  return(chlaResults)
+}
+
+#chlA_analysis(stationData1)
+
+chlA_Assessment <- function(x){
+  if(nrow(x) > 0){
+    holder <- list()
+    for(i in 1:length(unique(x$FDT_STA_ID))){
+      dat <- filter(x,FDT_STA_ID %in% unique(x$FDT_STA_ID)[i])
+      holder[[i]] <-  as.data.frame(chlA_Assessment_OneStation(dat))
+    }
+    alldat <- do.call(rbind,holder)#%>%filter(!is.na(Year))
+    return(alldat)
+  }
+}
+
+chlA_Assessment <- function(x, lakeStations){
+  chlA_Results <- chlA_analysis(x)
+  if(is.null(chlA_Assess)){
+    return('No Chlorophyll a data for station ')
+  }
+  if(nrow(chlA_Assess) < 1){
+    return('No Chlorophyll a data for station ')
+  }else{
+    if(class(chlA_Assess$FDT_STA_ID)=="factor"){ # have to split this step up bc n stationID's affect how split performs
+      chlA_Assess$FDT_STA_ID <- droplevels(chlA_Assess$FDT_STA_ID) # have to drop unused levels from factor or it messes with split function and mixes up data in each list item
+    }
+    dat <- split(chlA_Assess,f=chlA_Assess$FDT_STA_ID)
+    holder <- list()
+    for(i in 1:length(dat)){
+      # Find two most recent years with >= 6 data points
+      step1 <- filter(dat[[i]],samplePerYear>=6) # verify enough samples
+      step2 <- filter(step1,Year %in% tail(sort(unique(step1$Year)),2)) %>% # get two most recent years from valid sample years 
+        mutate(ID305B_1 = as.character(filter(lakeStations, STATION_ID %in% unique(step1$FDT_STA_ID))$ID305B_1))
+      
+      if(nrow(step2)>1){ # only  do this if more than 1 year of data
+        if(step2$chlA_Exceedance[1]!=step2$chlA_Exceedance[2]){ # if the exceedances contradict one another in two years grab third year
+          step1alt <- filter(dat[[i]],samplePerYear>=6) # verify enough samples 
+          step2 <- filter(step1,Year %in% tail(sort(unique(step1$Year)),3)) %>% # get three most recent years from valid sample years
+            mutate(ID305B_1 = as.character(filter(lakeStations, STATION_ID %in% unique(step1$FDT_STA_ID))$ID305B_1))
+        }
+      }
+      holder[[i]] <-  step2
+    }
+    do.call(rbind,holder) # output table for user to review
+  }
+  
+}
+
+
+
+
 
 # Metals exceedances
 

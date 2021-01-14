@@ -128,13 +128,13 @@ missingWQS <- filter(stationTable, is.na(CLASS))
 We only want to run riverine methods on riverine stations right now, so drop all stations that have lake AU designations
 
 ```{r}
-lakeStations <- filter(stationTable, str_detect(ID305B_1, 'L_') | str_detect(ID305B_2, 'L_') | str_detect(ID305B_3, 'L_') | str_detect(ID305B_4, 'L_') |
-                          str_detect(ID305B_5, 'L_') | str_detect(ID305B_6, 'L_') | str_detect(ID305B_7, 'L_') | str_detect(ID305B_8, 'L_') | 
-                          str_detect(ID305B_9, 'L_') | str_detect(ID305B_10, 'L_') ) 
-bothTypes <- filter(lakeStations, str_detect(ID305B_1, 'R_') | str_detect(ID305B_2, 'R_') | str_detect(ID305B_3, 'R_') | str_detect(ID305B_4, 'R_') |
-                          str_detect(ID305B_5, 'R_') | str_detect(ID305B_6, 'R_') | str_detect(ID305B_7, 'R_') | str_detect(ID305B_8, 'R_') | 
-                          str_detect(ID305B_9, 'R_') | str_detect(ID305B_10, 'R_') ) 
-stationTable <- filter(stationTable, ! STATION_ID %in% lakeStations$STATION_ID)
+ lakeStations <- filter(stationTable, str_detect(ID305B_1, 'L_') | str_detect(ID305B_2, 'L_') | str_detect(ID305B_3, 'L_') | str_detect(ID305B_4, 'L_') |
+                           str_detect(ID305B_5, 'L_') | str_detect(ID305B_6, 'L_') | str_detect(ID305B_7, 'L_') | str_detect(ID305B_8, 'L_') | 
+                           str_detect(ID305B_9, 'L_') | str_detect(ID305B_10, 'L_') ) 
+# bothTypes <- filter(lakeStations, str_detect(ID305B_1, 'R_') | str_detect(ID305B_2, 'R_') | str_detect(ID305B_3, 'R_') | str_detect(ID305B_4, 'R_') |
+#                           str_detect(ID305B_5, 'R_') | str_detect(ID305B_6, 'R_') | str_detect(ID305B_7, 'R_') | str_detect(ID305B_8, 'R_') | 
+#                           str_detect(ID305B_9, 'R_') | str_detect(ID305B_10, 'R_') ) 
+# stationTable <- filter(stationTable, ! STATION_ID %in% lakeStations$STATION_ID)
 
 ```
 
@@ -205,8 +205,24 @@ for(i in 1:nrow(stationTable)){
   # trout presence is determined by WQS class, this can be changed in the app but is forced to be what the station
   # is attributed to in the automated assessment scripts
   
-  # Previous station comments
+  # Nutrients based on station type
+  # Nutrient: TP (lakes have real standards; riverine no longer uses 0.2 mg/L as an observed effect for Aquatic life use)
+      # NUT_TP_EXC, NUT_TP_SAMP, NUT_TP_STAT
+  if(unique(stationData$lakeStation) == TRUE){
+    TP <- tibble(NUT_TP_EXC = NA, NUT_TP_SAMP = NA, NUT_TP_STAT = NA) # placeholder for now
+  } else {
+    TP <- countNutrients(stationData, PHOSPHORUS_mg_L, LEVEL_PHOSPHORUS, NA) %>% quickStats('NUT_TP') %>% 
+      mutate(NUT_TP_STAT = ifelse(NUT_TP_STAT != "S", "Review", NA)) } # flag OE but don't show a real assessment decision
   
+  # Nutrients: Chl a (lakes)
+  if(unique(stationData$lakeStation) == TRUE){
+    chla <- tibble(NUT_CHLA_EXC = NA, NUT_CHLA_SAMP = NA, NUT_CHLA_STAT = NA) # placeholder for now
+    } else {
+      chla <- countNutrients(stationData, CHLOROPHYLL_A_ug_L, LEVEL_CHLOROPHYLL_A, NA) %>% quickStats('NUT_CHLA') %>%
+        mutate(NUT_CHLA_STAT = NA) } # don't show a real assessment decision
+
+  
+
   
   # If data exists for station, run it, otherwise just output what last cycle said and comment
   if(nrow(stationData) > 0){
@@ -247,16 +263,20 @@ for(i in 1:nrow(stationTable)){
       # Benthics 
       # BENTHIC_STAT, BENTHIC_WOE_CAT, BIBI_SCORE
       benthicAssessment(stationData, VSCIresults),
+      
+      # Nutrient Assessment done above by waterbody type
+      TP,
+      chla) %>%
     
-      # Nutrient: TP (lakes have real standards; riverine no longer uses 0.2 mg/L as an observed effect for Aquatic life use)
-      # NUT_TP_EXC, NUT_TP_SAMP, NUT_TP_STAT
-      countNutrients(stationData, PHOSPHORUS_mg_L, LEVEL_PHOSPHORUS, NA) %>% quickStats('NUT_TP') %>% 
-        mutate(NUT_TP_STAT = ifelse(NUT_TP_STAT != "S", "Review", NA)), # flag OE but don't show a real assessment decision
-    
-      # Nutrients: Chl a (lakes)
-      #NUT_CHLA_EXC, NUT_CHLA_SAMP, NUT_CHLA_STAT
-      countNutrients(stationData, CHLOROPHYLL_A_ug_L, LEVEL_CHLOROPHYLL_A, NA) %>% quickStats('NUT_CHLA') %>%
-        mutate(NUT_CHLA_STAT = NA)) %>% # don't show a real assessment decision
+      # # Nutrient: TP (lakes have real standards; riverine no longer uses 0.2 mg/L as an observed effect for Aquatic life use)
+      # # NUT_TP_EXC, NUT_TP_SAMP, NUT_TP_STAT
+      # countNutrients(stationData, PHOSPHORUS_mg_L, LEVEL_PHOSPHORUS, NA) %>% quickStats('NUT_TP') %>% 
+      #   mutate(NUT_TP_STAT = ifelse(NUT_TP_STAT != "S", "Review", NA)), # flag OE but don't show a real assessment decision
+      # 
+      # # Nutrients: Chl a (lakes)
+      # #NUT_CHLA_EXC, NUT_CHLA_SAMP, NUT_CHLA_STAT
+      # countNutrients(stationData, CHLOROPHYLL_A_ug_L, LEVEL_CHLOROPHYLL_A, NA) %>% quickStats('NUT_CHLA') %>%
+      #   mutate(NUT_CHLA_STAT = NA)) %>% # don't show a real assessment decision
     
       # COMMENTS
       mutate(COMMENTS = paste0('DO_Daily_Avg_STAT: ', DO_Daily_Avg_STAT, 

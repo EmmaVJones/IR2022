@@ -41,7 +41,8 @@ shinyServer(function(input, output, session) {
   # for testing
   stationTable <- reactive({
     read_csv('userDataToUpload/processedStationData/stationTableResults.csv',
-             col_types = cols(COMMENTS = col_character())) %>%# force to character bc parsing can incorrectly guess logical based on top 1000 rows
+             col_types = cols(COMMENTS = col_character(),
+                              LACUSTRINE = col_character())) %>%# force to character bc parsing can incorrectly guess logical based on top 1000 rows
       filter_at(vars(starts_with('TYPE')), any_vars(. == 'L')) %>% # keep only lake stations
       
       

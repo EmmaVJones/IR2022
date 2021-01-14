@@ -83,7 +83,8 @@ stationTable <- reactive({
   req(input$stationsTable)
   inFile <- input$stationsTable
   stationTable <- read_csv(inFile$datapath,
-                           col_types = cols(COMMENTS = col_character())) %>% # force to character bc parsing can incorrectly guess logical based on top 1000 rows
+                           col_types = cols(COMMENTS = col_character(),
+                                            LACUSTRINE = col_character())) %>% # force to character bc parsing can incorrectly guess logical based on top 1000 rows
     #fix periods in column names from excel
     as_tibble() %>%
     filter_at(vars(starts_with('TYPE')), any_vars(. == 'L')) %>% # keep only lake stations

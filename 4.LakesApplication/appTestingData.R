@@ -17,7 +17,8 @@ lakeNutStandards <- read_csv('data/9VAC25-260-187lakeNutrientStandards.csv')
 
 # user brings in station table on first page
 stationTable1 <- read_csv('userDataToUpload/processedStationData/stationTableResults.csv',
-                         col_types = cols(COMMENTS = col_character())) %>%# force to character bc parsing can incorrectly guess logical based on top 1000 rows
+                         col_types = cols(COMMENTS = col_character(),
+                                          LACUSTRINE = col_character())) %>%# force to character bc parsing can incorrectly guess logical based on top 1000 rows
   filter_at(vars(starts_with('TYPE')), any_vars(. == 'L')) %>% # keep only lake stations
   
   
@@ -141,42 +142,42 @@ stationInfo1 <- filter(stationTable1, STATION_ID == stationSelection1) %>%
 # map1@map %>% setView(point$LONGITUDE, point$LATITUDE, zoom = 12)
 
 
+
+
+## Nutrient build time
+
+#The nutrient criteria for the man-made lakes and reservoirs listed in Section 187 of the WQS only apply in the top 1 meter of the lacustrine zone. If total phosphorus or chlorophyll a data are collected outside the lacustrine zone, in the riverine or transitional zone, the data from these two zones will not be used in the assessment for lake or reservoir impairment due to nutrients.  
+
+
+
+
+
 ## Ecoli has to run daily AU medians before can be run through scripts
 
 # save individual ecoli results for later, human understandable
-AUmedians <- AUData1 %>%
-  filter(ID305B_1 %in% selectedAU1) %>% # run ecoli by only 1 AU at a time
-  group_by(SampleDate) %>%
-  filter(!is.na(ECOLI)) %>%
-  mutate(EcoliDailyMedian = median(ECOLI, na.rm = TRUE)) %>%
-  dplyr::select(ID305B_1, FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, SampleDate, EcoliDailyMedian, ECOLI, RMK_ECOLI, LEVEL_ECOLI) %>%
-  arrange(SampleDate) %>% ungroup()
-  
+# AUmedians <- AUData1 %>%
+#   filter(ID305B_1 %in% selectedAU1) %>% # run ecoli by only 1 AU at a time
+#   group_by(SampleDate) %>%
+#   filter(!is.na(ECOLI)) %>%
+#   mutate(EcoliDailyMedian = median(ECOLI, na.rm = TRUE)) %>%
+#   dplyr::select(ID305B_1, FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, SampleDate, EcoliDailyMedian, ECOLI, RMK_ECOLI, LEVEL_ECOLI) %>%
+#   arrange(SampleDate) %>% ungroup()
+#   
+# 
+# # need to run analysis on only one point per day, function understandable
+# AUmediansForAnalysis <- AUmedians %>%
+#   filter(! LEVEL_ECOLI %in% c('Level I', 'Level II')) %>%
+#   mutate(ECOLI_Station = ECOLI,
+#          ECOLI = EcoliDailyMedian,
+#          FDT_STA_ID = unique(ID305B_1),
+#          FDT_DATE_TIME = SampleDate) %>%
+#   dplyr::select(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, SampleDate, ECOLI, ECOLI_Station, RMK_ECOLI, LEVEL_ECOLI) %>%
+#   distinct(SampleDate, .keep_all = T) 
+# 
+# z <- bacteriaAssessmentDecision(AUmediansForAnalysis, 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126)# %>%
+#   #dplyr::select(StationID:ECOLI_STATECOLI_VERBOSE)
 
-# need to run analysis on only one point per day, function understandable
-AUmediansForAnalysis <- AUmedians %>%
-  filter(! LEVEL_ECOLI %in% c('Level I', 'Level II')) %>%
-  mutate(ECOLI_Station = ECOLI,
-         ECOLI = EcoliDailyMedian,
-         FDT_STA_ID = unique(ID305B_1),
-         FDT_DATE_TIME = SampleDate) %>%
-  dplyr::select(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, SampleDate, ECOLI, ECOLI_Station, RMK_ECOLI, LEVEL_ECOLI) %>%
-  distinct(SampleDate, .keep_all = T) 
-
-# x <- AUmediansForAnalysis
-# bacteriaField <- 'ECOLI'
-# bacteriaRemark <- 'LEVEL_ECOLI'
-# sampleRequirement <- 10
-# STV <- 410
-# geomeanCriteria <- 126
-
-z <- bacteriaAssessmentDecision(AUmediansForAnalysis, 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126)# %>%
-  #dplyr::select(StationID:ECOLI_STATECOLI_VERBOSE)
-
-# z <- dplyr::select(AUmediansForAnalysis,#medianAUForAnalysis(), 
-#                    SampleDate, ECOLI) %>% 
-#   rename('Daily E.coli Median' = 'ECOLI')
-
+# App module stuff
 
 # dat <- AUmedians %>%
 #   mutate(newSTV = 410, geomean = 126, oldSTV = 235)
