@@ -340,70 +340,143 @@ countNutrients <- function(x, fieldName, commentName, nutrientLimit){
 
 
 
-#### Chlorophyll a Assessment Functions ---------------------------------------------------------------------------------------------------
-# x$LACUSTRINE
-# x$Lakes_187B
-# x$lakeStation 
-# # this runs regardless of lacustrine or 187 status for information purposes
-# chlA_OneStation <- function(x){
-#   filter(x, !is.na(CHLOROPHYLL_A_ug_L)) %>%
-#     filter(!( LEVEL_CHLOROPHYLL_A %in% c('Level II', 'Level I'))) %>% # get lower levels out
-#     dplyr::select(FDT_STA_ID, FDT_DEPTH, FDT_DATE_TIME, SampleDate, CHLOROPHYLL_A_ug_L, `Chlorophyll a (ug/L)`, LACUSTRINE)%>%
-#     mutate(Year= year(FDT_DATE_TIME), Month=month(FDT_DATE_TIME)) %>%
-#     filter(Month %in% c(4, 5, 6, 7, 8, 9, 10)) %>% # make sure only assess valid sample months
-#     group_by(Year) %>%
-#     mutate(samplesPerYear = n(),
-#            pct90 = quantile(CHLOROPHYLL_A_ug_L, 0.9),
-#            chlA_Exceedance = ifelse(pct90 > `Chlorophyll a (ug/L)`, T, F)) %>%
-#     dplyr::select(FDT_STA_ID, Year, samplesPerYear, pct90, `Chlorophyll a (ug/L)`, chlA_Exceedance, LACUSTRINE) %>%
-#     distinct(Year, .keep_all=T)
-# }
-# 
-# chlA_Assessment <- function(x){
-#   if(nrow(x) > 0){
-#     holder <- list()
-#     for(i in 1:length(unique(x$FDT_STA_ID))){
-#       dat <- filter(x,FDT_STA_ID %in% unique(x$FDT_STA_ID)[i])
-#       holder[[i]] <-  as.data.frame(chlA_Assessment_OneStation(dat))
-#     }
-#     alldat <- do.call(rbind,holder)#%>%filter(!is.na(Year))
-#     return(alldat)
-#   }
-# }
-# 
-# exceedance_chlA <- function(x, lakeStations){
-#   chlA_Assess <- chlA_Assessment(x)
-#   if(is.null(chlA_Assess)){
-#     return('No Chlorophyll a data for station ')
-#   }
-#   if(nrow(chlA_Assess) < 1){
-#     return('No Chlorophyll a data for station ')
-#   }else{
-#     if(class(chlA_Assess$FDT_STA_ID)=="factor"){ # have to split this step up bc n stationID's affect how split performs
-#       chlA_Assess$FDT_STA_ID <- droplevels(chlA_Assess$FDT_STA_ID) # have to drop unused levels from factor or it messes with split function and mixes up data in each list item
-#     }
-#     dat <- split(chlA_Assess,f=chlA_Assess$FDT_STA_ID)
-#     holder <- list()
-#     for(i in 1:length(dat)){
-#       # Find two most recent years with >= 6 data points
-#       step1 <- filter(dat[[i]],samplePerYear>=6) # verify enough samples
-#       step2 <- filter(step1,Year %in% tail(sort(unique(step1$Year)),2)) %>% # get two most recent years from valid sample years 
-#         mutate(ID305B_1 = as.character(filter(lakeStations, STATION_ID %in% unique(step1$FDT_STA_ID))$ID305B_1))
-#       
-#       if(nrow(step2)>1){ # only  do this if more than 1 year of data
-#         if(step2$chlA_Exceedance[1]!=step2$chlA_Exceedance[2]){ # if the exceedances contradict one another in two years grab third year
-#           step1alt <- filter(dat[[i]],samplePerYear>=6) # verify enough samples 
-#           step2 <- filter(step1,Year %in% tail(sort(unique(step1$Year)),3)) %>% # get three most recent years from valid sample years
-#             mutate(ID305B_1 = as.character(filter(lakeStations, STATION_ID %in% unique(step1$FDT_STA_ID))$ID305B_1))
-#         }
-#       }
-#       holder[[i]] <-  step2
-#     }
-#     do.call(rbind,holder) # output table for user to review
-#   }
-#   
-# }
-# 
+#### Lake Chlorophyll a Assessment Functions ---------------------------------------------------------------------------------------------------
+
+chlA_analysis <- function(x){
+    if(unique(x$Lakes_187B) == 'y'){
+      x <- filter(x, LACUSTRINE == 'YES')  }
+  
+  chla <- filter(x, !is.na(CHLOROPHYLL_A_ug_L)) %>%
+    filter(FDT_DEPTH <= 1) %>% # Guidance calls for top meter only
+    filter(!( LEVEL_CHLOROPHYLL_A %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    dplyr::select(FDT_STA_ID, FDT_DEPTH, FDT_DATE_TIME, SampleDate, CHLOROPHYLL_A_ug_L, `Chlorophyll a (ug/L)`, LACUSTRINE)%>%
+    mutate(Year= year(FDT_DATE_TIME), Month=month(FDT_DATE_TIME)) %>%
+    filter(Month %in% c(4, 5, 6, 7, 8, 9, 10)) # make sure only assess valid sample months
+  if(length(unique(chla$FDT_STA_ID)) > 1){
+    chlaResults <- chla %>%
+      group_by(Month, Year) %>%
+      summarise(samplesPerMonth = n(),
+             medianCHLOROPHYLL_A_ug_L = median(CHLOROPHYLL_A_ug_L, na.rm = T),
+             `Chlorophyll a (ug/L)` = unique(`Chlorophyll a (ug/L)`)) %>%
+      ungroup() %>%
+      group_by(Year) %>%
+      summarise(samplesPerYear = n(),
+                pct90 = quantile(medianCHLOROPHYLL_A_ug_L, 0.9),
+                `Chlorophyll a (ug/L)` = unique(`Chlorophyll a (ug/L)`)) %>%
+      mutate(`90th Percentile Rounded to WQS Format` = signif(pct90, digits = 2),  # two significant figures based on WQS https://lis.virginia.gov/cgi-bin/legp604.exe?000+reg+9VAC25-260-187&000+reg+9VAC25-260-187
+             chlA_Exceedance = ifelse(`90th Percentile Rounded to WQS Format` > `Chlorophyll a (ug/L)`, T, F),
+             ID305B = unique(x$ID305B_1))  %>%
+      dplyr::select(ID305B, Year, samplesPerYear, pct90, `90th Percentile Rounded to WQS Format`, everything())
+  } else {
+    chlaResults <- chla %>%
+      group_by(Year) %>%
+      mutate(samplesPerYear = n(),
+             pct90 = quantile(CHLOROPHYLL_A_ug_L, 0.9),
+             `90th Percentile Rounded to WQS Format` = signif(pct90, digits = 2),  # two significant figures based on WQS https://lis.virginia.gov/cgi-bin/legp604.exe?000+reg+9VAC25-260-187&000+reg+9VAC25-260-187
+             chlA_Exceedance = ifelse(`90th Percentile Rounded to WQS Format` > `Chlorophyll a (ug/L)`, T, F)) %>%
+      dplyr::select(FDT_STA_ID, Year, samplesPerYear, pct90, `90th Percentile Rounded to WQS Format`,`Chlorophyll a (ug/L)`, chlA_Exceedance, LACUSTRINE) %>%
+      distinct(Year, .keep_all=T)
+  }
+  return(chlaResults)
+}
+
+#chlA_analysis(stationData1)
+
+chlA_Assessment <- function(x){
+  chlA_Results <- chlA_analysis(x) %>% ungroup()
+  
+  if(nrow(chlA_Results) > 0){
+    validYears <- filter(chlA_Results, samplesPerYear >= 6) # need at least 6 samples per year
+    mostRecent2years <- slice_max(validYears, Year, n = 2) # get most recent two years of results
+    if(nrow(mostRecent2years) == 2){ 
+      if(unique(mostRecent2years$chlA_Exceedance) == FALSE){ # no exceedances in last two years
+        return(tibble(NUT_CHLA_EXC= 0, NUT_CHLA_SAMP = nrow(validYears),	NUT_CHLA_STAT = 'S') )
+      } else { # at least one chlA_Exceedance exists
+        if(unique(mostRecent2years$chlA_Exceedance) == TRUE){ # both years exceed
+          return(tibble(NUT_CHLA_EXC= nrow(mostRecent2years), NUT_CHLA_SAMP = nrow(validYears),	NUT_CHLA_STAT = 'IM'))
+        } else { # run a tiebreak with third most recent year
+          mostRecent3years <- slice_max(validYears, Year, n = 3) %>% # get most recent three years of results
+            filter(chlA_Exceedance == TRUE)
+          if(nrow(mostRecent3years) >= 2){
+            return(tibble(NUT_CHLA_EXC= nrow(mostRecent3years), NUT_CHLA_SAMP = nrow(validYears),	NUT_CHLA_STAT = 'IM'))
+          } else {
+            return(tibble(NUT_CHLA_EXC= nrow(mostRecent3years), NUT_CHLA_SAMP = nrow(validYears),	NUT_CHLA_STAT = 'Review')) }
+        }}}
+    } else {    return(tibble(NUT_CHLA_EXC= NA, NUT_CHLA_SAMP = NA,	NUT_CHLA_STAT = NA) )  }
+}
+
+#chlA_Assessment(stationData1)
+#chlA_Assessment(AUData1)
+
+
+
+#### Lake Total Phosphorus Assessment Functions ---------------------------------------------------------------------------------------------------
+
+TP_analysis <- function(x){
+  if(unique(x$Lakes_187B) == 'y'){
+    x <- filter(x, LACUSTRINE == 'YES')  }
+  
+  TP <- filter(x, !is.na(PHOSPHORUS_mg_L)) %>%
+    filter(FDT_DEPTH <= 1) %>% # Guidance calls for top meter only
+    filter(!( LEVEL_PHOSPHORUS %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    dplyr::select(FDT_STA_ID, FDT_DEPTH, FDT_DATE_TIME, SampleDate, PHOSPHORUS_mg_L, `Total Phosphorus (ug/L)`, LACUSTRINE)%>%
+    mutate(Year= year(FDT_DATE_TIME), Month=month(FDT_DATE_TIME)) %>%
+    filter(Month %in% c(4, 5, 6, 7, 8, 9, 10)) # make sure only assess valid sample months
+  if(length(unique(TP$FDT_STA_ID)) > 1){
+    TPResults <- TP %>%
+      group_by(Month, Year) %>%
+      summarise(samplesPerMonth = n(),
+                medianPHOSPHORUS_mg_L = median(PHOSPHORUS_mg_L, na.rm = T),
+                `Total Phosphorus (ug/L)` = unique(`Total Phosphorus (ug/L)`)) %>%
+      ungroup() %>%
+      group_by(Year) %>%
+      summarise(samplesPerYear = n(),
+                `Annual Median TP` = median(medianPHOSPHORUS_mg_L, na.rm = TRUE),
+                `Total Phosphorus (ug/L)` = unique(`Total Phosphorus (ug/L)`)) %>%
+      mutate(`Annual Median TP Rounded to WQS Format` = signif(`Annual Median TP`, digits = 1),  # one significant figures based on WQS https://lis.virginia.gov/cgi-bin/legp604.exe?000+reg+9VAC25-260-187&000+reg+9VAC25-260-187
+             TP_Exceedance = ifelse(`Annual Median TP Rounded to WQS Format` > `Total Phosphorus (ug/L)`, T, F),
+             ID305B = unique(x$ID305B_1))  %>%
+      dplyr::select(ID305B, Year, samplesPerYear, `Annual Median TP`, `Annual Median TP Rounded to WQS Format`, everything())
+  } else {
+    TPResults <- TP %>%
+      group_by(Year) %>%
+      mutate(samplesPerYear = n(),
+             `Annual Median TP` = median(PHOSPHORUS_mg_L, na.rm = TRUE),
+             `Annual Median TP Rounded to WQS Format` = signif(`Annual Median TP`, digits = 1),  # one significant figures based on WQS https://lis.virginia.gov/cgi-bin/legp604.exe?000+reg+9VAC25-260-187&000+reg+9VAC25-260-187
+             TP_Exceedance = ifelse(`Annual Median TP Rounded to WQS Format` > `Total Phosphorus (ug/L)`, T, F)) %>%
+      dplyr::select(FDT_STA_ID, Year, samplesPerYear, `Annual Median TP`, `Annual Median TP Rounded to WQS Format`,`Total Phosphorus (ug/L)`, TP_Exceedance, LACUSTRINE) %>%
+      distinct(Year, .keep_all=T)
+  }
+  return(TPResults)
+}
+#TP_analysis(stationData1)
+#TP_analysis(AUData11)
+
+TP_Assessment <- function(x){
+  TP_Results <- TP_analysis(x) %>% ungroup()
+  
+  if(nrow(TP_Results) > 0){
+    validYears <- filter(TP_Results, samplesPerYear >= 6) # need at least 6 samples per year
+    mostRecent2years <- slice_max(validYears, Year, n = 2) # get most recent two years of results
+    if(nrow(mostRecent2years) == 2){ 
+      if(unique(mostRecent2years$TP_Exceedance) == FALSE){ # no exceedances in last two years
+        return(tibble(NUT_TP_EXC= 0, NUT_TP_SAMP = nrow(validYears),	NUT_TP_STAT = 'S') )
+      } else { # at least one TP_Exceedance exists
+        if(unique(mostRecent2years$TP_Exceedance) == TRUE){ # both years exceed
+          return(tibble(NUT_TP_EXC= nrow(mostRecent2years), NUT_TP_SAMP = nrow(validYears),	NUT_TP_STAT = 'IM'))
+        } else { # run a tiebreak with third most recent year
+          mostRecent3years <- slice_max(validYears, Year, n = 3) %>% # get most recent three years of results
+            filter(TP_Exceedance == TRUE)
+          if(nrow(mostRecent3years) >= 2){
+            return(tibble(NUT_TP_EXC= nrow(mostRecent3years), NUT_TP_SAMP = nrow(validYears),	NUT_TP_STAT = 'IM'))
+          } else {
+            return(tibble(NUT_TP_EXC= nrow(mostRecent3years), NUT_TP_SAMP = nrow(validYears),	NUT_TP_STAT = 'Review')) }
+        }}}
+  } else {    return(tibble(NUT_TP_EXC= NA, NUT_TP_SAMP = NA,	NUT_TP_STAT = NA) )  }
+}
+
+#TP_Assessment(stationData1)
+#TP_Assessment(AUData11)
 
 
 
@@ -433,6 +506,7 @@ benthicAssessment <- function(x, VSCIresults){
 #benthicAssessment(x, VSCIresults)
 
 
+
 #### Ammonia Assessment Functions ---------------------------------------------------------------------------------------------------
 
 # Used rolling windows but opted for loops with filtering instead of roll_apply over time series so teh data analyzed each window could
@@ -451,7 +525,7 @@ fourDayAverageAnalysis <- function(chronicWindowData, chronicWindowResults){
     if(nrow(fourDayWindow) > 1){
       fourDayResultsi <- fourDayWindow %>%
         summarize(WindowStart = min(FDT_DATE_TIME),
-          `fourDayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA_mg_L, na.rm = T), digits = 2))) %>% # two sigfigs for comparison to chronic criteria
+                  `fourDayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA_mg_L, na.rm = T), digits = 2))) %>% # two sigfigs for comparison to chronic criteria
         bind_cols(dplyr::select(chronicWindowResults,`fourDayAvglimit`)) %>%
         mutate(fourDayExceedance = `fourDayAmmoniaAvg` > `fourDayAvglimit`)
       fourDayResults <- bind_rows(fourDayResults, 
@@ -560,28 +634,28 @@ freshwaterNH3limit <- function(x, # dataframe with station data
       chronicWindowData <- filter(acute, between(FDT_DATE_TIME, acute$FDT_DATE_TIME[i], acute$FDT_DATE_TIME[i] + days(30) ) ) %>% 
         ungroup() 
       if(nrow(chronicWindowData) > 1){ # need 2 or more data points to run a chronic or 4 day 
-      chronicWindowResultsi <- chronicWindowData %>%
-        summarise(WindowStart = min(FDT_DATE_TIME),
-                  `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA_mg_L, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
-                  TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T), #don't round to even bc more calculations to follow with data
-                  pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>% #don't round to even bc more calculations to follow with data
-        # Chronic Criteria mussels == F & earlyLife == T
-        {if(earlyLife == TRUE)
-          mutate(., chronicNH3limit = as.numeric(signif(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * min(6.92, (7.547 * 10^(0.028 * (20 - TempAvg)))), digits = 2)),
-                 `fourDayAvglimit`= as.numeric(signif(chronicNH3limit * 2.5, digits = 2)) )
-          # Chronic Criteria mussels == F & earlyLife == F
-          else mutate(., chronicNH3limit =  as.numeric(signif(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * (7.547 * 10^(0.028 * (20 - max(TempAvg, 7)))), digits = 2)),
-                      `fourDayAvglimit`= as.numeric(signif(chronicNH3limit * 2.5, digits = 2)) )  } %>%
-        # Identify if window Ammonia average is above chronic criteria
-        mutate(chronicExceedance = `30dayAmmoniaAvg` > chronicNH3limit) %>%
-        # attach associated raw data to analysis for later use
-        bind_cols(tibble(associatedWindowData = list(chronicWindowData)))
-      
-      # 4 day average analysis
-      fourDayResults <- fourDayAverageAnalysis(chronicWindowData, chronicWindowResultsi)
-      
-      chronicWindowResults <- bind_rows(chronicWindowResults, 
-                                        left_join(chronicWindowResultsi, fourDayResults, by = c('WindowStart', 'fourDayAvglimit'))  ) 
+        chronicWindowResultsi <- chronicWindowData %>%
+          summarise(WindowStart = min(FDT_DATE_TIME),
+                    `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA_mg_L, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
+                    TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T), #don't round to even bc more calculations to follow with data
+                    pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>% #don't round to even bc more calculations to follow with data
+          # Chronic Criteria mussels == F & earlyLife == T
+          {if(earlyLife == TRUE)
+            mutate(., chronicNH3limit = as.numeric(signif(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * min(6.92, (7.547 * 10^(0.028 * (20 - TempAvg)))), digits = 2)),
+                   `fourDayAvglimit`= as.numeric(signif(chronicNH3limit * 2.5, digits = 2)) )
+            # Chronic Criteria mussels == F & earlyLife == F
+            else mutate(., chronicNH3limit =  as.numeric(signif(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * (7.547 * 10^(0.028 * (20 - max(TempAvg, 7)))), digits = 2)),
+                        `fourDayAvglimit`= as.numeric(signif(chronicNH3limit * 2.5, digits = 2)) )  } %>%
+          # Identify if window Ammonia average is above chronic criteria
+          mutate(chronicExceedance = `30dayAmmoniaAvg` > chronicNH3limit) %>%
+          # attach associated raw data to analysis for later use
+          bind_cols(tibble(associatedWindowData = list(chronicWindowData)))
+        
+        # 4 day average analysis
+        fourDayResults <- fourDayAverageAnalysis(chronicWindowData, chronicWindowResultsi)
+        
+        chronicWindowResults <- bind_rows(chronicWindowResults, 
+                                          left_join(chronicWindowResultsi, fourDayResults, by = c('WindowStart', 'fourDayAvglimit'))  ) 
       } else {
         chronicWindowResults <- bind_rows(chronicWindowResults, 
                                           tibble(
@@ -609,33 +683,33 @@ freshwaterNH3limit <- function(x, # dataframe with station data
       chronicWindowData <- filter(acute, between(FDT_DATE_TIME, acute$FDT_DATE_TIME[i], acute$FDT_DATE_TIME[i] + days(30) ) ) %>% 
         ungroup()
       if(nrow(chronicWindowData) > 1){ # need 2 or more data points to run a chronic or 4 day 
-      chronicWindowResultsi <- chronicWindowData %>%
-        summarise(WindowStart = min(FDT_DATE_TIME),
-                  `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA_mg_L, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
-                  TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T), #don't round to even bc more calculations to follow with data
-                  pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>% #don't round to even bc more calculations to follow with data
-        # Chronic Criteria mussels == T & earlyLife == T
-        {if(earlyLife == TRUE)
-          mutate(., chronicNH3limit = as.numeric(signif(0.8876 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * (2.126 * 10^(0.028 * (20 - max(7, TempAvg)))), digits = 2)),
-                 `fourDayAvglimit`= as.numeric(signif(chronicNH3limit * 2.5, digits = 2)))
-          else mutate(., chronicNH3limit = as.numeric(NA),
-                      `fourDayAvglimit`= as.numeric(NA) ) }  %>%
-        # Identify if window Ammonia average is above chronic criteria
-        mutate(chronicExceedance = `30dayAmmoniaAvg` > chronicNH3limit) %>%
-        # attach associated raw data to analysis for later use
-        bind_cols(tibble(associatedWindowData = list(chronicWindowData)))
-      
-      # 4 day average analysis
-      fourDayResults <- fourDayAverageAnalysis(chronicWindowData, chronicWindowResultsi)
-      
-      chronicWindowResults <- bind_rows(chronicWindowResults, 
+        chronicWindowResultsi <- chronicWindowData %>%
+          summarise(WindowStart = min(FDT_DATE_TIME),
+                    `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA_mg_L, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
+                    TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T), #don't round to even bc more calculations to follow with data
+                    pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>% #don't round to even bc more calculations to follow with data
+          # Chronic Criteria mussels == T & earlyLife == T
+          {if(earlyLife == TRUE)
+            mutate(., chronicNH3limit = as.numeric(signif(0.8876 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * (2.126 * 10^(0.028 * (20 - max(7, TempAvg)))), digits = 2)),
+                   `fourDayAvglimit`= as.numeric(signif(chronicNH3limit * 2.5, digits = 2)))
+            else mutate(., chronicNH3limit = as.numeric(NA),
+                        `fourDayAvglimit`= as.numeric(NA) ) }  %>%
+          # Identify if window Ammonia average is above chronic criteria
+          mutate(chronicExceedance = `30dayAmmoniaAvg` > chronicNH3limit) %>%
+          # attach associated raw data to analysis for later use
+          bind_cols(tibble(associatedWindowData = list(chronicWindowData)))
+        
+        # 4 day average analysis
+        fourDayResults <- fourDayAverageAnalysis(chronicWindowData, chronicWindowResultsi)
+        
+        chronicWindowResults <- bind_rows(chronicWindowResults, 
                                           left_join(chronicWindowResultsi, fourDayResults, by = c('WindowStart', 'fourDayAvglimit'))  )  
-    } else {
-      chronicWindowResults <- bind_rows(chronicWindowResults, 
-                                        tibble(
-                                          WindowStart = min(chronicWindowData$FDT_DATE_TIME), `30dayAmmoniaAvg` = NA,
-                                          TempAvg = NA, pHAvg = NA, chronicNH3limit = NA, fourDayAvglimit = NA, chronicExceedance = NA, 
-                                          associatedWindowData = list(NULL), fourDayAmmoniaAvg = NA, fourDayExceedance = NA, fourDayWindowData = list(NULL) ) )
+      } else {
+        chronicWindowResults <- bind_rows(chronicWindowResults, 
+                                          tibble(
+                                            WindowStart = min(chronicWindowData$FDT_DATE_TIME), `30dayAmmoniaAvg` = NA,
+                                            TempAvg = NA, pHAvg = NA, chronicNH3limit = NA, fourDayAvglimit = NA, chronicExceedance = NA, 
+                                            associatedWindowData = list(NULL), fourDayAmmoniaAvg = NA, fourDayExceedance = NA, fourDayWindowData = list(NULL) ) )
       } }
     
     return(left_join(acute, chronicWindowResults, by = c("FDT_DATE_TIME" = "WindowStart")) )  }
@@ -660,35 +734,35 @@ freshwaterNH3limit <- function(x, # dataframe with station data
       chronicWindowData <- filter(acute, between(FDT_DATE_TIME, acute$FDT_DATE_TIME[i], acute$FDT_DATE_TIME[i] + days(30) ) ) %>% 
         ungroup() 
       if(nrow(chronicWindowData) > 1){ # need 2 or more data points to run a chronic or 4 day 
-      chronicWindowResultsi <- chronicWindowData %>%
-        summarise(WindowStart = min(FDT_DATE_TIME),
-                  `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA_mg_L, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
-                  TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T), #don't round to even bc more calculations to follow with data
-                  pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>% #don't round to even bc more calculations to follow with data
-        # Chronic Criteria mussels == F & earlyLife == T
-        {if(earlyLife == TRUE)
-          mutate(., chronicNH3limit = as.numeric(signif(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * min(6.92, (7.547 * 10^(0.028 * (20 - TempAvg)))), digits = 2)),
-                 `fourDayAvglimit`= as.numeric(signif(chronicNH3limit * 2.5, digits = 2)) )
-          # Chronic Criteria mussels == F & earlyLife == F
-          else mutate(., chronicNH3limit =  as.numeric(signif(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * (7.547 * 10^(0.028 * (20 - max(TempAvg, 7)))), digits = 2)),
-                      `fourDayAvglimit`= as.numeric(signif(chronicNH3limit * 2.5, digits = 2)) )  }  %>%
-        # Identify if window Ammonia average is above chronic criteria
-        mutate(chronicExceedance = `30dayAmmoniaAvg` > chronicNH3limit) %>%
-        # attach associated raw data to analysis for later use
-        bind_cols(tibble(associatedWindowData = list(chronicWindowData)))
-      
-      # 4 day average analysis
-      fourDayResults <- fourDayAverageAnalysis(chronicWindowData, chronicWindowResultsi)
-      
-      chronicWindowResults <- bind_rows(chronicWindowResults, 
-                                        left_join(chronicWindowResultsi, fourDayResults, by = c('WindowStart', 'fourDayAvglimit'))  ) 
-    } else {
-      chronicWindowResults <- bind_rows(chronicWindowResults, 
-                                        tibble(
-                                          WindowStart = min(chronicWindowData$FDT_DATE_TIME), `30dayAmmoniaAvg` = NA,
-                                          TempAvg = NA, pHAvg = NA, chronicNH3limit = NA, fourDayAvglimit = NA, chronicExceedance = NA, 
-                                          associatedWindowData = list(NULL), fourDayAmmoniaAvg = NA, fourDayExceedance = NA, fourDayWindowData = list(NULL) ) )
-    } }
+        chronicWindowResultsi <- chronicWindowData %>%
+          summarise(WindowStart = min(FDT_DATE_TIME),
+                    `30dayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA_mg_L, na.rm = T), digits = 2)), # round to even for comparison to chronic criteria
+                    TempAvg = mean(FDT_TEMP_CELCIUS, na.rm = T), #don't round to even bc more calculations to follow with data
+                    pHAvg = mean(FDT_FIELD_PH, na.rm = T)) %>% #don't round to even bc more calculations to follow with data
+          # Chronic Criteria mussels == F & earlyLife == T
+          {if(earlyLife == TRUE)
+            mutate(., chronicNH3limit = as.numeric(signif(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * min(6.92, (7.547 * 10^(0.028 * (20 - TempAvg)))), digits = 2)),
+                   `fourDayAvglimit`= as.numeric(signif(chronicNH3limit * 2.5, digits = 2)) )
+            # Chronic Criteria mussels == F & earlyLife == F
+            else mutate(., chronicNH3limit =  as.numeric(signif(0.9405 * ((0.0278 / (1 + 10^(7.688 - pHAvg))) + (1.1994 / (1 + 10^(pHAvg - 7.688)))) * (7.547 * 10^(0.028 * (20 - max(TempAvg, 7)))), digits = 2)),
+                        `fourDayAvglimit`= as.numeric(signif(chronicNH3limit * 2.5, digits = 2)) )  }  %>%
+          # Identify if window Ammonia average is above chronic criteria
+          mutate(chronicExceedance = `30dayAmmoniaAvg` > chronicNH3limit) %>%
+          # attach associated raw data to analysis for later use
+          bind_cols(tibble(associatedWindowData = list(chronicWindowData)))
+        
+        # 4 day average analysis
+        fourDayResults <- fourDayAverageAnalysis(chronicWindowData, chronicWindowResultsi)
+        
+        chronicWindowResults <- bind_rows(chronicWindowResults, 
+                                          left_join(chronicWindowResultsi, fourDayResults, by = c('WindowStart', 'fourDayAvglimit'))  ) 
+      } else {
+        chronicWindowResults <- bind_rows(chronicWindowResults, 
+                                          tibble(
+                                            WindowStart = min(chronicWindowData$FDT_DATE_TIME), `30dayAmmoniaAvg` = NA,
+                                            TempAvg = NA, pHAvg = NA, chronicNH3limit = NA, fourDayAvglimit = NA, chronicExceedance = NA, 
+                                            associatedWindowData = list(NULL), fourDayAmmoniaAvg = NA, fourDayExceedance = NA, fourDayWindowData = list(NULL) ) )
+      } }
     return(left_join(acute, chronicWindowResults, by = c("FDT_DATE_TIME" = "WindowStart")) )  }
 }
 #freshwaterNH3limit(stationData, trout = TRUE, mussels = TRUE, earlyLife = TRUE)

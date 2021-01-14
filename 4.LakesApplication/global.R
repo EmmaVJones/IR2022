@@ -19,7 +19,7 @@ source('appModulesAndFunctions/updatedBacteriaCriteria.R')
 source('appModulesAndFunctions/multipleDependentSelectizeArguments.R')
 source('appModulesAndFunctions/automatedAssessmentFunctions.R')
 
-modulesToReadIn <- c('thermocline','temperature','DO','pH', 'Ecoli', 'Ecoli_AU','chlA')#'TN','chlA','TP','sulfate','Ammonia', 
+modulesToReadIn <- c('thermocline','temperature','DO','pH', 'Ecoli', 'Ecoli_AU','chlA','TP')#'TSI','sulfate','Ammonia', 
 #                     'Chloride', 'Nitrate','metals', 
 for (i in 1:length(modulesToReadIn)){
   source(paste('appModulesAndFunctions/',modulesToReadIn[i],'Module.R',sep=''))

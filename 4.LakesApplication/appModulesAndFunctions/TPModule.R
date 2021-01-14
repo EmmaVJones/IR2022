@@ -3,28 +3,51 @@ TPPlotlySingleStationUI <- function(id){
   tagList(
     wellPanel(
       h4(strong('Single Station Data Visualization')),
-      fluidRow(column(2,uiOutput(ns('oneStationSelectionUI'))),
+      fluidRow(column(3,uiOutput(ns('oneStationSelectionUI'))),
                column(1),
-               column(2,br(),checkboxInput(ns('displayBSAcolors'), 'Display Benthic Stressor Analysis Colors on Plot', value = TRUE)),
+               column(2,uiOutput(ns('changeLacustrineUI'))),
+               column(2,helpText('The default Lacustrine Zone selection is what is designated in the user uploaded stations table.')),
                column(1),
-               column(2,actionButton(ns('reviewData'),"Review Raw Parameter Data",class='btn-block', width = '250px'))),
+               column(3,actionButton(ns('reviewData'),"Review Raw Parameter Data",class='btn-block', width = '250px'))),
       helpText('All data presented in the interactive plot is raw data. Rounding rules are appropriately applied to the 
                assessment functions utilized by the application.'),
       plotlyOutput(ns('plotly')) ,
-      br(), br(),br()
-      # TP 0.2 limit no longer used after 12/21/2020 email with Tish/Amanda
-      #h5('Total Phosphorus exceedances above 0.2 mg/L for the ',span(strong('selected site')),' are highlighted below to highlight
-      #   potenial observed effects for Aquatic Life Use.'),
-      #fluidRow(
-      #  column(6, h6('If there is no data listed below then none of the measures exceeded 0.2 mg/L Total Phosphorus.'), 
-      #         dataTableOutput(ns('rangeTableSingleSite'))),
-      #  column(6, h6('Total Phosphorus > 0.2 mg/L exceedance rate'),
-      #         dataTableOutput(ns("stationExceedanceRate"))))
+      br(), hr(), br(),
+      fluidRow(
+        column(7, h5('Annual Total Phosphorus median values for the ',span(strong('selected site')),' are displayed below.'),
+               helpText('Note: Assessment is based on the two most recent monitoring years that data are available within the 
+                        assessment window. A third sampling year may be needed if the two previous years result in differing 
+                        assessment statuses. '),
+               dataTableOutput(ns("annualMedianTableSingleSite"))),
+        column(1),
+        column(4, 
+               h5('Total Phosphorus exceedance statistics for the ',span(strong('selected site')),' are highlighted below.
+                  These are the results reflected in the stations table above.'),
+               dataTableOutput(ns("stationExceedanceRate")))),
+      br(),
+      wellPanel(
+        h4(strong('AU Assessment')),
+        helpText("The 2022 IR Guidance states: For lake or reservoir assessment units with multiple stations, 
+        chlorophyll-a and total phosphorous data should be pooled by calculating the median of same-month 
+        observations from April to October of any given year in a homogenous unit. The 90th percentile of monthly 
+        chlorophyll-a medians is the value used to compare to the chlorophyll-a criterion for a particular 
+        lake/reservoir.  The median of monthly TP medians should be used to assess against the applicable total 
+        phosphorous criterion. '"),
+        helpText(strong('This application provides an AU level assessment, but it is up to the assessor to determine 
+                        if algaecides have been used in any part of the lake.')),
+        fluidRow(
+          column(7, h5('Annual Total Phosphorus median values for only stations that have an ID305B_1 matching
+                       the ',span(strong('selected Assessment Unit')),' are displayed below.'),
+                 dataTableOutput(ns('annualMedianTableAU'))),
+          column(1),
+          column(4, h5('Total Phosphorus exceedance statistics for the ',span(strong('Assessment Unit')),' are highlighted below.'),
+                 dataTableOutput(ns("AUExceedanceRate"))))
+      )
     ) )
 }
 
 
-TPPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedAbove){
+TPPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedAbove, AUselectionFromOutsideModal){
   ns <- session$ns
   
   # Select One station for individual review
@@ -34,10 +57,21 @@ TPPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
                 choices= sort(unique(c(stationSelectedAbove(),AUdata()$FDT_STA_ID))), # Change this based on stationSelectedAbove
                 width='200px', selected = stationSelectedAbove())})
   
-  oneStation <- reactive({
+  oneStation_original <- reactive({
     req(ns(input$oneStationSelection))
     filter(AUdata(),FDT_STA_ID %in% input$oneStationSelection) %>%
-      filter(!is.na(PHOSPHORUS))})
+      filter(!is.na(PHOSPHORUS_mg_L))})
+  
+  # Option to change lacustrine designation and force function to calculate resutls
+  output$changeLacustrineUI <- renderUI({
+    req(oneStation_original())
+    selectInput(ns('changeLacustrine'),strong('Lacustrine Zone Designation For Analysis'),
+                choices= c('NA', 'YES'),
+                width='400px', selected = unique(oneStation_original()$LACUSTRINE)) })
+  
+  # change WQS for rest of module if user chooses to do so
+  oneStation <- reactive({req(oneStation_original(), input$changeLacustrine)
+    mutate(oneStation_original(), LACUSTRINE = input$changeLacustrine) })
   
   # Button to visualize modal table of available parameter data
   observeEvent(input$reviewData,{
@@ -53,81 +87,69 @@ TPPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   
   # modal parameter data
   output$parameterData <- DT::renderDataTable({
-    req(oneStation())
-    parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, PHOSPHORUS, RMK_PHOSPHORUS)
+    req(oneStation_original())
+    parameterFilter <- dplyr::select(oneStation_original(), FDT_STA_ID:FDT_COMMENT, PHOSPHORUS_mg_L, RMK_PHOSPHORUS, LEVEL_PHOSPHORUS, LACUSTRINE)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
                   options= list(dom= 't', pageLength = nrow(parameterFilter), scrollX = TRUE, scrollY = "400px", dom='t'),
                   selection = 'none') %>%
-      formatStyle(c('PHOSPHORUS','RMK_PHOSPHORUS'), 'RMK_PHOSPHORUS', 
+      formatStyle(c('PHOSPHORUS_mg_L','RMK_PHOSPHORUS', 'LEVEL_PHOSPHORUS'), 'LEVEL_PHOSPHORUS', 
                   backgroundColor = styleEqual(c('Level II', 'Level I'), c('yellow','orange'), default = 'lightgray'))
   })
   
   output$plotly <- renderPlotly({
     req(input$oneStationSelection, oneStation())
-    dat <- oneStation()
-    dat$SampleDate <- as.POSIXct(dat$FDT_DATE_TIME, format="%m/%d/%y")
+    dat <- mutate(oneStation(), top = `Total Phosphorus (ug/L)`,
+                  LakeStratification = replace_na(LakeStratification,"NA")) %>%
+      mutate(LakeStratification = factor(LakeStratification,levels=c("Epilimnion",'NA',"Hypolimnion")))#,ordered=T)
+    
     
     # Fix look of single measure
     if(nrow(dat) == 1){
       print('yes')
       dat <- bind_rows(dat,
-                       tibble(SampleDate = c(dat$SampleDate- days(5), dat$SampleDate + days(5))))
-    }
+                       tibble(SampleDate = c(dat$SampleDate- days(5), dat$SampleDate + days(5))))    }
     
-    maxheight <- ifelse(max(dat$PHOSPHORUS, na.rm=T) < 0.1, 0.12, max(dat$PHOSPHORUS, na.rm=T)* 1.2)
-    
-    if(input$displayBSAcolors == TRUE){
-      box1 <- data.frame(SampleDate = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(0.1, maxheight, maxheight, 0.1))
-      box2 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(0.05, 0.1, 0.1, 0.05))
-      box3 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(0.02, 0.05, 0.05, 0.02))
-      box4 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(0, 0.02, 0.02, 0))
-      
-      plot_ly(data=dat)%>%
-        add_polygons(x = ~SampleDate, y = ~y, data = box1, fillcolor = "firebrick",opacity=0.6, line = list(width = 0),
-                     hoverinfo="text", name =paste('High Probability of Stress to Aquatic Life')) %>%
-        add_polygons(data = box2, x = ~x, y = ~y, fillcolor = "#F0E442",opacity=0.6, line = list(width = 0),
-                     hoverinfo="text", name =paste('Medium Probability of Stress to Aquatic Life')) %>%
-        add_polygons(data = box3, x = ~x, y = ~y, fillcolor = "#009E73",opacity=0.6, line = list(width = 0),
-                     hoverinfo="text", name =paste('Low Probability of Stress to Aquatic Life')) %>%
-        add_polygons(data = box4, x = ~x, y = ~y, fillcolor = "#0072B2",opacity=0.6, line = list(width = 0),
-                     hoverinfo="text", name =paste('No Probability of Stress to Aquatic Life')) %>%
-        add_markers(data=dat, x= ~SampleDate, y= ~PHOSPHORUS,mode = 'scatter', name="Total Phosphorus (mg/L)",marker = list(color= '#535559'),
-                    hoverinfo="text",text=~paste(sep="<br>",
-                                                 paste("Date: ",SampleDate),
-                                                 paste("Depth: ",FDT_DEPTH, "m"),
-                                                 paste("Total Phosphorus: ",PHOSPHORUS,"mg/L")))%>%
-        layout(showlegend=FALSE,
-               yaxis=list(title="Total Phosphorus (mg/L)"),
-               xaxis=list(title="Sample Date",tickfont = list(size = 10)))
-    } else {
-      plot_ly(data=dat)%>%
-        add_markers(data=dat, x= ~SampleDate, y= ~PHOSPHORUS,mode = 'scatter', name="Total Phosphorus (mg/L)",marker = list(color= '#535559'),
-                    hoverinfo="text",text=~paste(sep="<br>",
-                                                 paste("Date: ",SampleDate),
-                                                 paste("Depth: ",FDT_DEPTH, "m"),
-                                                 paste("Total Phosphorus: ",PHOSPHORUS,"mg/L")))%>%
-        layout(showlegend=FALSE,
-               yaxis=list(title="Total Phosphorus (mg/L)"),
-               xaxis=list(title="Sample Date",tickfont = list(size = 10)))
-    }
-    
-  })
-  # TP 0.2 limit no longer used after 12/21/2020 email with Tish/Amanda
-  #output$rangeTableSingleSite <- renderDataTable({
-  #  req(oneStation())
-  #  z <- countNutrients(oneStation(), PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>%
-  #    filter(exceeds == TRUE) %>%
-  #    dplyr::select(FDT_DATE_TIME, PHOSPHORUS = parameter, RMK_PHOSPHORUS, LIMIT = limit)
-  #  datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
-  #            selection = 'none')})
+    plot_ly(data=dat) %>%
+      add_lines(data=dat, x=~SampleDate,y=~top, mode='line', line = list(color = 'black'),
+                hoverinfo = "text", text="Total Phosphorus Limit", name="Total Phosphorus Limit") %>%
+      add_markers(data=dat, x= ~SampleDate, y= ~PHOSPHORUS_mg_L,mode = 'scatter', name="Total Phosphorus (mg/L)",
+                  color=~LakeStratification, #marker = list(color= '#535559'),
+                  hoverinfo="text",text=~paste(sep="<br>",
+                                               paste("Date: ",SampleDate),
+                                               paste("Depth: ",FDT_DEPTH, "m"),
+                                               paste("Total Phosphorus: ",PHOSPHORUS_mg_L,"mg/L"),
+                                               paste("LakeStratification: ",LakeStratification)))%>%
+      layout(showlegend=FALSE,
+             yaxis=list(title="Total Phosphorus (mg/L)"),
+             xaxis=list(title="Sample Date",tickfont = list(size = 10))) })
+  
+  output$annualMedianTableSingleSite <- renderDataTable({req(oneStation())
+    z <- TP_analysis(oneStation()) %>%
+      rename('Total Phosphorus Limit' = 'Total Phosphorus (ug/L)')
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t'),
+              selection = 'none') })
+  
+  output$stationExceedanceRate <- renderDataTable({req(oneStation())
+    z <- TP_Assessment(oneStation())
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "70px", dom='t'),
+              selection = 'none') })
   
   
-  #output$stationExceedanceRate <- renderDataTable({
-  #  req(ns(input$oneStationSelection), oneStation())
-  #  z <- countNutrients(oneStation(), PHOSPHORUS, RMK_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP') %>%
-  #    dplyr::select(-NUT_TP_STAT)
-  #  datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
-  #            selection = 'none') })
+  # AU Assessment Section
+  justAUID305B_1 <- reactive({
+    filter(AUdata(), ID305B_1 %in% AUselectionFromOutsideModal()) %>%
+      filter(!is.na(PHOSPHORUS_mg_L))})
+  
+  output$annualMedianTableAU <- renderDataTable({req(justAUID305B_1())
+    z <- TP_analysis(justAUID305B_1()) %>%
+      rename('Total Phosphorus Limit' = 'Total Phosphorus (ug/L)')
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t'),
+              selection = 'none') })
+  
+  output$AUExceedanceRate <- renderDataTable({req(justAUID305B_1())
+    z <- TP_Assessment(justAUID305B_1())
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "70px", dom='t'),
+              selection = 'none') })
   
 }

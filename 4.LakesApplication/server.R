@@ -281,9 +281,8 @@ shinyServer(function(input, output, session) {
       # metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
       #                    dplyr::select(ARSENIC:ZINC), 'SED_MET'),
       
-      #countNutrients(stationData(), PHOSPHORUS_mg_L, LEVEL_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP') %>% 
-      #   mutate(NUT_TP_STAT = ifelse(NUT_TP_STAT != "S", "Review", NA)), # flag OE but don't show a real assessment decision
-      chlA_Assessment(stationData()) %>%
+      #TP_Assessment(stationData()) %>%
+      #chlA_Assessment(stationData()) %>%
       mutate(COMMENTS = NA) %>%
       dplyr::select(-ends_with(c('exceedanceRate','Assessment Decision')))
   })
@@ -306,8 +305,8 @@ shinyServer(function(input, output, session) {
     #formatStyle(c('WAT_MET_EXC','WAT_MET_STAT'), 'WAT_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
     #formatStyle(c('SED_MET_EXC','SED_MET_STAT'), 'SED_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
     #formatStyle(c('BENTHIC_STAT'), 'BENTHIC_STAT', backgroundColor = styleEqual(c('Review'), c('yellow'))) %>%
-    #formatStyle(c('NUT_TP_EXC','NUT_TP_SAMP'), 'NUT_TP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) 
-     formatStyle(c('CHLA_EXC','CHLA_SAMP'), 'CHLA_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) 
+     formatStyle(c('NUT_TP_EXC','NUT_TP_SAMP'), 'NUT_TP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>% 
+     formatStyle(c('NUT_CHLA_EXC','NUT_CHLA_SAMP'), 'NUT_CHLA_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) 
       
   })
 
@@ -359,6 +358,9 @@ shinyServer(function(input, output, session) {
   
   ## Chlorophyll a Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(chlAPlotlySingleStation,'chlA', AUData, stationSelected, AUselection)
+
+  ## Total Phosphorus Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(TPPlotlySingleStation,'TP', AUData, stationSelected, AUselection)
   
   
 })
