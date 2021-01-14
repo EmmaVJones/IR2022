@@ -236,6 +236,28 @@ shinyServer(function(input, output, session) {
   # Run longer analyses first
   ecoli <- reactive({req(stationData())
     bacteriaAssessmentDecision(stationData(), 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126)})
+  # save individual ecoli results for later
+  AUmedians <- reactive({ req(AUData(), input$AUselection)
+    AUData() %>%
+      filter(ID305B_1 %in% input$AUselection) %>%# run ecoli by only 1 AU at a time
+      group_by(SampleDate) %>%
+      filter(!is.na(ECOLI)) %>%
+      mutate(EcoliDailyMedian = median(ECOLI, na.rm = TRUE)) %>%
+      dplyr::select(ID305B_1, FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, SampleDate, EcoliDailyMedian, ECOLI, RMK_ECOLI, LEVEL_ECOLI) %>%
+      arrange(SampleDate) %>% ungroup() })
+  
+  # need to run analysis on only one point per day
+  AUmediansForAnalysis <- reactive({req(AUmedians())
+    AUmedians() %>% 
+      filter(! LEVEL_ECOLI %in% c('Level I', 'Level II')) %>%
+      mutate(ECOLI_Station = ECOLI,
+             ECOLI = EcoliDailyMedian,
+             FDT_STA_ID = unique(ID305B_1),
+             FDT_DATE_TIME = SampleDate) %>%
+      dplyr::select(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, SampleDate, ECOLI, ECOLI_Station, RMK_ECOLI, LEVEL_ECOLI) %>%
+      distinct(SampleDate, .keep_all = T) })
+  ecoliAU <- reactive({req(AUmediansForAnalysis())
+    bacteriaAssessmentDecision(AUmediansForAnalysis(), 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126)})
   ammoniaAnalysisStation <- reactive({req(stationData())
     z <- filter(ammoniaAnalysis, StationID %in% unique(stationData()$FDT_STA_ID)) %>%
       map(1) 
@@ -328,7 +350,7 @@ shinyServer(function(input, output, session) {
   # single station tab
   callModule(EcoliPlotlySingleStation,'Ecoli', AUData, stationSelected, ecoli)
   # AU tab
-  #callModule(EcoliPlotlySingleStation,'Ecoli', AUData, stationSelected, ecoli)
+  callModule(EcoliPlotlyAU,'EcoliAU', AUData, AUmedians, AUmediansForAnalysis, ecoliAU)
   
   
   

@@ -5,11 +5,12 @@ EcoliPlotlyAUUI <- function(id){
   tagList(
     wellPanel(
       h4(strong('Assessment Unit Data Visualization')),
-      fluidRow(column(6, helpText("The 2022 IR Guidance states: 'When individual stations (whether sampled by DEQ or 
+      fluidRow(column(6, 
+                      helpText("The 2022 IR Guidance states: 'When individual stations (whether sampled by DEQ or 
                                non-agency/citizen groups) are located in the same assessment unit and they are 
                                sampled on the same day, the median of same-day bacteria measurements should be calculated.'"),
-                      helpText('Stations used for this module limited to the assessment unit in the ID305B_1 field of the 
-                                  uploaded stations table.')),
+                               helpText('Stations used for this module limited to the assessment unit in the ID305B_1 field of the 
+                                  uploaded stations table.')),#uiOutput(ns('oneStationSelectionUI'))),
                column(6,actionButton(ns('reviewData'),"Review Raw Parameter Data",class='btn-block', width = '250px'))),
       helpText('All data presented in the interactive plot is raw data. Rounding rules are appropriately applied to the 
                assessment functions utilized by the application.'),
@@ -66,7 +67,7 @@ EcoliPlotlyAU <- function(input,output,session, AUdata, medianAUdistinct, median
   # Bring in pre analyzed data to expedite process
   oneAUAnalysis <- reactive({analyzedData()})# bc not updating in full app unless this is reactive
   oneAUDecisionData <- reactive({ oneAUAnalysis()[['associatedDecisionData']][[1]]}) # bc not updating in full app unless this is reactive
-
+  
   # Button to visualize modal table of available parameter data
   observeEvent(input$reviewData,{
     showModal(modalDialog(
@@ -189,16 +190,3 @@ EcoliPlotlyAU <- function(input,output,session, AUdata, medianAUdistinct, median
 }
 
 
-
-
-
-
-
-
-
-
-
-# these kill app when shifting to stations with no bacteria data
-#DTproxy = dataTableProxy('analysisTable')
-# observeEvent(nrow(windowData()) > 0, {
-#  DTproxy %>% selectRows(as.numeric(input$rawData_rows_selected)) })

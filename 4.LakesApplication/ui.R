@@ -133,7 +133,8 @@ shinyUI(fluidPage(theme="yeti.css",
                                                                 tabsetPanel(
                                                                   tabPanel('Single Station Analysis',
                                                                            EcoliPlotlySingleStationUI('Ecoli')),
-                                                                  tabPanel('Assessment Unit Analysis')))
+                                                                  tabPanel('Assessment Unit Analysis',
+                                                                           EcoliPlotlyAUUI('EcoliAU'))))
                                                        )))#,
                                  )
                       )))))

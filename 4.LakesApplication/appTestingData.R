@@ -170,12 +170,12 @@ AUmediansForAnalysis <- AUmedians %>%
 # STV <- 410
 # geomeanCriteria <- 126
 
-z <- bacteriaAssessmentDecision(AUmediansForAnalysis, 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126) %>%
-  dplyr::select(StationID:ECOLI_STATECOLI_VERBOSE)
+z <- bacteriaAssessmentDecision(AUmediansForAnalysis, 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126)# %>%
+  #dplyr::select(StationID:ECOLI_STATECOLI_VERBOSE)
 
-z <- dplyr::select(AUmediansForAnalysis,#medianAUForAnalysis(), 
-                   SampleDate, ECOLI) %>% 
-  rename('Daily E.coli Median' = 'ECOLI')
+# z <- dplyr::select(AUmediansForAnalysis,#medianAUForAnalysis(), 
+#                    SampleDate, ECOLI) %>% 
+#   rename('Daily E.coli Median' = 'ECOLI')
 
 
 # dat <- AUmedians %>%
@@ -199,3 +199,37 @@ z <- dplyr::select(AUmediansForAnalysis,#medianAUForAnalysis(),
 #   layout(showlegend=FALSE,
 #          yaxis=list(title="E. coli (CFU / 100 mL)"),
 #          xaxis=list(title="Sample Date",tickfont = list(size = 10)))
+
+# oneAUDecisionData1 <- z[['associatedDecisionData']][[1]]
+# AU1 <- filter(AUData1, ! is.na(ECOLI))
+# rawData <- dplyr::select(AUmediansForAnalysis, SampleDate, ECOLI) %>% 
+#   rename('Daily E.coli Median' = 'ECOLI')
+# 
+# 
+# windowDat <- filter(oneAUDecisionData1, as.character(`Date Window Starts`) %in% as.character(as.Date(rawData$SampleDate)[5])) %>%#input$rawData_rows_selected]))) %>% 
+#   dplyr::select( associatedData) %>%
+#   unnest(cols = c(associatedData)) %>%
+#   mutate(newSTV = 410, geomeanLimit = 126,
+#          `Date Time` = as.POSIXct(strptime(FDT_DATE_TIME, format="%Y-%m-%d")))
+# windowData1 <- bind_rows(windowDat,
+#           tibble(`Date Time` = c(min(windowDat$`Date Time`)- days(5), max(windowDat$`Date Time`) + days(5)),
+#                  newSTV = 410, geomeanLimit = 126)) 
+# 
+# plot_ly(data=windowData1) %>%
+#   add_markers(x= ~`Date Time`, y= ~Value,mode = 'scatter', name="E. coli (CFU / 100 mL)", marker = list(color= '#535559'),
+#               hoverinfo="text",text=~paste(sep="<br>",
+#                                            paste("Date: ",`Date Time`),
+#                                            paste("Daily Median E. coli: ",Value,"CFU / 100 mL"))) %>%
+#   add_lines(data=windowData1, x=~`Date Time`, y=~geomean, mode='line', line = list(color = 'orange', dash= 'dash'),
+#             hoverinfo = "text", text= ~paste("Window Geomean: ", format(geomean,digits=3)," CFU / 100 mL", sep=''), 
+#             name="Window Geomean") %>%
+#   add_lines(data=windowData1, x=~`Date Time`,y=~newSTV, mode='line', line = list(color = '#484a4c',dash = 'dot'),
+#             hoverinfo = "text", text= "New STV: 410 CFU / 100 mL", name="New STV: 410 CFU / 100 mL") %>%
+#   add_lines(data=windowData1, x=~`Date Time`,y=~geomeanLimit, mode='line', line = list(color = 'black', dash= 'dash'),
+#             hoverinfo = "text", text= "Geomean Criteria: 126 CFU / 100 mL", name="Geomean Criteria: 126 CFU / 100 mL") %>%
+#   layout(showlegend=FALSE,
+#          yaxis=list(title="E. coli (CFU / 100 mL)"),
+#          xaxis=list(title="Sample Date",tickfont = list(size = 10)))
+# 
+# oneAUDecisionData1[5,] %>%
+#   dplyr::select(-associatedData) 
