@@ -46,19 +46,24 @@ changeDEQRegionName <- function(stuff){
 
 # Lake name standardization
 lakeNameStandardization <- function(x){
-  x %>%
-    mutate(Lake_Name = case_when(WATER_NAME %in% c('Dan River','Buffalo Creek','Bluestone Creek') ~ 'Kerr Reservoir',
+  x %>% 
+    mutate(Lake_Name = case_when(WATER_NAME %in% c('Abel Lake Reservoir (Long Branch)') ~ 'Abel Lake',
+                                 WATER_NAME %in% c('Big Cherry Reservior') ~ 'Big Cherry Lake',
+                                 WATER_NAME %in% c('Dan River','Buffalo Creek','Bluestone Creek') ~ 'Kerr Reservoir',
                                  WATER_NAME %in% c('Smith Lake (Aquia Reservoir)') ~ 'Aquia Reservoir (Smith Lake)',
-                                 WATER_NAME %in% c('Claytor Lake (New River)', 'Claytor Lake (Peak Creek)') ~ 'Claytor Lake',
+                                 WATER_NAME %in% c('Claytor Lake (New River)', 'Claytor Lake (Peak Creek)',
+                                                   'Claytor Lake Lower (New River)') ~ 'Claytor Lake',
                                  WATER_NAME %in% c('Fairystone Lake (Goblin Town Creek)') ~ 'Fairystone Lake', 
                                  WATER_NAME %in% c('Harwoods Mill Reservoir (PWS)') ~ 'Harwoods Mill Reservoir',
+                                 WATER_NAME %in% c('Goose Creek') ~ 'Goose Creek Reservoir',
                                  WATER_NAME %in% c('Lake Anna', 'Lake Anna/Contrary Creek', 'Lake Anna/Freshwater Creek', 
                                                    'Lake Anna/Gold Mine Creek', 'Lake Anna/Pamunkey Creek', 
                                                    'Lake Anna/Plentiful Creek', 'Terrys Run/Lake Anna') ~ 'Lake Anna',
-                                 WATER_NAME %in% c('Lake Cohoon (PWS)') ~ 'Lake Cohoon',          
+                                 WATER_NAME %in% c('Lake Cohoon (PWS)') ~ 'Lake Cohoon',     
+                                 WATER_NAME %in% c('Conner Lake') ~ 'Lake Conner',
                                  WATER_NAME %in% c('Lake Kilby (PWS)') ~ 'Lake Kilby',
                                  WATER_NAME %in% c('Lake Meade (PWS)') ~ 'Lake Meade',
-                                 WATER_NAME %in% c('Lake Moomaw (Jackson River)') ~ 'Lake Moomaw',
+                                 WATER_NAME %in% c('Lake Moomaw (Jackson River)','Lake Moomaw Middle (Jackson River)') ~ 'Lake Moomaw',
                                  WATER_NAME %in% c('Lake Prince - Reservoir (PWS)') ~ 'Lake Prince - Reservoir',
                                  WATER_NAME %in% c('Lake Smith (PWS)') ~ 'Lake Smith',
                                  WATER_NAME %in% c('Lake Whitehurst (PWS)') ~ 'Lake Whitehurst',
@@ -70,17 +75,20 @@ lakeNameStandardization <- function(x){
                                  WATER_NAME %in% c('Lone Star Lake F (PWS)') ~ 'Lone Star Lake F (Crystal Lake)', 
                                  WATER_NAME %in% c('Lone Star Lake G (PWS)') ~ 'Lone Star Lake G (Crane Lake)', 
                                  WATER_NAME %in% c('Lone Star Lake I (PWS)') ~ 'Lone Star Lake I (Butler Lake)', 
-                                 WATER_NAME %in% c('Martinsville (Beaver Creek) Reservoir') ~ 'Martinsville Reservoir (Beaver Creek Reservoir)',
-                                 WATER_NAME %in% c('Philpott Reservoir (Goblin Town Creek)', 
+                                 WATER_NAME %in% c('Martinsville (Beaver Creek) Reservoir',
+                                                   'Martinsville Reservoir') ~ 'Martinsville Reservoir (Beaver Creek Reservoir)',
+                                 WATER_NAME %in% c('Philpott Reservoir (Goblin Town Creek)', 'Philpott Reservoir Lower (Smith River)',
                                                    'Philpott Reservoir (Smith River)') ~ "Philpott Reservoir",
-                                 WATER_NAME %in% c('Roanoke River') ~ 'Lake Gaston',                         
+                                 WATER_NAME %in% c('Roanoke River','Lake Gaston') ~ 'Lake Gaston',     
+                                 WATER_NAME %in% c('Roaring Fork Reservoir') ~ 'Roaring Fork',
                                  WATER_NAME %in% c('S F Rivanna River Reservoir') ~ 'Rivanna Reservoir (South Fork Rivanna Reservoir)',
                                  str_detect(WATER_NAME, 'Smith Mtn. Lake') ~ 'Smith Mountain Lake', 
                                  WATER_NAME %in% c('Speights Run - Lake (PWS)') ~ 'Speights Run Lake',
+                                 WATER_NAME %in% c('Troublesome Reservoir') ~ 'Troublesome Creek Reservoir',
                                  WATER_NAME %in% c('Waller Mill Reservoir (PWS)') ~ 'Waller Mill Reservoir',
                                  WATER_NAME %in% c('Unnamed pond near Tanyard Swamp') ~ 'Tanyard Swamp',
                                  WATER_NAME %in% c('Unsegmented lakes in G03') ~ 'West Run',
-                                 TRUE ~ as.character(WATER_NAME)))
+                                 TRUE ~ as.character(WATER_NAME))) 
 }
 #test <- regionalAUs %>%
 #  lakeNameStandardization()
@@ -343,8 +351,9 @@ countNutrients <- function(x, fieldName, commentName, nutrientLimit){
 #### Lake Chlorophyll a Assessment Functions ---------------------------------------------------------------------------------------------------
 
 chlA_analysis <- function(x){
+  if(!is.na(unique(x$Lakes_187B))){
     if(unique(x$Lakes_187B) == 'y'){
-      x <- filter(x, LACUSTRINE == 'YES')  }
+      x <- filter(x, LACUSTRINE == 'YES')  } }
   
   chla <- filter(x, !is.na(CHLOROPHYLL_A_ug_L)) %>%
     filter(FDT_DEPTH <= 1) %>% # Guidance calls for top meter only
@@ -386,13 +395,15 @@ chlA_Assessment <- function(x){
   chlA_Results <- chlA_analysis(x) %>% ungroup()
   
   if(nrow(chlA_Results) > 0){
+    if(is.na(unique(chlA_Results$`Chlorophyll a (ug/L)`))){ # bail out if nutrient standards didn't join properly
+      return(tibble(NUT_CHLA_EXC= NA, NUT_CHLA_SAMP = NA,	NUT_CHLA_STAT = NA))}
     validYears <- filter(chlA_Results, samplesPerYear >= 6) # need at least 6 samples per year
     mostRecent2years <- slice_max(validYears, Year, n = 2) # get most recent two years of results
     if(nrow(mostRecent2years) == 2){ 
-      if(unique(mostRecent2years$chlA_Exceedance) == FALSE){ # no exceedances in last two years
+      if(all(unique(mostRecent2years$chlA_Exceedance) == FALSE)){ # no exceedances in last two years
         return(tibble(NUT_CHLA_EXC= 0, NUT_CHLA_SAMP = nrow(validYears),	NUT_CHLA_STAT = 'S') )
       } else { # at least one chlA_Exceedance exists
-        if(unique(mostRecent2years$chlA_Exceedance) == TRUE){ # both years exceed
+        if(all(unique(mostRecent2years$chlA_Exceedance)) == TRUE){ # both years exceed
           return(tibble(NUT_CHLA_EXC= nrow(mostRecent2years), NUT_CHLA_SAMP = nrow(validYears),	NUT_CHLA_STAT = 'IM'))
         } else { # run a tiebreak with third most recent year
           mostRecent3years <- slice_max(validYears, Year, n = 3) %>% # get most recent three years of results
@@ -401,7 +412,7 @@ chlA_Assessment <- function(x){
             return(tibble(NUT_CHLA_EXC= nrow(mostRecent3years), NUT_CHLA_SAMP = nrow(validYears),	NUT_CHLA_STAT = 'IM'))
           } else {
             return(tibble(NUT_CHLA_EXC= nrow(mostRecent3years), NUT_CHLA_SAMP = nrow(validYears),	NUT_CHLA_STAT = 'Review')) }
-        }}}
+        }}} else {return(tibble(NUT_CHLA_EXC= NA, NUT_CHLA_SAMP = nrow(validYears),	NUT_CHLA_STAT = 'IN') ) }
     } else {    return(tibble(NUT_CHLA_EXC= NA, NUT_CHLA_SAMP = NA,	NUT_CHLA_STAT = NA) )  }
 }
 
@@ -413,8 +424,11 @@ chlA_Assessment <- function(x){
 #### Lake Total Phosphorus Assessment Functions ---------------------------------------------------------------------------------------------------
 
 TP_analysis <- function(x){
-  if(unique(x$Lakes_187B) == 'y'){
-    x <- filter(x, LACUSTRINE == 'YES')  }
+  if(!is.na(unique(x$Lakes_187B))){
+    if(unique(x$Lakes_187B) == 'y'){
+      x <- filter(x, LACUSTRINE == 'YES')  }
+  }
+  
   
   TP <- filter(x, !is.na(PHOSPHORUS_mg_L)) %>%
     filter(FDT_DEPTH <= 1) %>% # Guidance calls for top meter only
@@ -456,13 +470,15 @@ TP_Assessment <- function(x){
   TP_Results <- TP_analysis(x) %>% ungroup()
   
   if(nrow(TP_Results) > 0){
+    if(is.na(unique(TP_Results$`Total Phosphorus (ug/L)`))){ # bail out if nutrient standards didn't join properly
+      return(tibble(NUT_TP_EXC= NA, NUT_TP_SAMP = NA,	NUT_TP_STAT = NA))}
     validYears <- filter(TP_Results, samplesPerYear >= 6) # need at least 6 samples per year
     mostRecent2years <- slice_max(validYears, Year, n = 2) # get most recent two years of results
     if(nrow(mostRecent2years) == 2){ 
-      if(unique(mostRecent2years$TP_Exceedance) == FALSE){ # no exceedances in last two years
+      if(all(unique(mostRecent2years$TP_Exceedance)) == FALSE){ # no exceedances in last two years
         return(tibble(NUT_TP_EXC= 0, NUT_TP_SAMP = nrow(validYears),	NUT_TP_STAT = 'S') )
       } else { # at least one TP_Exceedance exists
-        if(unique(mostRecent2years$TP_Exceedance) == TRUE){ # both years exceed
+        if(all(unique(mostRecent2years$TP_Exceedance)) == TRUE){ # both years exceed
           return(tibble(NUT_TP_EXC= nrow(mostRecent2years), NUT_TP_SAMP = nrow(validYears),	NUT_TP_STAT = 'IM'))
         } else { # run a tiebreak with third most recent year
           mostRecent3years <- slice_max(validYears, Year, n = 3) %>% # get most recent three years of results
@@ -471,7 +487,7 @@ TP_Assessment <- function(x){
             return(tibble(NUT_TP_EXC= nrow(mostRecent3years), NUT_TP_SAMP = nrow(validYears),	NUT_TP_STAT = 'IM'))
           } else {
             return(tibble(NUT_TP_EXC= nrow(mostRecent3years), NUT_TP_SAMP = nrow(validYears),	NUT_TP_STAT = 'Review')) }
-        }}}
+        }}} else {return(tibble(NUT_TP_EXC= NA, NUT_TP_SAMP = nrow(validYears),	NUT_TP_STAT = 'IN') ) }
   } else {    return(tibble(NUT_TP_EXC= NA, NUT_TP_SAMP = NA,	NUT_TP_STAT = NA) )  }
 }
 

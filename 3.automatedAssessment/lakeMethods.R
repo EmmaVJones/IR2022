@@ -28,3 +28,5 @@ stationData <- filter(conventionals, FDT_STA_ID %in% station) %>% #stationTable$
 
 x <- stationData
 
+
+View(dplyr::select(stationTable, STATION_ID, LACUSTRINE, REGION, WQS_ID:`Total Phosphorus (ug/L)`))

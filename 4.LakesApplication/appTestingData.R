@@ -9,6 +9,8 @@ WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 historicalStationsTable <-  st_read('data/GIS/va20ir_wqms.shp') %>%
   st_drop_geometry()#read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
 WQMstationFull <- pin_get("WQM-Station-Full", board = "rsconnect")
+WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
+Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
 
 
 # Bring in local data (for now)
@@ -31,9 +33,18 @@ stationTable1 <- read_csv('userDataToUpload/processedStationData/stationTableRes
   left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
               distinct(WQM_STA_ID, .keep_all = TRUE), by = c('STATION_ID' = 'WQM_STA_ID')) %>% # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
   lakeNameStandardization() %>% # standardize lake names
+  
+  # extra special step
+  mutate(Lake_Name = case_when(STATION_ID %in% c('2-TRH000.40') ~ 'Thrashers Creek Reservoir',
+                               TRUE ~ as.character(Lake_Name))) %>%
+  
   left_join(lakeNutStandards, by = c('Lake_Name')) %>%
+  # lake drummond special standards
+  mutate(`Chlorophyll a (ug/L)` = case_when(Lake_Name %in% c('Lake Drummond') ~ 35,
+                                            TRUE ~ as.numeric(`Chlorophyll a (ug/L)`)),
+         `Total Phosphorus (ug/L)` = case_when(Lake_Name %in% c('Lake Drummond') ~ 40,
+                                               TRUE ~ as.numeric(`Total Phosphorus (ug/L)`))) %>%
   mutate(lakeStation = TRUE)
-
 
 
 

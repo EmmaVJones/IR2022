@@ -10,6 +10,8 @@
 #  st_drop_geometry()#read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
 #WQMstationFull <- pin_get("WQM-Station-Full", board = "rsconnect")
 #regions <- st_read('data/GIS/AssessmentRegions_simple.shp')
+#WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
+#Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
 
 # Bring in local data (for now)
 #ammoniaAnalysis <- readRDS('userDataToUpload/processedStationData/ammoniaAnalysis.RDS')
@@ -44,16 +46,6 @@ shinyServer(function(input, output, session) {
              col_types = cols(COMMENTS = col_character(),
                               LACUSTRINE = col_character())) %>%# force to character bc parsing can incorrectly guess logical based on top 1000 rows
       filter_at(vars(starts_with('TYPE')), any_vars(. == 'L')) %>% # keep only lake stations
-      
-      
-      
-      # station table issue needs to be resolved
-      #distinct(STATION_ID, .keep_all = T) %>%
-      
-      
-      
-      
-      
       # add WQS information to stations
       left_join(WQSlookup, by = c('STATION_ID'='StationID')) %>%
       mutate(CLASS_BASIN = paste(CLASS,substr(BASIN, 1,1), sep="_")) %>%
@@ -65,10 +57,22 @@ shinyServer(function(input, output, session) {
       left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
                   distinct(WQM_STA_ID, .keep_all = TRUE), by = c('STATION_ID' = 'WQM_STA_ID')) %>% # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
       lakeNameStandardization() %>% # standardize lake names
+      
+      # extra special step
+      mutate(Lake_Name = case_when(STATION_ID %in% c('2-TRH000.40') ~ 'Thrashers Creek Reservoir',
+                                   TRUE ~ as.character(Lake_Name))) %>%
+      
+      
       left_join(lakeNutStandards, by = c('Lake_Name')) %>%
+      ## lake drummond special standards
+      mutate(`Chlorophyll a (ug/L)` = case_when(Lake_Name %in% c('Lake Drummond') ~ 35,
+                                                TRUE ~ as.numeric(`Chlorophyll a (ug/L)`)),
+             `Total Phosphorus (ug/L)` = case_when(Lake_Name %in% c('Lake Drummond') ~ 40,
+                                                   TRUE ~ as.numeric(`Total Phosphorus (ug/L)`))) %>%
       mutate(lakeStation = TRUE)
   }) #for testing
   #######################################
+  
   
   
   
@@ -100,7 +104,7 @@ shinyServer(function(input, output, session) {
       st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
                remove = F, # don't remove these lat/lon cols from df
                crs = 4326) }) # add projection, needs to be geographic for now bc entering lat/lng
-
+  
   
   # Lake Map
   output$VAmap <- renderLeaflet({ req(AUs()) #, lake_filter()) 
@@ -156,20 +160,20 @@ shinyServer(function(input, output, session) {
   
   conventionalsLake <- reactive({ req(lake_filter())
     filter(conventionals, FDT_STA_ID %in% lake_filter()$STATION_ID) %>%
-    left_join(dplyr::select(stationTable(), STATION_ID:VAHU6, lakeStation,
-                            WQS_ID:`Total Phosphorus (ug/L)`),
-              #WQS_ID:`Max Temperature (C)`), 
-              by = c('FDT_STA_ID' = 'STATION_ID')) %>%
-    filter(!is.na(ID305B_1)) %>%
-    pHSpecialStandardsCorrection() %>% #correct pH to special standards where necessary
+      left_join(dplyr::select(stationTable(), STATION_ID:VAHU6, lakeStation,
+                              WQS_ID:`Total Phosphorus (ug/L)`),
+                #WQS_ID:`Max Temperature (C)`), 
+                by = c('FDT_STA_ID' = 'STATION_ID')) %>%
+      filter(!is.na(ID305B_1)) %>%
+      pHSpecialStandardsCorrection() %>% #correct pH to special standards where necessary
       thermoclineDepth() }) # adds thermocline information and SampleDate
-
+  
   
   output$AUselection_ <- renderUI({req(lake_filter())
     AUselectionOptions <- unique(dplyr::select(lake_filter(), ID305B_1:ID305B_10) %>% 
-                                    mutate_at(vars(starts_with("ID305B")), as.character) %>%
-                                    pivot_longer(ID305B_1:ID305B_10, names_to = 'ID305B', values_to = 'keep') %>%
-                                    pull(keep) )
+                                   mutate_at(vars(starts_with("ID305B")), as.character) %>%
+                                   pivot_longer(ID305B_1:ID305B_10, names_to = 'ID305B', values_to = 'keep') %>%
+                                   pull(keep) )
     AUselectionOptions <- AUselectionOptions[!is.na(AUselectionOptions) & !(AUselectionOptions %in% c("NA", "character(0)", "logical(0)"))]
     selectInput('AUselection', 'Assessment Unit Selection', choices = AUselectionOptions)})
   
@@ -274,19 +278,21 @@ shinyServer(function(input, output, session) {
                                          tibble(ENTER_EXC = NA, ENTER_SAMP = NA, ENTER_GM_EXC = NA, ENTER_GM_SAMP = NA, ENTER_STAT = NA),
                                          ammoniaDecision(list(acute = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'acute'),
                                                               chronic = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'chronic'),
-                                                              fourDay = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'four-day'))) ) %>% #, 
-      
-      #metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
-      #                     dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
-      # metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
-      #                    dplyr::select(ARSENIC:ZINC), 'SED_MET'),
-      
-      #TP_Assessment(stationData()) %>%
-      #chlA_Assessment(stationData()) %>%
+                                                              fourDay = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'four-day'))),
+                                         metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
+                                                             dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
+                                         tibble(WAT_TOX_EXC = NA,	WAT_TOX_STAT = NA),
+                                         metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
+                                                             dplyr::select(ARSENIC:ZINC), 'SED_MET'),
+                                         tibble(SED_TOX_EXC	= NA, SED_TOX_STAT = NA, FISH_MET_EXC= NA, FISH_MET_STAT= NA, FISH_TOX_EXC= NA, FISH_TOX_STAT= NA, BENTHIC_STAT = NA, 
+                                                BENTHIC_WOE_CAT= NA, BIBI_SCORE = NA),
+                                         TP_Assessment(stationData()),
+                                         chlA_Assessment(stationData()) ) %>%
       mutate(COMMENTS = NA) %>%
       dplyr::select(-ends_with(c('exceedanceRate','Assessment Decision')))
   })
   
+  #output$test <- renderPrint({TP_Assessment(stationData())})
   
   output$stationTableDataSummary <- DT::renderDataTable({
     req(stationData()$FDT_STA_ID == input$stationSelection, siteData$stationTableOutput)
@@ -302,14 +308,12 @@ shinyServer(function(input, output, session) {
       formatStyle(c('PH_EXC','PH_SAMP','PH_STAT'), 'PH_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
       formatStyle(c('ECOLI_EXC','ECOLI_SAMP','ECOLI_GM_EXC','ECOLI_GM_SAMP','ECOLI_STAT'), 'ECOLI_STAT', backgroundColor = styleEqual(c('IM'), c('red'))) %>%
       formatStyle(c('AMMONIA_EXC','AMMONIA_STAT'), 'AMMONIA_STAT', backgroundColor = styleEqual(c('Review', 'IM'), c('yellow','red'))) %>%
-    #formatStyle(c('WAT_MET_EXC','WAT_MET_STAT'), 'WAT_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
-    #formatStyle(c('SED_MET_EXC','SED_MET_STAT'), 'SED_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
-    #formatStyle(c('BENTHIC_STAT'), 'BENTHIC_STAT', backgroundColor = styleEqual(c('Review'), c('yellow'))) %>%
-     formatStyle(c('NUT_TP_EXC','NUT_TP_SAMP'), 'NUT_TP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>% 
-     formatStyle(c('NUT_CHLA_EXC','NUT_CHLA_SAMP'), 'NUT_CHLA_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) 
-      
-  })
-
+      formatStyle(c('WAT_MET_EXC','WAT_MET_STAT'), 'WAT_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+      formatStyle(c('SED_MET_EXC','SED_MET_STAT'), 'SED_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+      formatStyle(c('BENTHIC_STAT'), 'BENTHIC_STAT', backgroundColor = styleEqual(c('Review'), c('yellow'))) %>%
+      formatStyle(c('NUT_TP_EXC','NUT_TP_SAMP'), 'NUT_TP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>% 
+      formatStyle(c('NUT_CHLA_EXC','NUT_CHLA_SAMP'), 'NUT_CHLA_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red')))  })
+  
   #### Data Sub Tab ####---------------------------------------------------------------------------------------------------
   
   # Display Data 
@@ -345,8 +349,6 @@ shinyServer(function(input, output, session) {
   ## pH Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(pHPlotlySingleStation,'pH', AUData, stationSelected)
   
-  output$test <- renderPrint({glimpse(AUData())})
-  
   ## E. coli Sub Tab ##------------------------------------------------------------------------------------------------------
   # single station tab
   callModule(EcoliPlotlySingleStation,'Ecoli', AUData, stationSelected, ecoli)
@@ -358,9 +360,10 @@ shinyServer(function(input, output, session) {
   
   ## Chlorophyll a Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(chlAPlotlySingleStation,'chlA', AUData, stationSelected, AUselection)
-
+  
   ## Total Phosphorus Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(TPPlotlySingleStation,'TP', AUData, stationSelected, AUselection)
+  
   
   
 })

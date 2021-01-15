@@ -99,7 +99,13 @@ stationTable <- reactive({
     left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME) %>%
                 distinct(WQM_STA_ID, .keep_all = TRUE), by = c('STATION_ID' = 'WQM_STA_ID')) %>% # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
     lakeNameStandardization() %>% # standardize lake names
-    left_join(lakeNutStandards, by = c('Lake_Name'))
+    left_join(lakeNutStandards, by = c('Lake_Name')) %>%
+    # lake drummond special standards
+    mutate(`Chlorophyll a (ug/L)` = case_when(Lake_Name %in% c('Lake Drummond') ~ 35,
+                                              TRUE ~ as.numeric(`Chlorophyll a (ug/L)`)),
+           `Total Phosphorus (ug/L)` = case_when(Lake_Name %in% c('Lake Drummond') ~ 40,
+                                                 TRUE ~ as.numeric(`Total Phosphorus (ug/L)`))) %>%
+    mutate(lakeStation = TRUE)
   return(stationTable)  })
 
 #######################################

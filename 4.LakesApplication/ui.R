@@ -54,10 +54,11 @@ shinyUI(fluidPage(theme="yeti.css",
                                             #helpText('These stations can be viewed in the application and stations table, but none of the 
                                             #         parameter modules will display data as no data is available in the current window.'),
                                             #DT::dataTableOutput('carryoverStationSummary'),
-                                            #verbatimTextOutput('test'),
                                             br(), br(), br() # a bit of breathing room
                                           )),
                                  tabPanel('Assessment Unit Review',
+                                          #verbatimTextOutput('test'),
+                                          
                                           #fluidRow(column(9, 
                                           DT::dataTableOutput('selectedLake'),#)),#,
                                           #column(3,br(),actionButton('pullVAHU6data','Select Watershed for analysis'),

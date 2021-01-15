@@ -117,7 +117,20 @@ stationTable <- left_join(stationTable, WQSlookup, by = c('STATION_ID'='StationI
               distinct(WQM_STA_ID, .keep_all = TRUE), by = c('STATION_ID' = 'WQM_STA_ID')) %>%
   # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
   lakeNameStandardization() %>% # standardize lake names
-  left_join(lakeNutStandards, by = c('Lake_Name'))
+  
+   
+  # extra special step
+  mutate(Lake_Name = case_when(STATION_ID %in% c('2-TRH000.40') ~ 'Thrashers Creek Reservoir',
+                               TRUE ~ as.character(Lake_Name))) %>%
+  
+
+  
+  left_join(lakeNutStandards, by = c('Lake_Name')) %>%
+  # lake drummond special standards
+  mutate(`Chlorophyll a (ug/L)` = case_when(Lake_Name %in% c('Lake Drummond') ~ 35,
+                                            TRUE ~ as.numeric(`Chlorophyll a (ug/L)`)),
+         `Total Phosphorus (ug/L)` = case_when(Lake_Name %in% c('Lake Drummond') ~ 40,
+                                               TRUE ~ as.numeric(`Total Phosphorus (ug/L)`)))
 
 
 
@@ -135,6 +148,8 @@ We only want to run riverine methods on riverine stations right now, so drop all
 #                           str_detect(ID305B_5, 'R_') | str_detect(ID305B_6, 'R_') | str_detect(ID305B_7, 'R_') | str_detect(ID305B_8, 'R_') | 
 #                           str_detect(ID305B_9, 'R_') | str_detect(ID305B_10, 'R_') ) 
 # stationTable <- filter(stationTable, ! STATION_ID %in% lakeStations$STATION_ID)
+
+#stationTable <- filter(stationTable, STATION_ID %in% lakeStations$STATION_ID)
 
 ```
 
@@ -190,10 +205,11 @@ for(i in 1:nrow(stationTable)){
     pHSpecialStandardsCorrection() %>% # correct pH to special standards where necessary
     # special lake steps
     {if(stationTable$STATION_ID[i] %in% lakeStations$STATION_ID)
-      mutate(., lakeStation = TRUE) %>%
-        thermoclineDepth() # adds thermocline information and SampleDate
+      suppressWarnings(suppressMessages(
+        mutate(., lakeStation = TRUE) %>%
+        thermoclineDepth())) # adds thermocline information and SampleDate
       else mutate(., lakeStation = FALSE) }
-  
+
   # Previous station table comments
   comments <- stationTableComments(stationTable$STATION_ID[i], stationTable, '2020', historicalStationsTable2, '2018')
   
@@ -211,23 +227,33 @@ for(i in 1:nrow(stationTable)){
     # Nutrient: TP (lakes have real standards; riverine no longer uses 0.2 mg/L as an observed effect for Aquatic life use)
       # NUT_TP_EXC, NUT_TP_SAMP, NUT_TP_STAT
     if(unique(stationData$lakeStation) == TRUE){
-      TP <- tibble(NUT_TP_EXC = NA, NUT_TP_SAMP = NA, NUT_TP_STAT = NA) # placeholder for now
+      TP <- TP_Assessment(stationData) 
+        #tibble(NUT_TP_EXC = NA, NUT_TP_SAMP = NA, NUT_TP_STAT = NA) # placeholder for now
       } else {
         TP <- countNutrients(stationData, PHOSPHORUS_mg_L, LEVEL_PHOSPHORUS, NA) %>% quickStats('NUT_TP') %>% 
           mutate(NUT_TP_STAT = ifelse(NUT_TP_STAT != "S", "Review", NA)) } # flag OE but don't show a real assessment decision
     
       # Nutrients: Chl a (lakes)
     if(unique(stationData$lakeStation) == TRUE){
-      chla <- tibble(NUT_CHLA_EXC = NA, NUT_CHLA_SAMP = NA, NUT_CHLA_STAT = NA) # placeholder for now
+      chla <- chlA_Assessment(stationData)
+        #tibble(NUT_CHLA_EXC = NA, NUT_CHLA_SAMP = NA, NUT_CHLA_STAT = NA) # placeholder for now
       } else {
         chla <- countNutrients(stationData, CHLOROPHYLL_A_ug_L, LEVEL_CHLOROPHYLL_A, NA) %>% quickStats('NUT_CHLA') %>%
           mutate(NUT_CHLA_STAT = NA) } # don't show a real assessment decision
+    
+    # run DO daily average status for riverine and tuck results into comments later
+    if(unique(stationData$lakeStation) == TRUE){
+      DO_Daily_Avg_STAT <- ''
+    } else {
+      DO_Daily_Avg_STAT <- paste0('DO_Daily_Avg_STAT: ', 
+                                       DO_Assessment_DailyAvg(stationData) %>% 
+                                         quickStats('DO_Daily_Avg') %>% 
+                                         dplyr::select(DO_Daily_Avg_STAT) %>% pull())}
     
     results <- cbind(
       StationTableStartingData(stationData),
       tempExceedances(stationData) %>% quickStats('TEMP'),
       DOExceedances_Min(stationData) %>% quickStats('DO'), 
-      DO_Assessment_DailyAvg(stationData) %>% quickStats('DO_Daily_Avg'), # run DO daily average status and tuck results into comments later
       # this will be removed for lake stations later since it does not apply
       pHExceedances(stationData) %>% quickStats('PH'),
       bacteriaAssessmentDecisionClass(stationData),
@@ -276,13 +302,12 @@ for(i in 1:nrow(stationTable)){
       #   mutate(NUT_CHLA_STAT = NA)) %>% # don't show a real assessment decision
     
       # COMMENTS
-      mutate(COMMENTS = paste0('DO_Daily_Avg_STAT: ', DO_Daily_Avg_STAT, 
+      mutate(COMMENTS = paste0(DO_Daily_Avg_STAT, 
                                ' | ECOLI Comment: ', ECOLI_STATECOLI_VERBOSE,
                                ' | ENTEROCOCCI Comment: ', ENTER_STATENTER_VERBOSE,
                                ' | AMMONIA Comment: ', `Assessment Decision`)) %>%
       left_join(comments, by = 'STATION_ID') %>%
-      dplyr::select(-ends_with(c('exceedanceRate', 'VERBOSE', 'Assessment Decision', 'StationID',
-                                 'DO_Daily_Avg_EXC', 'DO_Daily_Avg_SAMP', 'DO_Daily_Avg_STAT'))) # to match Bulk Upload template but helpful to keep visible til now for testing
+      dplyr::select(-ends_with(c('exceedanceRate', 'VERBOSE', 'Assessment Decision', 'StationID'))) # to match Bulk Upload template but helpful to keep visible til now for testing
   } else {# pull what you can from last cycle and flag as carry over
     results <- filter(stationTable, STATION_ID == stationTable$STATION_ID[i]) %>%
       dplyr::select(STATION_ID:VAHU6, COMMENTS) %>%
