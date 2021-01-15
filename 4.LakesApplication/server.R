@@ -1,21 +1,21 @@
 #source('global.R')
 
 # Pull data from server
-#conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
-#  filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 UTC" )
+conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
+  filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 UTC" )
 ####vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
-#WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
+WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 # placeholder for now, shouldn't be a spatial file
-#historicalStationsTable <-  st_read('data/GIS/va20ir_wqms.shp') %>%
-#  st_drop_geometry()#read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
-#WQMstationFull <- pin_get("WQM-Station-Full", board = "rsconnect")
-#regions <- st_read('data/GIS/AssessmentRegions_simple.shp')
-#WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
-#Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
+historicalStationsTable <-  st_read('data/GIS/va20ir_wqms.shp') %>%
+  st_drop_geometry()#read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
+WQMstationFull <- pin_get("WQM-Station-Full", board = "rsconnect")
+regions <- st_read('data/GIS/AssessmentRegions_simple.shp')
+WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
+Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
 
 # Bring in local data (for now)
-#ammoniaAnalysis <- readRDS('userDataToUpload/processedStationData/ammoniaAnalysis.RDS')
-#lakeNutStandards <- read_csv('data/9VAC25-260-187lakeNutrientStandards.csv')
+ammoniaAnalysis <- readRDS('userDataToUpload/processedStationData/ammoniaAnalysis.RDS')
+lakeNutStandards <- read_csv('data/9VAC25-260-187lakeNutrientStandards.csv')
 
 
 
@@ -38,13 +38,14 @@ shinyServer(function(input, output, session) {
     helpText(paste0('Template last updated: ', lastUpdated))  })
   
   
- 
-  #######################################
-  # for testing
-  stationTable <- reactive({
-    read_csv('userDataToUpload/processedStationData/stationTableResults.csv',
-             col_types = cols(COMMENTS = col_character(),
-                              LACUSTRINE = col_character())) %>%# force to character bc parsing can incorrectly guess logical based on top 1000 rows
+   stationTable <- reactive({
+    req(input$stationsTable)
+    inFile <- input$stationsTable
+    stationTable <- read_csv(inFile$datapath,
+                             col_types = cols(COMMENTS = col_character(),
+                                              LACUSTRINE = col_character())) %>% # force to character bc parsing can incorrectly guess logical based on top 1000 rows
+      #fix periods in column names from excel
+      as_tibble() %>%
       filter_at(vars(starts_with('TYPE')), any_vars(. == 'L')) %>% # keep only lake stations
       # add WQS information to stations
       left_join(WQSlookup, by = c('STATION_ID'='StationID')) %>%
@@ -70,8 +71,7 @@ shinyServer(function(input, output, session) {
              `Total Phosphorus (ug/L)` = case_when(Lake_Name %in% c('Lake Drummond') ~ 40,
                                                    TRUE ~ as.numeric(`Total Phosphorus (ug/L)`))) %>%
       mutate(lakeStation = TRUE)
-  }) #for testing
-  #######################################
+  })
   
   
   

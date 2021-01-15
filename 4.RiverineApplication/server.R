@@ -356,8 +356,11 @@ shinyServer(function(input, output, session) {
                                          tempExceedances(stationData()) %>% quickStats('TEMP'),
                                          DOExceedances_Min(stationData()) %>% quickStats('DO'), 
                                          pHExceedances(stationData()) %>% quickStats('PH'),
-                                         ecoli() %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),#siteData$ecoli %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),
-                                         enter() %>% dplyr::select(ENTER_EXC:ENTER_STAT), #siteData$enter %>% dplyr::select(ENTER_EXC:ENTER_STAT)) %>%
+                                         
+                                         bacteriaAssessmentDecisionClass(stationData()), # this runs the bacteria assessment required again (unfortunately, but it suppresses 
+                                         # any unnecessary bacteria fields for the stations table to avoid unnecessary flags)
+                                         #ecoli() %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),#siteData$ecoli %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),
+                                         #enter() %>% dplyr::select(ENTER_EXC:ENTER_STAT), #siteData$enter %>% dplyr::select(ENTER_EXC:ENTER_STAT)) %>%
                                          
                                          ammoniaDecision(list(acute = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'acute'),
                                                               chronic = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'chronic'),
@@ -373,7 +376,7 @@ shinyServer(function(input, output, session) {
                                          countNutrients(stationData(), CHLOROPHYLL_A_ug_L, LEVEL_CHLOROPHYLL_A, NA) %>% quickStats('NUT_CHLA') %>%
                                            mutate(NUT_CHLA_STAT = NA)) %>% # don't show a real assessment decision) %>%
       mutate(COMMENTS = NA) %>%
-      dplyr::select(-ends_with(c('exceedanceRate','Assessment Decision')))
+      dplyr::select(-ends_with(c('exceedanceRate','Assessment Decision', 'VERBOSE', 'StationID')))
   })
   
   #output$testOutside <- renderPrint({ecoli()})#siteData$ecoli})
