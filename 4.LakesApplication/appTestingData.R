@@ -240,3 +240,37 @@ stationInfo1 <- filter(stationTable1, STATION_ID == stationSelection1) %>%
 #   dplyr::select(-associatedData) 
 
 
+### TSI plot
+datOG <- TSIcalculation(stationData1) 
+dat <- datOG %>%
+  dplyr::select( associatedData) %>%
+  unnest(cols = c(associatedData)) %>%
+  mutate(`Overall TSI SD` = datOG$TSI_SD,
+         `Overall TSI Chl a` = datOG$TSI_chla,
+         `Overall TSI TP` = datOG$TSI_TP)
+
+
+box1 <- data.frame(FDT_DATE_TIME = c(min(dat$FDT_DATE_TIME), min(dat$FDT_DATE_TIME), max(dat$FDT_DATE_TIME),max(dat$FDT_DATE_TIME)), y = c(80, 100, 100, 80))
+box2 <- data.frame(x = c(min(dat$FDT_DATE_TIME), min(dat$FDT_DATE_TIME), max(dat$FDT_DATE_TIME),max(dat$FDT_DATE_TIME)), y = c(60, 80, 80, 60))
+box3 <- data.frame(x = c(min(dat$FDT_DATE_TIME), min(dat$FDT_DATE_TIME), max(dat$FDT_DATE_TIME),max(dat$FDT_DATE_TIME)), y = c(40, 60, 60, 40))
+box4 <- data.frame(x = c(min(dat$FDT_DATE_TIME), min(dat$FDT_DATE_TIME), max(dat$FDT_DATE_TIME),max(dat$FDT_DATE_TIME)), y = c(0, 40, 40, 0))
+
+plot_ly(data=box1)%>%
+  add_polygons(x = ~FDT_DATE_TIME, y = ~y, data = box1, fillcolor = "firebrick",opacity=0.6, line = list(width = 0),
+               hoverinfo="text", name =paste('Trophic State: Hypereutrophic')) %>%
+  add_polygons(data = box2, x = ~x, y = ~y, fillcolor = "#F0E442",opacity=0.6, line = list(width = 0),
+               hoverinfo="text", name =paste('Trophic State: Eutrophic')) %>%
+  add_polygons(data = box3, x = ~x, y = ~y, fillcolor = "#009E73",opacity=0.6, line = list(width = 0),
+               hoverinfo="text", name =paste('Trophic State: Mesotrophic')) %>%
+  add_polygons(data = box4, x = ~x, y = ~y, fillcolor = "#0072B2",opacity=0.6, line = list(width = 0),
+               hoverinfo="text", name =paste('Trophic State: Oligotrophic')) %>%
+  add_lines(data=dat, x=~FDT_DATE_TIME,y=~`Overall TSI SD`, mode='line', line = list(color = 'black'),
+            hoverinfo = "text", text="Overall TSI SD", name="Overall TSI SD") %>%
+  add_markers(data=dat, x= ~FDT_DATE_TIME, y= ~TSI_SD,mode = 'scatter', name="TSI_SD", marker = list(color= '#535559'),
+              hoverinfo="text",text=~paste(sep="<br>",
+                                           paste("Date: ",FDT_DATE_TIME),
+                                           paste("Depth: ",FDT_DEPTH, "m"),
+                                           paste("TSI_SD: ",TSI_SD)))%>%
+  layout(showlegend=FALSE,
+         yaxis=list(title="TSI Secchi Depth (unitless)"),
+         xaxis=list(title="Sample Date",tickfont = list(size = 10)))

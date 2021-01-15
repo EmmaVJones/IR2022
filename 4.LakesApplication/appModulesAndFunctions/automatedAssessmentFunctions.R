@@ -567,14 +567,17 @@ TSIassessment <- function(x){
     if(nrow(TSI) > 1){ # if more than one station in AU, first average TSI results then assess
       return(
         TSI %>% # using mean to be consistent with mean in TSIcalculation()
-          summarise(TSI_SD = mean(TSI_SD, na.rm = T),
-                    TSI_chla = mean(TSI_chla, na.rm = T),
-                    TSI_TP = mean(TSI_TP, na.rm = T)) %>%
+          summarise(TSI_SD = as.numeric(signif(mean(TSI_SD, na.rm = T),digits = 2)), 
+                    TSI_chla = as.numeric(signif(mean(TSI_chla, na.rm = T), digits = 2)),
+                    TSI_TP = as.numeric(signif(mean(TSI_TP, na.rm = T), digits = 2))) %>%
           mutate(ID305B = unique(x$ID305B_1)) %>%
           dplyr::select(ID305B, everything()))
     } else {
       return(TSI %>%
-               mutate(ID305B = unique(x$ID305B_1)) %>%
+               mutate(ID305B = unique(x$ID305B_1),
+                      TSI_SD = as.numeric(signif(TSI_SD, digits = 2)),
+                      TSI_chla = as.numeric(signif(TSI_chla, digits = 2)), 
+                      TSI_TP = as.numeric(signif(TSI_TP, digits = 2))) %>%
                dplyr::select(ID305B,TSI_SD, TSI_chla, TSI_TP))}
   } else {return(tibble(ID305B = NA, TSI_SD = NA, TSI_chla = NA, TSI_TP = NA))}
 }

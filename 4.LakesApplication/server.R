@@ -368,6 +368,7 @@ shinyServer(function(input, output, session) {
   ## Total Phosphorus Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(TPPlotlySingleStation,'TP', AUData, stationSelected, AUselection)
   
-  
+  ## Trophic State Index Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(TSIPlotlySingleStation,'TSI', AUData, stationSelected, AUselection)  
   
 })
