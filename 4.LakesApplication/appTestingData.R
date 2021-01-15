@@ -1,7 +1,8 @@
 source('global.R')
 
 # Pull data from server
-conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
+conventionals <- conventionals <- pin_get('conventionals2022IRdraftWithSecchi', board = "rsconnect") %>%
+  #pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
   filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 UTC" )
 #vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
 WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
@@ -55,7 +56,7 @@ regionalAUs1 <- st_zm(st_as_sf(pin_get('AUreservoir_EVJ', board = 'rsconnect')))
 
 
 DEQregionSelection1 <- 'BRRO'
-lakeSelection1 <- "Smith Mountain Lake"#"Falling Creek Reservoir"#"Hogan Lake"#"Smith Mountain Lake"
+lakeSelection1 <- "Townes Reservoir" #"Smith Mountain Lake"#"Falling Creek Reservoir"#"Hogan Lake"#"Smith Mountain Lake"
  # filter(regionalAUs, ASSESS_REG %in% DEQregionSelection) %>% 
 #  distinct(Lake_Name) %>% arrange(Lake_Name) %>% pull()
 
@@ -112,8 +113,8 @@ AUselectionOptions1 <- unique(dplyr::select(lake_filter1, ID305B_1:ID305B_10) %>
          mutate_at(vars(starts_with("ID305B")), as.character) %>%
          pivot_longer(ID305B_1:ID305B_10, names_to = 'ID305B', values_to = 'keep') %>%
          pull(keep) )
-#selectedAU1 <- AUselectionOptions1[!is.na(AUselectionOptions1) & !(AUselectionOptions1 %in% c("NA", "character(0)", "logical(0)"))][1]
-selectedAU1 <- 'VAW-L12L_ROA01A02'
+selectedAU1 <- AUselectionOptions1[!is.na(AUselectionOptions1) & !(AUselectionOptions1 %in% c("NA", "character(0)", "logical(0)"))][1]
+#selectedAU1 <- 'VAW-L12L_ROA01A02'
 
 stationSelectionOptions1 <- filter_at(lake_filter1, vars(starts_with("ID305B")), any_vars(. %in% selectedAU1)) %>%
   distinct(STATION_ID) %>%
@@ -237,3 +238,5 @@ stationInfo1 <- filter(stationTable1, STATION_ID == stationSelection1) %>%
 # 
 # oneAUDecisionData1[5,] %>%
 #   dplyr::select(-associatedData) 
+
+
