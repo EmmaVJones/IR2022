@@ -33,9 +33,9 @@
 # #glimpse(schema)
 
 schemaFin <- read_csv('data/citmonnonagencydummydata_EVJ.csv') %>%# email 1/8/21, EVJ added random LEVEL info for testing
-  rename('CHLOROPHYLL_A_ug_L' = 'CHLOROPHYLL_mg_L', 
-         'RMK_CHLOROPHYLL_A' = 'RMK_CHLOROPHYLL',
-         'LEVEL_CHLOROPHYLL_A' = 'LEVEL_CHLOROPHYLL' ) %>%
+  rename('CHLOROPHYLL_A_ug_L' = 'CHLOROPHYLL_A_mg_L', 
+         'RMK_CHLOROPHYLL_A' = 'RMK_CHLOROPHYLL_A',
+         'LEVEL_CHLOROPHYLL_A' = 'LEVEL_CHLOROPHYLL_A' ) %>%
   mutate(FDT_DATE_TIME = as.POSIXct(FDT_DATE_TIME, format = '%m/%d/%Y %H:%M'),
          LEVEL_CHLOROPHYLL_A = as.factor(LEVEL_CHLOROPHYLL_A))
 
@@ -179,7 +179,7 @@ names(conventionals) == names(schemaFin)
 conventionals <- bind_rows(schemaFin, conventionals)
 
 
-rm(schema); rm(schemaFin)
+rm(schemaFin)
 
 
 

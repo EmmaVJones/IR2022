@@ -95,6 +95,15 @@ hitList <- read_csv('data/stationHitList.csv')
 conventionals <- filter(conventionals, ! FDT_STA_ID %in% toupper(hitList$`StationID to Remove`))
 rm(hitList)
 ```
+### Secchi Depth Query
+
+Secchi depth has not been pulled in the conventionals dataset but is required in the lakes assessment process. Where available, attach that information from ODS production.
+
+```{r establish ODS connection}
+
+```
+
+
 
 
 And now let's make a dataset of all the unique stations that we need to organize.
