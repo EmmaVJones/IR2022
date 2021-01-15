@@ -1,7 +1,11 @@
 #source('global.R')
 
 # Pull data from server
-conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
+conventionals <- pin_get('conventionals2022IRdraftWithSecchi', board = "rsconnect") %>%
+  
+  
+  
+  #pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
   filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 UTC" )
 ####vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
 WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")

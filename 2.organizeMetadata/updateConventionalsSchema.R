@@ -37,7 +37,11 @@ schemaFin <- read_csv('data/citmonnonagencydummydata_EVJ.csv') %>%# email 1/8/21
          'RMK_CHLOROPHYLL_A' = 'RMK_CHLOROPHYLL_A',
          'LEVEL_CHLOROPHYLL_A' = 'LEVEL_CHLOROPHYLL_A' ) %>%
   mutate(FDT_DATE_TIME = as.POSIXct(FDT_DATE_TIME, format = '%m/%d/%Y %H:%M'),
-         LEVEL_CHLOROPHYLL_A = as.factor(LEVEL_CHLOROPHYLL_A))
+         LEVEL_CHLOROPHYLL_A = as.factor(LEVEL_CHLOROPHYLL_A),
+         SECCHI_DEPTH_M = as.numeric(NA),
+         RMK_SECCHI_DEPTH = as.character(NA), 
+         LEVEL_SECCHI_DEPTH = as.factor(NA))  %>%
+  dplyr::select(FDT_STA_ID:LEVEL_TSS45, SECCHI_DEPTH_M, RMK_SECCHI_DEPTH, LEVEL_SECCHI_DEPTH, Latitude:Data_Source)
 
 
 # map new names
@@ -168,7 +172,10 @@ conventionals <- read_csv('data/final2020data/CEDSWQM_2020_IR_DATA-CONVENTIONALS
          GROUP_STA_ID = as.character(NA),  #Source_Sta_Id = NA,
          OTHER_CITMON_NONAGENCY_INFO = as.character(NA), 
          Data_Source = "DEQ",
-         Waterbody = as.character(NA)) %>%
+         Waterbody = as.character(NA), 
+         SECCHI_DEPTH_M = as.numeric(NA),
+         RMK_SECCHI_DEPTH = as.character(NA), 
+         LEVEL_SECCHI_DEPTH = as.factor(NA)) %>%
   dplyr::select(FDT_STA_ID, GROUP_STA_ID, everything()) %>%
   dplyr::select(names(schemaFin))
 

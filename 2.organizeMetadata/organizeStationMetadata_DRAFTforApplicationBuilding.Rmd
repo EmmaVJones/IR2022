@@ -95,15 +95,6 @@ hitList <- read_csv('data/stationHitList.csv')
 conventionals <- filter(conventionals, ! FDT_STA_ID %in% toupper(hitList$`StationID to Remove`))
 rm(hitList)
 ```
-### Secchi Depth Query
-
-Secchi depth has not been pulled in the conventionals dataset but is required in the lakes assessment process. Where available, attach that information from ODS production.
-
-```{r establish ODS connection}
-
-```
-
-
 
 
 And now let's make a dataset of all the unique stations that we need to organize.
@@ -122,6 +113,56 @@ conventionals_sf <- conventionals_distinct %>%
                crs = 4326) # add projection, needs to be geographic for now bc entering lat/lng
 
 ```
+
+
+### Secchi Depth Query Detour
+
+Secchi depth has not been pulled in the conventionals dataset but is required in the lakes assessment process. Where available, attach that information from ODS production.
+
+```{r establish ODS connection}
+library(pool)
+### Production Environment
+pool <- dbPool(
+  drv = odbc::odbc(),
+  Driver = "SQL Server Native Client 11.0", 
+  Server= "DEQ-SQLODS-PROD,50000",
+  dbname = "ODS",
+  trusted_connection = "yes"
+)
+
+#station <- '4AROA167.34'
+
+stationSecchiDepth <- pool %>% tbl("Wqm_Field_Data_View") %>%
+  filter(Fdt_Sta_Id %in% !! conventionals_distinct$FDT_STA_ID & #station & #
+           between(as.Date(Fdt_Date_Time), "2014-12-31", "2020-12-31") &
+           !is.na(Fdt_Secchi_Depth)) %>% # x >= left & x <= right
+  dplyr::select(Fdt_Sta_Id, Fdt_Date_Time, Fdt_Depth, Fdt_Secchi_Depth) %>%
+  as_tibble() %>%
+  mutate(Date = as.Date(Fdt_Date_Time)) %>%
+    dplyr::select(FDT_STA_ID = Fdt_Sta_Id, Date, FDT_DEPTH = Fdt_Depth, Fdt_Secchi_Depth) # name conventionals format
+  #mutate(RMK_SECCHI_DEPTH = as.character(NA), LEVEL_SECCHI_DEPTH = as.factor(NA)) 
+```
+
+Join this data to conventionals data in the new conventionals format.
+
+```{r secchi to conventionals}
+conventionalsArchive <- conventionals %>%
+  mutate(Date = as.Date(FDT_DATE_TIME))
+
+#lake <- filter(conventionalsArchive, FDT_STA_ID == '4AROA167.34') %>%
+#    mutate(Date = as.Date(FDT_DATE_TIME)) %>%
+#  dplyr::select(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH,  Date, SECCHI_DEPTH_M)
+
+#lake2 <- left_join(lake, stationSecchiDepth, by = c('FDT_STA_ID', 'Date', 'FDT_DEPTH')) %>%
+conventionals <- left_join(conventionalsArchive, stationSecchiDepth, by = c('FDT_STA_ID', 'Date', 'FDT_DEPTH')) %>%
+  mutate(SECCHI_DEPTH_M = Fdt_Secchi_Depth) %>%
+  dplyr::select(-c(Fdt_Secchi_Depth, Date))
+  
+#glimpse(conventionals)
+#View(filter(conventionals, !is.na(SECCHI_DEPTH_M)))
+```
+
+
 
 And bring in Virginia assessment region info and DCR11 watershed info.
 
@@ -334,6 +375,7 @@ conn <- config::get("connectionSettings")
 board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_KEY"),
                           server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
 
+conventionals2022IRdraftWithSecchi <- conventionals
 
 conventionals2022IRdraft <- conventionals
 stations2020IR_sf_draft <- lastCycleStation_sf
@@ -346,6 +388,8 @@ Smetals_2020IRfinal <- read_excel('data/final2020data/CEDSWQM_2020_IR_DATA-CEDSW
 names(Smetals_2020IRfinal) <- gsub( "[..].*", "", names(Smetals_2020IRfinal)) # remove anything after .. in name
 
 # Pin data
+pin(conventionals2022IRdraftWithSecchi, description = "DRAFT 2022IR conventionals dataset from Roger Stewart", board = "rsconnect")
+
 pin(conventionals2022IRdraft, description = "DRAFT 2022IR conventionals dataset from Roger Stewart", board = "rsconnect")
 pin(conventionals_distinct_draft, description = "DRAFT 2022IR conventionals distinct stations from Roger Stewart", board = "rsconnect")
 pin(vahu6, description = "DEQ Assessment Region Data at VAHU6 level", board = "rsconnect")
