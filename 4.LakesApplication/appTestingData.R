@@ -56,7 +56,7 @@ regionalAUs1 <- st_zm(st_as_sf(pin_get('AUreservoir_EVJ', board = 'rsconnect')))
 
 
 DEQregionSelection1 <- 'BRRO'
-lakeSelection1 <- "Townes Reservoir" #"Smith Mountain Lake"#"Falling Creek Reservoir"#"Hogan Lake"#"Smith Mountain Lake"
+lakeSelection1 <- "Smith Mountain Lake"#"Townes Reservoir" #"Falling Creek Reservoir"#"Hogan Lake"#"Smith Mountain Lake"
  # filter(regionalAUs, ASSESS_REG %in% DEQregionSelection) %>% 
 #  distinct(Lake_Name) %>% arrange(Lake_Name) %>% pull()
 

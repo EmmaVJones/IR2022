@@ -1,3 +1,5 @@
+#source('appTestingData.R')
+
 
 
 NitratePlotlySingleStationUI <- function(id){
@@ -45,7 +47,7 @@ NitratePlotlySingleStation <- function(input,output,session, AUdata, stationSele
     req(oneStation())
     if(nrow(oneStation()) > 0){
       defaultPWS <- unique(oneStation()$PWS) %in% c("Yes")
-    } else { defaultPWS <- FALSE}
+      } else { defaultPWS <- FALSE}
     checkboxInput(ns('changeWQS'),'Apply Public Water Supply Water Quality Standards (Automatically selected if PWS standards apply to the selected station)', value = defaultPWS) })
   
   # Button to visualize modal table of available parameter data
@@ -84,32 +86,32 @@ NitratePlotlySingleStation <- function(input,output,session, AUdata, stationSele
                               PWSlimit = c(10, 10)))
     }
     
-    
+
     if(input$changeWQS == TRUE){
-      
-      plot_ly(data=dat)%>%
-        add_lines(data=dat, x=~SampleDate,y=~PWSlimit, mode='line', line = list(color = 'black'),
-                  hoverinfo = "text", text= "PWS Criteria (10 mg/L)", name="PWS Criteria (10 mg/L)") %>%
-        add_markers(data=dat, x= ~SampleDate, y= ~NITRATE_mg_L,mode = 'scatter', name="Dissolved Nitrate (mg/L)",marker = list(color= '#535559'),
-                    hoverinfo="text",text=~paste(sep="<br>",
-                                                 paste("Date: ",SampleDate),
-                                                 paste("Depth: ",FDT_DEPTH, "m"),
-                                                 paste("Dissolved Nitrate: ",NITRATE_mg_L,"mg/L")))%>%
-        layout(showlegend=FALSE,
-               yaxis=list(title="Dissolved Nitrate (mg/L)"),
-               xaxis=list(title="Sample Date",tickfont = list(size = 10)))
-    } else {
-      plot_ly(data=dat)%>%
-        add_markers(data=dat, x= ~SampleDate, y= ~NITRATE_mg_L,mode = 'scatter', name="Dissolved Nitrate (mg/L)",marker = list(color= '#535559'),
-                    hoverinfo="text",text=~paste(sep="<br>",
-                                                 paste("Date: ",SampleDate),
-                                                 paste("Depth: ",FDT_DEPTH, "m"),
-                                                 paste("Dissolved Nitrate: ",NITRATE_mg_L,"mg/L")))%>%
-        layout(showlegend=FALSE,
-               yaxis=list(title="Dissolved Nitrate (mg/L)"),
-               xaxis=list(title="Sample Date",tickfont = list(size = 10)))
-      
-    }
+        
+        plot_ly(data=dat)%>%
+          add_lines(data=dat, x=~SampleDate,y=~PWSlimit, mode='line', line = list(color = 'black'),
+                    hoverinfo = "text", text= "PWS Criteria (10 mg/L)", name="PWS Criteria (10 mg/L)") %>%
+          add_markers(data=dat, x= ~SampleDate, y= ~NITRATE_mg_L,mode = 'scatter', name="Dissolved Nitrate (mg/L)",marker = list(color= '#535559'),
+                      hoverinfo="text",text=~paste(sep="<br>",
+                                                   paste("Date: ",SampleDate),
+                                                   paste("Depth: ",FDT_DEPTH, "m"),
+                                                   paste("Dissolved Nitrate: ",NITRATE_mg_L,"mg/L")))%>%
+          layout(showlegend=FALSE,
+                 yaxis=list(title="Dissolved Nitrate (mg/L)"),
+                 xaxis=list(title="Sample Date",tickfont = list(size = 10)))
+      } else {
+        plot_ly(data=dat)%>%
+          add_markers(data=dat, x= ~SampleDate, y= ~NITRATE_mg_L,mode = 'scatter', name="Dissolved Nitrate (mg/L)",marker = list(color= '#535559'),
+                      hoverinfo="text",text=~paste(sep="<br>",
+                                                   paste("Date: ",SampleDate),
+                                                   paste("Depth: ",FDT_DEPTH, "m"),
+                                                   paste("Dissolved Nitrate: ",NITRATE_mg_L,"mg/L")))%>%
+          layout(showlegend=FALSE,
+                 yaxis=list(title="Dissolved Nitrate (mg/L)"),
+                 xaxis=list(title="Sample Date",tickfont = list(size = 10)))
+        
+       }
   })
   
   
@@ -139,3 +141,32 @@ NitratePlotlySingleStation <- function(input,output,session, AUdata, stationSele
   
   
 }
+  
+ 
+
+
+
+ui <- fluidPage(
+  helpText('Review each site using the single site visualization section. There are no WQS for Specific Conductivity.'),
+  NitratePlotlySingleStationUI('Nitrate')
+)
+
+server <- function(input,output,session){
+  stationData <- eventReactive( input$stationSelection, {
+    filter(AUData, FDT_STA_ID %in% input$stationSelection) })
+  stationSelected <- reactive({input$stationSelection})
+  
+  
+  AUData <- reactive({filter_at(conventionalsLake1, vars(starts_with("ID305B")), any_vars(. %in% selectedAU1) ) })
+  
+  
+  callModule(NitratePlotlySingleStation,'Nitrate', AUData, stationSelected)
+  
+}
+
+shinyApp(ui,server)
+
+
+
+
+

@@ -216,7 +216,14 @@ shinyUI(fluidPage(theme="yeti.css",
                                                                 helpText('Review each site using the single site visualization section. The results from this analysis are not reflected
                                                                          in the station table as they are only applicable to Section 187 lakes.',
                                                                          span('Users may view AU level assessment results below.', style="color:red")),
-                                                                TSIPlotlySingleStationUI('TSI') )
+                                                                TSIPlotlySingleStationUI('TSI') ),
+                                                       tabPanel('Ammonia',
+                                                                helpText('Review each site using the single site visualization section. The results from this analysis are reflected
+                                                                         in the AMMONIA_EXC and AMMONIA_STAT columns in the station table.'),
+                                                                AmmoniaPlotlySingleStationUI('Ammonia')),
+                                                       tabPanel('Nitrate',
+                                                                helpText('Review each site using the single site visualization section. Nitrate criteria only apply to stations with PWS designation.'),
+                                                                NitratePlotlySingleStationUI('Nitrate'))
                                                        )))#,
                                  )
                       )))))

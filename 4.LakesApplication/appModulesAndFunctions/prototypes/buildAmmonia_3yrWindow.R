@@ -150,7 +150,7 @@ AmmoniaPlotlySingleStation <- function(input,output,session, AUdata, stationSele
           add_markers(data=dat, x= ~SampleDate, y= ~AMMONIA_mg_L,mode = 'scatter', name="Ammonia (mg/L as N)", marker = list(color= ~over),#list(color = '#D11814'),#for testing
                       hoverinfo="text",text=~paste(sep="<br>",
                                                    paste("Date: ",SampleDate),
-                                                   #paste("Depth: ",FDT_DEPTH, "m"),
+                                                   paste("Depth: ",FDT_DEPTH, "m"),
                                                    paste("Ammonia: ", AMMONIA_mg_L,"mg/L as N"),
                                                    paste('Acute Ammonia Limit: ',format(acuteNH3limit, digits=3), "mg/L as N"),
                                                    paste('Temperature: ', FDT_TEMP_CELCIUS, '(Celsius)'),
@@ -324,8 +324,8 @@ server <- function(input,output,session){
   stationSelected <- reactive({input$stationSelection})
   
   
-  AUData <- reactive({filter_at(conventionals_HUC, vars(starts_with("ID305B")), any_vars(. %in% AUselection) ) })
-    # for testing 30 day
+  AUData <- reactive({filter_at(conventionalsLake1, vars(starts_with("ID305B")), any_vars(. %in% selectedAU1) ) })
+  # for testing 30 day
     #filter(conventionals, FDT_STA_ID == '2-XDD000.40') %>%
     #  left_join(dplyr::select(stationTable, STATION_ID:VAHU6,
     #                          WQS_ID:EPA_ECO_US_L3NAME),

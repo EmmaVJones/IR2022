@@ -318,6 +318,27 @@ shinyServer(function(input, output, session) {
       formatStyle(c('NUT_TP_EXC','NUT_TP_SAMP'), 'NUT_TP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>% 
       formatStyle(c('NUT_CHLA_EXC','NUT_CHLA_SAMP'), 'NUT_CHLA_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red')))  })
   
+  
+  
+  ## PWS table
+  output$PWStable <- DT::renderDataTable({
+    req(stationData())
+    if(is.na(unique(stationData()$PWS))){
+      PWSconcat <- tibble(STATION_ID = unique(stationData()$FDT_STA_ID),
+                          PWS= 'PWS Standards Do Not Apply To Station')
+      DT::datatable(PWSconcat, escape=F, rownames = F, options= list(scrollX = TRUE, pageLength = nrow(PWSconcat), dom='t'),
+                    selection = 'none')
+      
+    } else {
+      PWSconcat <- cbind(tibble(STATION_ID = unique(stationData()$FDT_STA_ID)),
+                         assessPWS(stationData(), NITRATE_mg_L, LEVEL_NITRATE, 10, 'PWS_Nitrate')) %>%
+        dplyr::select(-ends_with('exceedanceRate')) 
+      
+      DT::datatable(PWSconcat, escape=F, rownames = F, options= list(scrollX = TRUE, pageLength = nrow(PWSconcat), dom='t'),
+                    selection = 'none') %>% 
+        formatStyle(c("PWS_Nitrate_EXC","PWS_Nitrate_SAMP","PWS_Nitrate_STAT"), "PWS_Nitrate_STAT", backgroundColor = styleEqual(c('Review'), c('red')))  } })
+  
+  
   #### Data Sub Tab ####---------------------------------------------------------------------------------------------------
   
   # Display Data 
@@ -370,5 +391,11 @@ shinyServer(function(input, output, session) {
   
   ## Trophic State Index Sub Tab ##------------------------------------------------------------------------------------------------------
   callModule(TSIPlotlySingleStation,'TSI', AUData, stationSelected, AUselection)  
+  
+  ## Ammonia Sub Tab ##------------------------------------------------------------------------------------------------------
+  callModule(AmmoniaPlotlySingleStation,'Ammonia', AUData, stationSelected, ammoniaAnalysis)
+  
+  ## Nitrate Sub Tab ##-----------------------------------------------------------------------------------------------------
+  callModule(NitratePlotlySingleStation,'Nitrate', AUData, stationSelected)
   
 })
