@@ -329,21 +329,6 @@ timeDiff = Sys.time()- startTime
   
 ```
 
-Now assess lake stations.
-
-
-
-## do stuff for lakes
-
-```{r}
-# stationTableResults <- read_csv('processedStationData/stationTableResults.csv')
-# 
-# lakeStations2 <- mutate(lakeStations, `2020 IR COMMENTS` = NA, `2018 IR COMMENTS` = NA) %>%
-#   dplyr::select(names(stationTableResults))
-# 
-# stationTableResults <- bind_rows(stationTableResults, lakeStations2)
-
-```
 
 
 
@@ -364,6 +349,20 @@ estuarineStationData <- dplyr::select(estuarineStations, STATION_ID:VAHU6, COMME
   
 stationTableResults <- bind_rows(stationTableResults, estuarineStationData)
 ```
+
+Fix station comments if not already fixed
+
+```{r}
+realComments <- read_excel('data/GIS/ir20_Appendix8_StationsKey-List.xlsx', sheet = 'ir20_Appendix8_StationsList') %>%
+  dplyr::select(STATION_ID, COMMENTS)
+
+stationTableResults <- left_join(stationTableResults, realComments, by = "STATION_ID") %>%
+  rename('COMMENTS' = 'COMMENTS.x') %>%
+  mutate(`2020 IR COMMENTS` = COMMENTS.y) %>%
+  dplyr::select(-COMMENTS.y)
+```
+
+
 
 
 Now this is the starting point for the app.

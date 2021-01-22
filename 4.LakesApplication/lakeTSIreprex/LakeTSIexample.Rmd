@@ -1,0 +1,237 @@
+---
+title: "Lake TSI Example"
+author: "Emma Jones"
+date: "1/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+# This script was built in R 3.6.2, but it will run in newer versions. Our internal server requires that we stay in 3.6.2 right now for spatial analysis underlying dependencies, but it is best practices to stay within the current R generation (e.g. R 4.x.x at the time of the script development)
+library(tidyverse) # v 1.3.0
+library(lubridate) # v 1.7.4
+```
+
+## Background
+
+This document walks users through the calculation of Virginia DEQ's Trophic State Index assessment, based off Carlson TSI methods. All scripts were developed by Emma Jones (emma.jones@deq.virginia.gov) to support the Water Quality Assessment Program. 
+
+### Inputs
+
+Below is a slice of DEQ assessment data organized in a way that makes automated assessments possible. The raw data is joined to station spatial information, assessment units, station types, WQS, etc. The data are limited to VDEQ's "non187 lakes" (aka the lakes that don't have official nutrient standards where we need to run TSI calculations for assessments).
+
+```{r conventionals data}
+conventionals <- read_csv('data/conventionals_slim.csv')
+```
+
+Bring in TSI calculations.
+
+```{r TSI function}
+source('TSIcalculation.R')
+```
+
+### TSI for one station
+
+This chunk limits the "conventionals" dataset to one station and runs the TSI calculation.
+
+```{r TSI one station}
+stationData1 <- filter(conventionals, FDT_STA_ID == '4ADAN187.94')
+
+TSIcalculation(stationData1)
+```
+
+If you aren't familiar with listcolumns, they are epic. I use them a lot to nest data that produced an analysis with the results. Here the 'associatedData' listcolumn holds the data for the station that is associated with the result. Check out:
+https://rstudio.com/resources/webinars/thinking-inside-the-box-you-can-do-that-inside-a-data-frame/
+https://jennybc.github.io/purrr-tutorial/
+Jenny Bryan is the best.
+
+```{r how to view associatedData}
+townesTSI <- TSIcalculation(stationData1)
+View(townesTSI$associatedData[[1]])
+```
+
+Now to make a decision on that one station, we can feed the raw data into the TSIassessment() function and it will analyze the data (thanks to the nested TSIcalculation()) and spit out a result.
+
+```{r townes assessment}
+View(TSIassessment(stationData1))
+```
+
+Note I don't report out the 'associated data' with the assessment decision, you totally could, but I kept them separate to best meet my purposes.
+
+
+### TSI for more than one station
+
+Now let's find a lake with more than one station to test these methods on multiple stations.
+
+```{r more than one station}
+stationData2 <- filter(conventionals, FDT_STA_ID %in% c('2-SPE000.17', '2-SPE001.18'))
+```
+
+Calculate TSI for each station.
+
+```{r}
+speightsRunTSI <- TSIcalculation(stationData2)
+speightsRunTSI
+```
+
+Assessment for each station.
+
+```{r lone star assessment}
+TSIassessment(stationData2)
+```
+
+## What next?
+
+You probably will want to play with the functions row by row to figure out how they work. I like to do that by matching the variables and going row by row. e.g.
+
+```{r function testing}
+x <- stationData1
+
+# don't run everything bc it will fail
+#TSIcalculation <- function(x){
+  if(unique(x$lakeStation) == TRUE){ # run just the if statement to see what it does e.g. unique(x$lakeStation) == TRUE
+    
+    
+    if(is.na(unique(x$Lakes_187B))){ # rinse and repeat
+      
+      
+      # first fill down secchi depth in case it isn't stored exactly at 0.3 meter
+      secchiFix <- x %>%
+        group_by(FDT_STA_ID, FDT_DATE_TIME) %>% 
+        fill(SECCHI_DEPTH_M, .direction = "downup") %>%
+        
+        
+         # test what each step looks like e.g. 
+        # x %>%
+        #group_by(FDT_STA_ID, FDT_DATE_TIME) %>% 
+        #fill(SECCHI_DEPTH_M, .direction = "downup")
+        
+        # then add the next step. If it is annoying to test out functions in Rmarkdown chucks (I think it is), copy/paste
+        #  scripts to a new .R file and test there or in the console
+        
+        
+        filter(FDT_DEPTH <= 0.3) %>%
+        # remove all data except those from mid June through mid September (going with June 15 and Sept 15 since guidance does not specify)
+        mutate(monthday = as.numeric(paste0(month(FDT_DATE_TIME), day(FDT_DATE_TIME)))) %>% # crafty way to get dates desired without specifying years
+        filter(between(monthday, 615, 915 )) %>%
+        dplyr::select(-monthday)
+      
+      ... # repeat with the rest of the function
+
+```
+
+Once you figure out the function guts, you will probably need to reprogram it to work with your data schema e.g. Change the logic in the if/then sequence to apply the remainder of the function to the sites you need it to work on (regardless of what data you feed it), or you can do that outside the function (I do a little bit of both, the rules i include in a function mean they are really important and should definitely be adhered to). You will also need to change the arguments to apply to your data schema e.g. we call chlorophyll 'CHLOROPHYLL_A_ug_L' but I'm willing to bet you all don't, so you can use the logic but will likely need to reprogram to fit your data needs.
+
+
+### Visualization
+
+Once you figure out the functions, these scripts could be helpful to you.
+
+```{r interactive plot}
+library(plotly) # 4.9.1
+
+# extract nested data
+datOG <- TSIcalculation(stationData1)
+dat <- datOG %>%
+      dplyr::select( associatedData) %>%
+      unnest(cols = c(associatedData)) %>%
+      mutate(`Overall TSI SD` = datOG$TSI_SD,
+             `Overall TSI Chl a` = datOG$TSI_chla,
+             `Overall TSI TP` = datOG$TSI_TP)
+
+# interactive plot
+plot_ly(data=dat)%>%
+      add_lines(data=dat, x=~FDT_DATE_TIME,y=~`Overall TSI SD`, mode='line', line = list(color = 'black'),
+                hoverinfo = "text", text="Overall TSI Secchi Depth", name="Overall TSI Secchi Depth") %>%
+      add_markers(data=dat, x= ~FDT_DATE_TIME, y= ~TSI_SD,mode = 'scatter', name="TSI_SD", marker = list(color= '#535559'),
+                  hoverinfo="text",text=~paste(sep="<br>",
+                                               paste("Date: ",FDT_DATE_TIME),
+                                               paste("Depth: ",FDT_DEPTH, "m"),
+                                               paste("TSI Secchi Depth: ",TSI_SD)))%>%
+      layout(showlegend=FALSE,
+             yaxis=list(title="TSI Secchi Depth (unitless)"),
+             xaxis=list(title="Sample Date",tickfont = list(size = 10))) 
+
+```
+
+Or make it a function (who doesn't love functions?) to easily implement in reports.
+
+```{r}
+# TSI plot decision
+TSIplotly <- function(dat, parameter){
+  box1 <- data.frame(FDT_DATE_TIME = c(min(dat$FDT_DATE_TIME), min(dat$FDT_DATE_TIME), max(dat$FDT_DATE_TIME),max(dat$FDT_DATE_TIME)), y = c(80, 100, 100, 80))
+  box2 <- data.frame(x = c(min(dat$FDT_DATE_TIME), min(dat$FDT_DATE_TIME), max(dat$FDT_DATE_TIME),max(dat$FDT_DATE_TIME)), y = c(60, 80, 80, 60))
+  box3 <- data.frame(x = c(min(dat$FDT_DATE_TIME), min(dat$FDT_DATE_TIME), max(dat$FDT_DATE_TIME),max(dat$FDT_DATE_TIME)), y = c(40, 60, 60, 40))
+  box4 <- data.frame(x = c(min(dat$FDT_DATE_TIME), min(dat$FDT_DATE_TIME), max(dat$FDT_DATE_TIME),max(dat$FDT_DATE_TIME)), y = c(0, 40, 40, 0))
+  
+  
+  
+  if(parameter == 'Secchi Depth'){
+    return(
+    plot_ly(data=box1)%>%
+      add_polygons(x = ~FDT_DATE_TIME, y = ~y, data = box1, fillcolor = "firebrick",opacity=0.6, line = list(width = 0),
+                   hoverinfo="text", name =paste('Trophic State: Hypereutrophic')) %>%
+      add_polygons(data = box2, x = ~x, y = ~y, fillcolor = "#F0E442",opacity=0.6, line = list(width = 0),
+                   hoverinfo="text", name =paste('Trophic State: Eutrophic')) %>%
+      add_polygons(data = box3, x = ~x, y = ~y, fillcolor = "#009E73",opacity=0.6, line = list(width = 0),
+                   hoverinfo="text", name =paste('Trophic State: Mesotrophic')) %>%
+      add_polygons(data = box4, x = ~x, y = ~y, fillcolor = "#0072B2",opacity=0.6, line = list(width = 0),
+                   hoverinfo="text", name =paste('Trophic State: Oligotrophic')) %>%
+      add_lines(data=dat, x=~FDT_DATE_TIME,y=~`Overall TSI SD`, mode='line', line = list(color = 'black'),
+                hoverinfo = "text", text="Overall TSI Secchi Depth", name="Overall TSI Secchi Depth") %>%
+      add_markers(data=dat, x= ~FDT_DATE_TIME, y= ~TSI_SD,mode = 'scatter', name="TSI_SD", marker = list(color= '#535559'),
+                  hoverinfo="text",text=~paste(sep="<br>",
+                                               paste("Date: ",FDT_DATE_TIME),
+                                               paste("Depth: ",FDT_DEPTH, "m"),
+                                               paste("TSI Secchi Depth: ",TSI_SD)))%>%
+      layout(showlegend=FALSE,
+             yaxis=list(title="TSI Secchi Depth (unitless)"),
+             xaxis=list(title="Sample Date",tickfont = list(size = 10))) ) }
+  if(parameter == 'Chlorophyll a'){
+    return(
+    plot_ly(data=box1)%>%
+      add_polygons(x = ~FDT_DATE_TIME, y = ~y, data = box1, fillcolor = "firebrick",opacity=0.6, line = list(width = 0),
+                   hoverinfo="text", name =paste('Trophic State: Hypereutrophic')) %>%
+      add_polygons(data = box2, x = ~x, y = ~y, fillcolor = "#F0E442",opacity=0.6, line = list(width = 0),
+                   hoverinfo="text", name =paste('Trophic State: Eutrophic')) %>%
+      add_polygons(data = box3, x = ~x, y = ~y, fillcolor = "#009E73",opacity=0.6, line = list(width = 0),
+                   hoverinfo="text", name =paste('Trophic State: Mesotrophic')) %>%
+      add_polygons(data = box4, x = ~x, y = ~y, fillcolor = "#0072B2",opacity=0.6, line = list(width = 0),
+                   hoverinfo="text", name =paste('Trophic State: Oligotrophic')) %>%
+      add_lines(data=dat, x=~FDT_DATE_TIME,y=~`Overall TSI Chl a`, mode='line', line = list(color = 'black'),
+                hoverinfo = "text", text="Overall TSI Chlorophyll a", name="Overall TSI Chlorophyll a") %>%
+      add_markers(data=dat, x= ~FDT_DATE_TIME, y= ~TSI_chla,mode = 'scatter', name="TSI_chla", marker = list(color= '#535559'),
+                  hoverinfo="text",text=~paste(sep="<br>",
+                                               paste("Date: ",FDT_DATE_TIME),
+                                               paste("Depth: ",FDT_DEPTH, "m"),
+                                               paste("TSI Chlorophyll a: ",TSI_chla)))%>%
+      layout(showlegend=FALSE,
+             yaxis=list(title="TSI Chlorophyll a (unitless)"),
+             xaxis=list(title="Sample Date",tickfont = list(size = 10))) ) }
+  if(parameter == 'Total Phosphorus'){
+    return(
+    plot_ly(data=box1)%>%
+      add_polygons(x = ~FDT_DATE_TIME, y = ~y, data = box1, fillcolor = "firebrick",opacity=0.6, line = list(width = 0),
+                   hoverinfo="text", name =paste('Trophic State: Hypereutrophic')) %>%
+      add_polygons(data = box2, x = ~x, y = ~y, fillcolor = "#F0E442",opacity=0.6, line = list(width = 0),
+                   hoverinfo="text", name =paste('Trophic State: Eutrophic')) %>%
+      add_polygons(data = box3, x = ~x, y = ~y, fillcolor = "#009E73",opacity=0.6, line = list(width = 0),
+                   hoverinfo="text", name =paste('Trophic State: Mesotrophic')) %>%
+      add_polygons(data = box4, x = ~x, y = ~y, fillcolor = "#0072B2",opacity=0.6, line = list(width = 0),
+                   hoverinfo="text", name =paste('Trophic State: Oligotrophic')) %>%
+      add_lines(data=dat, x=~FDT_DATE_TIME,y=~`Overall TSI Chl a`, mode='line', line = list(color = 'black'),
+                hoverinfo = "text", text="Overall TSI Total Phosphorus", name="Overall TSI Total Phosphorus") %>%
+      add_markers(data=dat, x= ~FDT_DATE_TIME, y= ~TSI_TP,mode = 'scatter', name="TSI_TP", marker = list(color= '#535559'),
+                  hoverinfo="text",text=~paste(sep="<br>",
+                                               paste("Date: ",FDT_DATE_TIME),
+                                               paste("Depth: ",FDT_DEPTH, "m"),
+                                               paste("TSI Total Phosphorus: ",TSI_TP)))%>%
+      layout(showlegend=FALSE,
+             yaxis=list(title="TSI Total Phosphorus (unitless)"),
+             xaxis=list(title="Sample Date",tickfont = list(size = 10))) ) }
+}
+TSIplotly(dat, 'Total Phosphorus')
+TSIplotly(dat, 'Chlorophyll a')
+TSIplotly(dat, 'Secchi Depth')
+```
+

@@ -401,17 +401,17 @@ chlA_Assessment <- function(x){
     mostRecent2years <- slice_max(validYears, Year, n = 2) # get most recent two years of results
     if(nrow(mostRecent2years) == 2){ 
       if(all(unique(mostRecent2years$chlA_Exceedance) == FALSE)){ # no exceedances in last two years
-        return(tibble(NUT_CHLA_EXC= 0, NUT_CHLA_SAMP = nrow(validYears),	NUT_CHLA_STAT = 'S') )
+        return(tibble(NUT_CHLA_EXC= 0, NUT_CHLA_SAMP = nrow(mostRecent2years),	NUT_CHLA_STAT = 'S') )
       } else { # at least one chlA_Exceedance exists
         if(all(unique(mostRecent2years$chlA_Exceedance)) == TRUE){ # both years exceed
-          return(tibble(NUT_CHLA_EXC= nrow(mostRecent2years), NUT_CHLA_SAMP = nrow(validYears),	NUT_CHLA_STAT = 'IM'))
+          return(tibble(NUT_CHLA_EXC= nrow(mostRecent2years), NUT_CHLA_SAMP = nrow(mostRecent2years),	NUT_CHLA_STAT = 'IM'))
         } else { # run a tiebreak with third most recent year
           mostRecent3years <- slice_max(validYears, Year, n = 3) %>% # get most recent three years of results
             filter(chlA_Exceedance == TRUE)
           if(nrow(mostRecent3years) >= 2){
-            return(tibble(NUT_CHLA_EXC= nrow(mostRecent3years), NUT_CHLA_SAMP = nrow(validYears),	NUT_CHLA_STAT = 'IM'))
+            return(tibble(NUT_CHLA_EXC= nrow(mostRecent3years), NUT_CHLA_SAMP = nrow(mostRecent3years),	NUT_CHLA_STAT = 'IM'))
           } else {
-            return(tibble(NUT_CHLA_EXC= nrow(mostRecent3years), NUT_CHLA_SAMP = nrow(validYears),	NUT_CHLA_STAT = 'Review')) }
+            return(tibble(NUT_CHLA_EXC= nrow(mostRecent3years), NUT_CHLA_SAMP = nrow(mostRecent3years),	NUT_CHLA_STAT = 'Review')) }
         }}} else {return(tibble(NUT_CHLA_EXC= NA, NUT_CHLA_SAMP = nrow(validYears),	NUT_CHLA_STAT = 'IN') ) }
     } else {    return(tibble(NUT_CHLA_EXC= NA, NUT_CHLA_SAMP = NA,	NUT_CHLA_STAT = NA) )  }
 }
@@ -476,17 +476,17 @@ TP_Assessment <- function(x){
     mostRecent2years <- slice_max(validYears, Year, n = 2) # get most recent two years of results
     if(nrow(mostRecent2years) == 2){ 
       if(all(unique(mostRecent2years$TP_Exceedance)) == FALSE){ # no exceedances in last two years
-        return(tibble(NUT_TP_EXC= 0, NUT_TP_SAMP = nrow(validYears),	NUT_TP_STAT = 'S') )
+        return(tibble(NUT_TP_EXC= 0, NUT_TP_SAMP = nrow(mostRecent2years),	NUT_TP_STAT = 'S') )
       } else { # at least one TP_Exceedance exists
         if(all(unique(mostRecent2years$TP_Exceedance)) == TRUE){ # both years exceed
-          return(tibble(NUT_TP_EXC= nrow(mostRecent2years), NUT_TP_SAMP = nrow(validYears),	NUT_TP_STAT = 'IM'))
+          return(tibble(NUT_TP_EXC= nrow(mostRecent2years), NUT_TP_SAMP = nrow(mostRecent2years),	NUT_TP_STAT = 'IM'))
         } else { # run a tiebreak with third most recent year
           mostRecent3years <- slice_max(validYears, Year, n = 3) %>% # get most recent three years of results
             filter(TP_Exceedance == TRUE)
           if(nrow(mostRecent3years) >= 2){
-            return(tibble(NUT_TP_EXC= nrow(mostRecent3years), NUT_TP_SAMP = nrow(validYears),	NUT_TP_STAT = 'IM'))
+            return(tibble(NUT_TP_EXC= nrow(mostRecent3years), NUT_TP_SAMP = nrow(mostRecent3years),	NUT_TP_STAT = 'IM'))
           } else {
-            return(tibble(NUT_TP_EXC= nrow(mostRecent3years), NUT_TP_SAMP = nrow(validYears),	NUT_TP_STAT = 'Review')) }
+            return(tibble(NUT_TP_EXC= nrow(mostRecent3years), NUT_TP_SAMP = nrow(mostRecent3years),	NUT_TP_STAT = 'Review')) }
         }}} else {return(tibble(NUT_TP_EXC= NA, NUT_TP_SAMP = nrow(validYears),	NUT_TP_STAT = 'IN') ) }
   } else {    return(tibble(NUT_TP_EXC= NA, NUT_TP_SAMP = NA,	NUT_TP_STAT = NA) )  }
 }

@@ -124,7 +124,7 @@ library(pool)
 ### Production Environment
 pool <- dbPool(
   drv = odbc::odbc(),
-  Driver = "SQL Server Native Client 11.0", 
+  Driver = "ODBC Driver 11 for SQL Server", #"SQL Server Native Client 11.0", 
   Server= "DEQ-SQLODS-PROD,50000",
   dbname = "ODS",
   trusted_connection = "yes"
@@ -191,6 +191,21 @@ Let's start by populating this template with draft 2020 stations table informati
 lastCycleStation_sf <- st_read('data/GIS/2020_wqms.shp') %>%
   mutate(STATION_ID = toupper(STATION_ID)) # fix messed up stationID names to prevent joining issues
 ```
+
+We first need to fix the comment field that comes with the above dataset since converting the original data to .shp truncates the information in the comment field. Below we bring in the original comment field and overwrite the shortened one with the real data.
+
+```{r 2020 real comments}
+realComments <- read_excel('data/GIS/ir20_Appendix8_StationsKey-List.xlsx', sheet = 'ir20_Appendix8_StationsList') %>%
+  dplyr::select(STATION_ID, COMMENTS)
+
+lastCycleStation_sf <- left_join(lastCycleStation_sf, realComments, by = "STATION_ID") %>%
+  mutate(COMMENTS.x = COMMENTS.y) %>%
+  rename('COMMENTS' = 'COMMENTS.x') %>%
+  dplyr::select(-COMMENTS.y)
+```
+
+
+
 We want to drop stations that did not get sampled in 2022 cycle (**based on conventionals dataset for now**), but new for 2022IR we want to include stations that aren't fully supporting (S) for any reason, even if they don't have new data. This *may* be the catch needed to help assessors carry over stations cycle to cycle and see them in the apps.
 
 ```{r stations with data or carryover stations}

@@ -77,6 +77,8 @@ vignettes/*.pdf
 4.RiverineApplication/userDataToUpload/
 4.RiverineApplication/AU_working/
 
+WQSlookupTable/
+
 rsconnect/
 *.zip
 *.gdb
