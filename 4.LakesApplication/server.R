@@ -331,7 +331,9 @@ shinyServer(function(input, output, session) {
       
     } else {
       PWSconcat <- cbind(tibble(STATION_ID = unique(stationData()$FDT_STA_ID)),
-                         assessPWS(stationData(), NITRATE_mg_L, LEVEL_NITRATE, 10, 'PWS_Nitrate')) %>%
+                         assessPWS(stationData(), NITRATE_mg_L, LEVEL_NITRATE, 10, 'PWS_Nitrate'),
+                         assessPWS(stationData(), CHLORIDE_mg_L, LEVEL_CHLORIDE, 250, 'PWS_Chloride'),
+                         assessPWS(stationData(), SULFATE_TOTAL_mg_L, LEVEL_SULFATE_TOTAL, 250, 'PWS_Total_Sulfate')) %>%
         dplyr::select(-ends_with('exceedanceRate')) 
       
       DT::datatable(PWSconcat, escape=F, rownames = F, options= list(scrollX = TRUE, pageLength = nrow(PWSconcat), dom='t'),
@@ -397,5 +399,11 @@ shinyServer(function(input, output, session) {
   
   ## Nitrate Sub Tab ##-----------------------------------------------------------------------------------------------------
   callModule(NitratePlotlySingleStation,'Nitrate', AUData, stationSelected)
+  
+  ## Chloride Sub Tab ##-----------------------------------------------------------------------------------------------------
+  callModule(ClPlotlySingleStation,'Cl', AUData, stationSelected)
+  
+  ## Sulfate Sub Tab ##-----------------------------------------------------------------------------------------------------
+  callModule(DSulfatePlotlySingleStation,'DSulfate', AUData, stationSelected)
   
 })

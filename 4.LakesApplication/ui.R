@@ -159,7 +159,7 @@ shinyUI(fluidPage(theme="yeti.css",
                                           DT::dataTableOutput('stationTableDataSummary'), br(),
                                           h4('PWS violations'),
                                           helpText(span("Any PWS violations should noted in a station's COMMENT field of the Stations Table. The table below organizes 
-                                                  PWS information to expedite the comment process.", strong('Note: PWS criteria are only applicable at intake.'))),
+                                                  PWS information to expedite the comment process.", strong('Note: Chloride and Sulfate PWS criteria are only applicable at the intake.'))),
                                           DT::dataTableOutput('PWStable'),
                                           br(),hr(),br(),
                                           #verbatimTextOutput('test'),
@@ -222,7 +222,13 @@ shinyUI(fluidPage(theme="yeti.css",
                                                                 AmmoniaPlotlySingleStationUI('Ammonia')),
                                                        tabPanel('Nitrate',
                                                                 helpText('Review each site using the single site visualization section. Nitrate criteria only apply to stations with PWS designation.'),
-                                                                NitratePlotlySingleStationUI('Nitrate'))
+                                                                NitratePlotlySingleStationUI('Nitrate')),
+                                                       tabPanel('Chloride',
+                                                                helpText('Review each site using the single site visualization section. Chloride PWS criteria only apply at intakes.'),
+                                                                ClPlotlySingleStationUI('Cl')),
+                                                       tabPanel('Sulfate',
+                                                                helpText('Review each site using the single site visualization section. Sulfate PWS criteria only apply at intakes.'),
+                                                                DSulfatePlotlySingleStationUI('DSulfate'))
                                                        )))#,
                                  )
                       )))))

@@ -79,7 +79,10 @@ thermoclinePlotlySingleStation <- function(input,output,session, AUdata, station
   output$plotly <- renderPlotly({
     req(oneStation(), input$thermoclineResults_rows_selected)
     dateSelected <- thermoclineByDay()[input$thermoclineResults_rows_selected,]$SampleDate
-    dat <- dplyr::filter(oneStation(), SampleDate %in% dateSelected)
+    dat <- mutate(oneStation(), LakeStratification = replace_na(LakeStratification,"NA")) %>% # fix thermocline levels first
+      mutate(LakeStratification = factor(LakeStratification,levels=c("Epilimnion",'NA',"Hypolimnion"))) %>% 
+      dplyr::filter(SampleDate %in% dateSelected)
+    
     suppressWarnings(suppressMessages(
       plot_ly(data=dat)%>%
         add_lines(x=~FDT_TEMP_CELCIUS, y=~ThermoclineDepth, mode='line',line = list(color = '#E50606'),
