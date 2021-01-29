@@ -18,7 +18,13 @@ pHPlotlySingleStationUI <- function(id){
                dataTableOutput(ns('rangeTableSingleSite'))),
         column(1),
         column(4, h5('Individual pH exceedance statistics for the ',span(strong('selected site')),' are highlighted below.'),
-               dataTableOutput(ns("stationExceedanceRate")))),
+               dataTableOutput(ns("stationExceedanceRate")),
+               br(),
+               helpText('Analyzing the exceedance rate of just epilimnion samples can assist in determining if lake turnover 
+                        may be the contributing to pH exceedances.'),
+               h5('Individual pH exceedance statistics for the ',span(strong('selected site in the epilimnion')),
+                  ' are highlighted below.'),
+               dataTableOutput(ns("EPIstationExceedanceRate")))),
       br(),
       wellPanel(
         h4(strong('AU Assessment')),
@@ -31,7 +37,12 @@ pHPlotlySingleStationUI <- function(id){
                  dataTableOutput(ns('rangeTableAU'))),
           column(1),
           column(4, h5('pH exceedance statistics for the ',span(strong('AU')),' are highlighted below.'),
-                 dataTableOutput(ns("AUExceedanceRate"))) ) )
+                 dataTableOutput(ns("AUExceedanceRate")),
+                 br(),
+                 helpText('Analyzing the exceedance rate of just epilimnion samples can assist in determining if lake turnover 
+                        may be the contributing to pH exceedances.'),
+                 h5('pH exceedance statistics for the ',span(strong('AU in the epilimnion')),' are highlighted below.'),
+                 dataTableOutput(ns("EPIAUExceedanceRate")))) ) 
       
     )
   )
@@ -121,6 +132,31 @@ pHPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
     z <- pHExceedances(oneStation()) %>% quickStats('PH') %>% dplyr::select(-PH_STAT)
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "60px", dom='t'),
               selection = 'none') })
+  
+  output$EPIstationExceedanceRate <- renderDataTable({req(input$oneStationSelection, oneStation())
+    pH <- filter(oneStation(), LakeStratification %in% c("Epilimnion")) %>%
+      filter(!(LEVEL_FDT_FIELD_PH %in% c('Level II', 'Level I'))) %>% # get lower levels out
+      filter(!is.na(FDT_FIELD_PH)) %>% #get rid of NA's
+      dplyr::select(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, FDT_FIELD_PH, LEVEL_FDT_FIELD_PH, `pH Min`, `pH Max`) 
+    
+    if(any(is.na(pH$`pH Min`)) | any(is.na(pH$`pH Max`))){
+      pH <- mutate(pH, interval = 1, exceeds = FALSE, limit = `pH Min`) %>%# placeholder to run quickStats() without any WQS
+        quickStats('PH') %>% dplyr::select(-PH_STAT)
+    } else {
+      pH <- pH %>%
+        rowwise() %>%
+        # Round to Even Rule
+        mutate(parameterRound = signif(FDT_FIELD_PH, digits = 2)) %>% # two significant figures based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
+        mutate(interval=findInterval(parameterRound,c(`pH Min`,`pH Max`), left.open=TRUE, rightmost.closed = TRUE)) %>% # Identify where pH outside of assessment range with round to even
+        ungroup()%>%
+        mutate(exceeds=ifelse(interval == 1, F, T), # Highlight where pH doesn't fall into assessment range
+               limit = `pH Min`) %>%# placeholder for quickStats function, carries over whether or not station has WQS attributed
+        quickStats('PH') %>%
+        dplyr::select(-PH_STAT)}
+
+    datatable(pH, rownames = FALSE, options= list(pageLength = nrow(pH), scrollX = TRUE, scrollY = "60px", dom='t'),
+              selection = 'none') })
+  
 
   output$rangeTableAU <- renderDataTable({req(AUdata())
     z <- pHExceedances(AUdata()) %>%
@@ -136,6 +172,30 @@ pHPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   output$AUExceedanceRate <- renderDataTable({ req(AUdata())
     z <- pHExceedances(AUdata()) %>% quickStats('PH') %>% dplyr::select(-PH_STAT)
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "60px", dom='t'),
+              selection = 'none') })
+  
+  output$EPIAUExceedanceRate <- renderDataTable({req(ns(input$oneStationSelection), oneStation())
+    pH <- filter(AUdata(), LakeStratification %in% c("Epilimnion")) %>%
+      filter(!(LEVEL_FDT_FIELD_PH %in% c('Level II', 'Level I'))) %>% # get lower levels out
+      filter(!is.na(FDT_FIELD_PH)) %>% #get rid of NA's
+      dplyr::select(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, FDT_FIELD_PH, LEVEL_FDT_FIELD_PH, `pH Min`, `pH Max`) 
+    
+    if(any(is.na(pH$`pH Min`)) | any(is.na(pH$`pH Max`))){
+      pH <- mutate(pH, interval = 1, exceeds = FALSE, limit = `pH Min`) %>%# placeholder to run quickStats() without any WQS
+        quickStats('PH') %>% dplyr::select(-PH_STAT)
+    } else {
+      pH <- pH %>%
+        rowwise() %>% 
+        # Round to Even Rule
+        mutate(parameterRound = signif(FDT_FIELD_PH, digits = 2)) %>% # two significant figures based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
+        mutate(interval=findInterval(parameterRound,c(`pH Min`,`pH Max`), left.open=TRUE, rightmost.closed = TRUE)) %>% # Identify where pH outside of assessment range with round to even
+        ungroup()%>%
+        mutate(exceeds=ifelse(interval == 1, F, T), # Highlight where pH doesn't fall into assessment range
+               limit = `pH Min`) %>%# placeholder for quickStats function, carries over whether or not station has WQS attributed
+        quickStats('PH') %>%
+        dplyr::select(-PH_STAT)}
+    
+    datatable(pH, rownames = FALSE, options= list(pageLength = nrow(pH), scrollX = TRUE, scrollY = "60px", dom='t'),
               selection = 'none') })
   
 }

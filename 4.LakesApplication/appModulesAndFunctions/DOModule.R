@@ -18,6 +18,7 @@ DOPlotlySingleStationUI <- function(id){
                h5('Individual DO exceedance statistics for the ',span(strong('selected site')),' are highlighted below.
                   These are the results reflected in the stations table above.'),
                dataTableOutput(ns("stationExceedanceRate")),
+               br(),
                helpText('Analyzing the exceedance rate of just epilimnion samples can assist in determining if lake turnover 
                         may be the contributing to DO exceedances.'),
                h5('Individual DO exceedance statistics for the ',span(strong('selected site in the epilimnion')),
@@ -48,6 +49,7 @@ DOPlotlySingleStationUI <- function(id){
           column(1),
           column(4, h5('DO exceedance statistics for the ',span(strong('AU')),' are highlighted below.'),
                  dataTableOutput(ns("AUExceedanceRate")),
+                 br(),
                  helpText('Analyzing the exceedance rate of just epilimnion samples can assist in determining if lake turnover 
                         may be the contributing to DO exceedances.'),
                  h5('DO exceedance statistics for the ',span(strong('AU in the epilimnion')),' are highlighted below.'),

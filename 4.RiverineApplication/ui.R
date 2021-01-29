@@ -171,7 +171,7 @@ shinyUI(fluidPage(theme="yeti.css",
                                           DT::dataTableOutput('stationTableDataSummary'), br(),
                                           h4('PWS violations'),
                                           helpText(span("Any PWS violations should noted in a station's COMMENT field of the Stations Table. The table below organizes 
-                                                  PWS information to expedite the comment process.", strong('Note: PWS criteria are only applicable at intake.'))),
+                                                  PWS information to expedite the comment process.", strong('Note: Chloride and Sulfate PWS criteria are only applicable at the intake.'))),
                                           DT::dataTableOutput('PWStable'),
                                           br(),hr(),br(),
                                           h3('Assessment Unit Raw Data Review and Visualization'),
