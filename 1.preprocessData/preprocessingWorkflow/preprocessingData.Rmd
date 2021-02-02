@@ -61,22 +61,31 @@ The key data needed for these analyses is the conventionals dataset that Roger S
 
 ### Conventionals Data
 
-This version of the method smashed together a fully QAed version of the conventionals dataset (2020IR) and a not fully QAed dataset from 2019 pulled using Roger's conventionals methods. For 2022 final dataset, a single conventional dataset will be brought in.
+First bring in Roger's conventionals data pull for the 2022IR window. The data schema will be altered in 2.organizeMetadata to match Roland's new citmon database schema. For now, just use this as a list of stations sampled in the window for WQS and AU attribution.
+
+```{r conventionals}
+# run in console
+conventionalsRaw <- read_excel('./data/final2020data/draftFinal/CEDSWQM/CONVENTIONALS_2022_20210201.xlsx') 
+
+conventionals <-  mutate(conventionalsRaw, Source_Sta_Id = as.character(NA),
+                         Data_Source = 'DEQ') %>%
+  dplyr::select(FDT_STA_ID, Source_Sta_Id, STA_DESC, everything())
+```
+
+```{r conventionals smash, eval=F}
+
+# No longer use these methods, they will just hurt you (EVJ 2/2/2021)
+
 
 #### Conventionals data smashing 2013-2018 + 2019
+#This version of the method smashed together a fully QAed version of the conventionals dataset (2020IR) and a not fully QAed dataset from 2019 pulled using Roger's conventionals methods. For 2022 final dataset, a single conventional dataset will be brought in.
 
-```{r conventionals smash}
 #source('./preprocessingModules/conventionalsSmashing2013-2019.R')
+
+#And we will make updates to this schema to match Roland's citmon database and keep with db best practices.
+#source('./preprocessingModules/updateConventionalsSchema.R')
 ```
 
-And we will make updates to this schema to match Roland's citmon database and keep with db best practices.
-
-```{r}
-source('./preprocessingModules/updateConventionalsSchema.R')
-```
-
-
-So we will use this as a pretend dataset to simulate what one could expect from 2022 IR, e.g. some attributed (AU and WQS) stations as well as some new stuff. This exercise will be conducted for BRRO, but the methods will apply statewide.
 
 ### Other data: Citizen Monitoring and Non Agency
 
@@ -96,10 +105,11 @@ Working with Roland's first data reorganization attempt using just CMC data.
 No matter where you are pulling data in from, you need to limit these computationally heavy spatial analyses to one per site. Running a distinct on the dataset and making it a spatial dataset is the best next step.
 
 ```{r distinct sites}
-#conventionals_D <- distinct(conventionals, FDT_STA_ID, .keep_all = T) %>%
-#  select(FDT_STA_ID:FDT_SPG_CODE, Latitude:Data_Source, -FDT_DATE_TIME) # drop data to avoid any confusion 
-#conventionals_D <- filter(conventionals_D, ! is.na(Latitude) | ! is.na(Longitude)) # get rid of 1 weird blank entry
-#rm(conventionals) # remove full conventionals dataset to save memory
+# conventionals_D <- distinct(conventionals, FDT_STA_ID, .keep_all = TRUE) %>%
+#   dplyr::select(FDT_STA_ID:FDT_SPG_CODE, Latitude:Data_Source, -FDT_DATE_TIME) # drop data to avoid any confusion 
+# conventionals_D <- filter(conventionals_D, ! is.na(Latitude) | ! is.na(Longitude)) # get rid of 1 weird blank entry
+# saveRDS(conventionals_D, './data/conventionals_D.RDS')
+# rm(conventionals); rm(conventionalsRaw) # remove full conventionals dataset to save memory
 
 distinctSites <- readRDS('./data/conventionals_D.RDS') # for some reason doesn't work in chunk but does in console
 ```

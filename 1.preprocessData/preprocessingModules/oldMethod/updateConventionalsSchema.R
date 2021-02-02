@@ -35,7 +35,8 @@ schema <- read_excel('data/citMonConventionalsSchema.xlsx') %>%
 
 
 # map new names
-conventionals <- read_csv('./data/final2020data/CEDSWQM_2020_IR_DATA-CONVENTIONALS_20190305.csv') %>%
+conventionals <- conventionalsRaw %>%
+  #read_csv('./data/final2020data/CEDSWQM_2020_IR_DATA-CONVENTIONALS_20190305.csv') %>%
   # remove duplicate ecoli
   dplyr::select(-c(`E.COLI_ECOLI_CFU/100mL`,	RMK_ECOLI)) %>%
   # change to naming system 
