@@ -54,5 +54,5 @@ if(nrow(distinctSites_sf) < nrow(distinctSites)){
   
 }
 
-rm(closest); rm(missingSites); rm(i)
+rm(closest); rm(i)
 saveRDS(distinctSites_sf, './data/distinctSites_sf.RDS')

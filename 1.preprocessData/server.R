@@ -785,9 +785,21 @@ shinyServer(function(input, output, session) {
       distinct(WQS_ID) %>% 
       pull() 
     
-    withProgress(message = 'Reading in Large Spatial File',
-                 st_zm(
-                   st_read(paste0('data/GIS/processedWQS/',typeName[1],'_', basinCodes(), '.shp') , fid_column_name = "OBJECTID")) ) %>%
+    if(length(basinCodes()) > 1){
+      WQSs <- withProgress(message = 'Reading in Large Spatial File',
+                           st_zm(st_read(paste0('data/GIS/processedWQS/',typeName[1],'_', basinCodes()[1], '.shp') , 
+                            fid_column_name = "OBJECTID")) %>%
+                             rbind(st_zm(st_read(paste0('data/GIS/processedWQS/',typeName[1],'_', basinCodes()[2], '.shp') , 
+                                                 fid_column_name = "OBJECTID"))) %>%
+                             rbind(st_zm(st_read(paste0('data/GIS/processedWQS/',typeName[1],'_', basinCodes()[3], '.shp') , 
+                                                 fid_column_name = "OBJECTID"))) )
+    } else { WQSs <- withProgress(message = 'Reading in Large Spatial File',
+                                  st_zm(st_read(paste0('data/GIS/processedWQS/',typeName[1],'_', basinCodes(), '.shp') ,
+                                                          fid_column_name = "OBJECTID")) )   }
+    WQSs <- WQSs %>%
+    # withProgress(message = 'Reading in Large Spatial File',
+    #              st_zm(
+    #                st_read(paste0('data/GIS/processedWQS/',typeName[1],'_', basinCodes(), '.shp') , fid_column_name = "OBJECTID")) ) %>%
       st_transform(4326) %>%
       rename("GNIS_Name" = "GNIS_Nm",
              "WATER_NAME" = "WATER_N" ,
@@ -812,9 +824,21 @@ shinyServer(function(input, output, session) {
       distinct(WQS_ID) %>% 
       pull() 
     
-    withProgress(message = 'Reading in Additional Estuarine Spatial File',
-                 st_zm(
-                   st_read(paste0('data/GIS/processedWQS/',typeName[2],'_', basinCodes(), '.shp') , fid_column_name = "OBJECTID")) ) %>%
+    if(length(basinCodes()) > 1){
+      WQSsEL <- withProgress(message = 'Reading in Additional Estuarine Spatial File',
+                           st_zm(st_read(paste0('data/GIS/processedWQS/',typeName[1],'_', basinCodes()[1], '.shp') , 
+                                         fid_column_name = "OBJECTID")) %>%
+                             rbind(st_zm(st_read(paste0('data/GIS/processedWQS/',typeName[1],'_', basinCodes()[2], '.shp') , 
+                                                 fid_column_name = "OBJECTID"))) %>%
+                             rbind(st_zm(st_read(paste0('data/GIS/processedWQS/',typeName[1],'_', basinCodes()[3], '.shp') , 
+                                                 fid_column_name = "OBJECTID"))) )
+    } else { WQSsEL <- withProgress(message = 'Reading in Additional Estuarine Spatial File',
+                                  st_zm(st_read(paste0('data/GIS/processedWQS/',typeName[1],'_', basinCodes(), '.shp') ,
+                                                fid_column_name = "OBJECTID")) )   }
+    WQSsEL <- WQSsEL %>%
+    #withProgress(message = 'Reading in Additional Estuarine Spatial File',
+    #             st_zm(
+    #               st_read(paste0('data/GIS/processedWQS/',typeName[2],'_', basinCodes(), '.shp') , fid_column_name = "OBJECTID")) ) %>%
       st_transform(4326) %>%
       # match polygon structure
       rename("GNIS_Name" = "GNIS_Nm",
@@ -872,8 +896,8 @@ shinyServer(function(input, output, session) {
       dplyr::select(`DEQ GIS Web App Link`, everything())
     
     # All sites limited to waterbody type and subbasin
-    WQSreactive_objects$snap_input <- readRDS('data/WQStable.RDS') %>%
-      #  readRDS('data/WQStable.RDS') %>%
+    WQSreactive_objects$snap_input <- readRDS('data/WQStable02032021.RDS') %>% # February 2021 update prior to official 2022 IR
+      #  readRDS('data/WQStable.RDS') %>% # original effort
       filter(str_extract(WQS_ID, "^.{2}") %in% filter(WQSlayerConversion, waterbodyType %in% input$WQSwaterbodyType)$WQS_ID) %>%
       filter(gsub("_","",str_extract(WQS_ID, ".{3}_")) %in% 
                str_pad(unique(filter(subbasinOptionsByWQStype, SubbasinOptions %in% basinCodes())$SubbasinOptions), 
@@ -1530,6 +1554,7 @@ shinyServer(function(input, output, session) {
         else . } %>%
       st_drop_geometry() %>%
       dplyr::select(WQS_ID, everything()) %>%
+      distinct(WQS_ID, .keep_all = T) %>% # for some reason this is duplicated in the app but cannot recreate on local testing
       datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'))  })
   
   ### Updated Stations Data and Manually QAed WQS Tab
@@ -1550,6 +1575,7 @@ shinyServer(function(input, output, session) {
         else . } %>%
       #   st_drop_geometry() %>%
       dplyr::select(WQS_ID, everything()) %>%
+      distinct(WQS_ID, .keep_all = T) %>% # for some reason this is duplicated in the app but cannot recreate on local testing
       datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'))  })
   
   #  ## Download WQS Information

@@ -141,61 +141,22 @@ saveRDS(missingSites, 'data/missingSites.RDS')
 
 Bring in WQS information we have on file and take these away from 'to do' list.
 
-Skip this if you haven't pulled anything from the server recently.
+First pull info cleaned up dataset
 
-```{r existing WQS_ID information}
-
-loadData <- function(outputDir) {
-  # Read all the files into a list
-  files <- list.files(outputDir, full.names = TRUE)
-  # Concatenate all data together into one data.frame
-  if(outputDir == 'WQSlookupTable' | outputDir == './WQSlookupTable'){
-    data <- lapply(files, read_csv) 
-    data <- do.call(rbind, data) %>%
-      distinct(StationID, WQS_ID, .keep_all = T)
-  } else {
-    data <- lapply(files, read_csv) # read_csv produces parsing errors
-    data <- do.call(rbind, data) %>%
-      distinct(FDT_STA_ID, ID305B_1,  .keep_all = T)
-  }
- 
-  data
-}
-
-WQStableExisting <- loadData("./WQSlookupTable") # run in console
+```{r connect to server}
 
 
-
-saveData <- function(data,outputDir) {
-  #data <- t(data)
-  # Create a unique file name
-  if(outputDir == 'WQSlookupTable' | outputDir == './WQSlookupTable'){
-    fileName <- sprintf("%s_%s.csv", format(Sys.time(), "%Y%m%d_%H%M%S"), 'WQSlookup')
-  } else {
-    fileName <- sprintf("%s_%s.csv", format(Sys.time(), "%Y%m%d_%H%M%S"), 'AUlookup')
-  }
-  # Write the file to the local system
-  write.csv(
-    x = data,
-    file = file.path(outputDir, fileName), 
-    row.names = FALSE, quote = TRUE
-  )
-}
-
-saveData(WQStableExisting, './WQSlookupTable')
+WQStableExisting <- read_csv('C:/HardDriveBackup/R/GitHub/IR2022/2.organizeMetadata/data/WQSlookupTable/20201207_092616_WQSlookup.csv')
 
 ```
 
-If just pulling from previous version.
-
+These are pulled directly from WQSLookupTable directories and can contain issues
 ```{r}
-WQStableExisting <- loadData("./WQSlookupTable") # run in console
-# quick snap check previous WQS attributed data from assessors bc some issues have been noticed
-tooMany_WQStableExisting <- snapCheck(WQStableExisting)
-
-# manually correct and dumb user errors. If more than one WQS_ID remains after this correction then we will send that back to the user for review after we tack on any new stations to be looked at
-
+#source('./preprocessingModules/pullWQSID.R') # this pulls all stations in WQSLookupTable directory, which could include duplicates
 ```
+
+
+
 
 Identify real number of sites that need spatial joining.
 
@@ -290,10 +251,10 @@ Removes any riverine sites from the data frame of unique sites that need WQS inf
 ```{r riverine methods}
 source('snappingFunctions/snapWQS.R')
 
-riverine <- st_read('GIS/WQS_layers_05082020.gdb', layer = 'riverine_05082020' , fid_column_name = "OBJECTID") %>%
-  st_transform(102003) # forcing to albers from start bc such a huge layer
-  #st_transform(4326)
-#12/7/2020 had to run analysis in NAD_1983_Lambert_Conformal_Conic bc albers was not recognized with new sf
+riverine <- st_read('GIS/WQS_layers_05082020.gdb', layer = 'riverine_05082020' , fid_column_name = "OBJECTID") #%>%
+  #st_transform(102003) # forcing to albers from start bc such a huge layer
+  #st_transform('+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m no_defs')
+# 2/3/21 have to manually feed character proj4string bc doesn't recognize albers epsg 
 
 WQStable <- snapAndOrganizeWQS(distinctSitesToDo, 'FDT_STA_ID', riverine, 
                                bufferDistances = seq(20,80,by=20),  # buffering by 20m from 20 - 80 meters
@@ -333,8 +294,8 @@ Removes any estuary lines sites from the data frame of unique sites that need WQ
 ```{r estuarine lines methods}
 source('snappingFunctions/snapWQS.R')
 
-estuarineLines <- st_read('GIS/WQS_layers_05082020.gdb', layer = 'estuarinelines_05082020' , fid_column_name = "OBJECTID") %>%
-  st_transform(102003) # forcing to albers from start bc such a huge layer
+estuarineLines <- st_read('GIS/WQS_layers_05082020.gdb', layer = 'estuarinelines_05082020' , fid_column_name = "OBJECTID") #%>%
+  #st_transform(102003) # forcing to albers from start bc such a huge layer
   #st_transform(4326)
 
 # Only send sites to function that could be in estuarine environment
@@ -357,15 +318,17 @@ distinctSitesToDo <- filter(distinctSitesToDo, ! StationID %in% WQStable$Station
 ```
 
 
-Make sure all stations from original distinct station list have some sort of record (blank or populated) int the WQStable.
 
 ```{r double check no one lost}
-distinctSites$FDT_STA_ID[!(distinctSites$FDT_STA_ID %in% unique(WQStable$StationID))]
+#Make sure all stations from original distinct station list have some sort of record (blank or populated) int the WQStable.
+# only useful the very first time you do this operation
+#distinctSites$FDT_STA_ID[!(distinctSites$FDT_STA_ID %in% unique(WQStable$StationID))]
 ```
 
 And that none of the missing sites (sites that fall outside of the assessmentLayer) are not missing from the WQS snapping process.
 
 ```{r missingSites got WQS}
+missingSites <- readRDS('data/missingSites.RDS')
 missingSites$FDT_STA_ID[!(missingSites$FDT_STA_ID %in% unique(WQStable$StationID))]
 ```
 
@@ -454,16 +417,65 @@ End Skip -----------------------------------------------------------------------
 
 
 
+
+
+Tack on any stations from the WQStableExisting that have no WQS_ID to send back to assessors.
+
+```{r}
+missingWQS_ID <- filter(WQStableExisting, is.na(WQS_ID)) # these need WQS_ID
+
+originalWQS_ID <- filter(WQStableOG, StationID %in% missingWQS_ID$StationID) # these will be sent back to users
+
+# were there any missingWQS_ID that didn't get a WQS_ID for review from WQStableOG?
+missingWQS_ID$StationID[! missingWQS_ID$StationID %in% WQStableOG$StationID] # cool all the stations missing original WQS_ID bc they were overwritten by assessor are in fact in the original dataset and can be added to the list of stations to be reviewed by assessors.
+```
+
+And now look for any stations in the missingSites object that don't have WQS information.
+```{r}
+filter(WQStableExisting, StationID %in% missingSites$FDT_STA_ID)
+missingSites$FDT_STA_ID[! missingSites$FDT_STA_ID %in% WQStableExisting$StationID]
+
+# only one to add so will do it manually
+missingSitesToAdd <- tibble(StationID = '9-BPB003.88', 
+                            WQS_ID = 'RL_09_NA', 
+                            `Buffer Distance` = 'No connections within 80 m')
+```
+
+And last last check. Look for any sites in distinctSites_sf that don't have WQS information (either already reviewed or going out for review in this batch).
+```{r}
+View(filter(distinctSites_sf, ! FDT_STA_ID %in% WQStableExisting$StationID) %>%
+  filter(! FDT_STA_ID %in% WQStable$StationID) %>%
+    filter(! FDT_STA_ID %in% WQStableOG$StationID)) # all seem to be in OG
+
+distinctSites_sf_noWQS_ID <- filter(distinctSites_sf, ! FDT_STA_ID %in% WQStableExisting$StationID) %>%
+  filter(! FDT_STA_ID %in% WQStable$StationID)
+
+backForReview <- filter(WQStableOG, StationID %in% distinctSites_sf_noWQS_ID$FDT_STA_ID)
+View(backForReview)
+```
+
+
+So time to add all these extra sites (with issues) back for review for the user.
+
+```{r}
+finalWQStable <- bind_rows(WQStable, originalWQS_ID) %>%
+  bind_rows(missingSitesToAdd) %>%
+  bind_rows(backForReview)
+```
+
+
+
+
 That QA step got us practically nowhere so saving out the WQStable object as the official dataset for application building.
 ```{r data for app}
-saveRDS(WQStable, './data/WQStable12072020.RDS')
-write.csv(WQStable, './data/WQStable12072020.csv', row.names = F)
+saveRDS(finalWQStable, './data/WQStable02032021.RDS')
+write.csv(finalWQStable, './data/WQStable02032021.csv', row.names = F)
 
 
-# and make sure you remove any Stations that are sent back to assessor for review
-WQStableExisting_out <- filter(WQStableExisting, ! StationID %in% WQStable$StationID)
-
-write_csv(WQStableExisting_out, './WQSlookupTable/20201207_092616_WQSlookup.csv')
+# # and make sure you remove any Stations that are sent back to assessor for review
+# WQStableExisting_out <- filter(WQStableExisting, ! StationID %in% WQStable$StationID)
+# 
+# write_csv(WQStableExisting_out, './WQSlookupTable/20201207_092616_WQSlookup.csv')
 ```
 
 
