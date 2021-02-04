@@ -507,7 +507,7 @@ First we need to take the spatial data we will use for the app and split it effi
 This significantly speeds up app rendering. Initially it was performed on draft data, but final data is pinned now.
 
 ```{r pin AU data}
-#source('pinAUdataToServer.R')
+#source('preprocessingModules/pinAUdataToServer.R')
 ```
 
 
@@ -535,15 +535,15 @@ final2020 <- left_join(final2020, realComments, by = "STATION_ID")
 Join distinct sites to AU information to get all available free data.
 
 ```{r AU join}
-
-# start by adding back in missing sites (sites that are outside assessmentLayer boundary)
-missingSites_AU <- mutate(missingSites, HUC12 = NA, VAHU6 = NA, Portion = NA, MAP = NA, ASSESS_REG = NA, OFFICE_NM = NA, States = NA, HUType = NA, HUMod = NA, ToHUC = NA, META_ID = NA, Location = NA, VaName = NA, PC_Water = NA, Tidal = NA, VAHUSB = NA, FedName = NA, HUC10 = NA, VAHU5 = NA, Basin = NA, BASIN_NAME = NA, BASIN_CODE = NA, SUBBASIN = NA) %>%
-  dplyr::select(names(distinctSites_sf)) %>% st_drop_geometry()
+# maybe don't do this since these stations are in distinctSites_sf; missingSites$FDT_STA_ID %in% distinctSites_sf$FDT_STA_ID
+# # start by adding back in missing sites (sites that are outside assessmentLayer boundary)
+# missingSites_AU <- mutate(missingSites, HUC12 = NA, VAHU6 = NA, Portion = NA, MAP = NA, ASSESS_REG = NA, OFFICE_NM = NA, States = NA, HUType = NA, HUMod = NA, ToHUC = NA, META_ID = NA, Location = NA, VaName = NA, PC_Water = NA, Tidal = NA, VAHUSB = NA, FedName = NA, HUC10 = NA, VAHU5 = NA, Basin = NA, BASIN_NAME = NA, BASIN_CODE = NA, SUBBASIN = NA) %>%
+#   dplyr::select(names(distinctSites_sf)) %>% st_drop_geometry()
 
 
 distinctSites_AUall <- distinctSites_sf %>% 
   st_drop_geometry() %>%
-  rbind(missingSites_AU) %>%
+  #rbind(missingSites_AU) %>%
   left_join(final2020 %>% st_drop_geometry(), # bc two spatial objects need to drop geometry to join on tabular data
                               by = c('FDT_STA_ID' = 'STATION_ID')) %>%
   dplyr::select(FDT_STA_ID : VAHU6.y) %>% # drop the last cycle's results, not important now
@@ -553,8 +553,13 @@ distinctSites_AUall <- distinctSites_sf %>%
   mutate(n = n())
 
 # Find any duplicates
-View(filter(distinctSites_AUall, n >1)) # makes sense, these sites are being used for riverine and lacustrine assessment
+View(filter(distinctSites_AUall, n >1)) # 0, cool
+
+# above n> 1 used to be stations that were riverine and lacustrine makes sense, these sites are being used for riverine and lacustrine assessment
 ```
+
+
+
 
 Organize stations by whether or not they have AU data.
 
@@ -573,7 +578,6 @@ distinctSites_AU <- filter(distinctSites_AUall, !is.na(ID305B_1)) %>%
 
 nrow(distinctSites_AU) + nrow(distinctSites_AUtoDo) == nrow(distinctSites_AUall)
 ```
-
 
 
 First we need to side step to join 1a stations that really are in ceds as 1A.
@@ -611,6 +615,83 @@ That logic isnt' perfect but will work for now
 
 
 
+Before we start spatially snapping things, let's double check none of these stations were already assigned an AU by the assessors during previous app review sessions.
+
+```{r}
+loadData <- function(outputDir) {
+  # Read all the files into a list
+  files <- list.files(outputDir, full.names = TRUE)
+  # Concatenate all data together into one data.frame
+  if(outputDir == 'WQSlookupTable'){
+    data <- lapply(files, read_csv) 
+    data <- do.call(rbind, data) %>%
+      distinct(StationID, WQS_ID, .keep_all = T)
+  } else {
+    data <- lapply(files, read_csv) # read_csv produces parsing errors
+    data <- do.call(rbind, data) %>%
+      distinct(FDT_STA_ID, ID305B_1,  .keep_all = T)
+  }
+ 
+  data
+}
+
+userReviews <-  loadData("AUlookupTable") %>%
+  group_by(FDT_STA_ID) %>%
+  mutate(n = n()) %>%
+  dplyr::select(FDT_STA_ID, ID305B_1, ID305B_2, ID305B_3, n, everything())
+
+# first double check comments are the same and then remove duplicates due to additional row with ID305B_1=NA
+userReviewsProblem <- filter(userReviews, n > 1 | is.na(ID305B_1)) %>%
+  arrange(n, FDT_STA_ID) %>%
+  filter(n > 1 & is.na(ID305B_1))
+
+userReviews1 <- filter(userReviews, !(n > 1 & is.na(ID305B_1))) %>%
+  group_by(FDT_STA_ID) %>%
+  mutate(n = n()) %>%
+  dplyr::select(FDT_STA_ID, ID305B_1, ID305B_2, ID305B_3, n, everything())
+# now just write out to do last manual work
+#write.csv(userReviews1, 'AUlookupTable/20210204_000000_AUlookup.csv') # Emma cleaned this up on 2/4/2021
+
+userReviewsFixed <- read.csv('AUlookupTable/20210204_000000_AUlookup.csv') %>%
+  rename('Buffer Distance'= 'Buffer.Distance',
+         'Spatially Snapped' = 'Spatially.Snapped')
+
+# there are still NA and n/a records in this version. I am going to leave the n/a because Rebecca reviewed those individually, but I don't trust the NA records aren't mistakes. I will throw those back to the assessors for review
+
+userReviewsFixed <- filter(userReviewsFixed, !is.na(ID305B_1)) %>%
+  dplyr::select(names(userReviews))
+
+```
+
+Now check to see if any of the sites missing AU info are actually in this userReviewsFixed object
+
+```{r}
+userFixed <- filter(userReviewsFixed, FDT_STA_ID %in% distinctSites_AUtoDo$FDT_STA_ID)
+
+distinctSites_AUtoDoUserFixed <- filter(distinctSites_AUtoDo, FDT_STA_ID %in% userFixed$FDT_STA_ID) %>%
+  left_join(dplyr::select(userFixed, FDT_STA_ID, ID305B_1, ID305B_2, # using ID305B_1 & 2 bc that's all I messed with manually
+                          `Buffer Distance`, `Spatially Snapped`, Comments),
+                                           by = 'FDT_STA_ID') %>%
+  mutate(ID305B_1 = ID305B_1.y,
+         ID305B_2 = ID305B_2.y) %>%
+  dplyr::select(names(distinctSites_AUtoDo))
+
+# add these to fixed AU's
+distinctSites_AU <- #filter(distinctSites_AU,FDT_STA_ID %in% distinctSites_AUtoDoFixed$FDT_STA_ID) %>%
+  rbind(distinctSites_AU, distinctSites_AUtoDoUserFixed)
+
+# remove these from to do list
+distinctSites_AUtoDo <- filter(distinctSites_AUtoDo, ! FDT_STA_ID %in% distinctSites_AUtoDoUserFixed$FDT_STA_ID)
+
+rm(distinctSites_AUtoDoUserFixed); rm(userFixed); rm(userReviews1); rm(userReviews); rm(userReviewsFixed); rm(userReviewsProblem)
+
+# double check no one lost
+nrow(distinctSites_AU) + nrow(distinctSites_AUtoDo) == nrow(distinctSites_AUall)
+```
+
+
+
+
 ## Spatially Join AU information
 
 Since it is much faster to look for spatial joins by polygons compared to snapping to lines, we will run spatial joins by estuarine polys and reservoir layers first.
@@ -621,19 +702,18 @@ Find any sites that fall into an estuary AU polygon. This method is only applied
 Removes any estuarine sites from the data frame of unique sites that need AU information.
 
 
-**This is DRAFT 2020 IR AU SPATIAL DATA, Needs to potentially be rerun with FINAL 2020 IR SPATIAL DATA**
-
 ```{r estuary methods AU}
 source('preprocessingModules/AU_Poly.R')
 
 # Bring in estuary layer
-estuaryPolysAU <- st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_draft/va_20ir_aus.gdb', layer = 'va_2020_aus_estuarine' , 
-                          fid_column_name = "OBJECTID") %>%
+estuaryPolysAU <- st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_final/2020IR_GISData/va_20ir_aus_final.gdb', 
+                          layer = 'va_aus_estuarine',  fid_column_name = "OBJECTID") %>%
    st_transform( 4326 ) %>%
    st_cast("MULTIPOLYGON") # special step for weird WKB error reading in geodatabase, never encountered before, fix from: https://github.com/r-spatial/sf/issues/427
   
 estuaryPolysAUjoin <- polygonJoinAU(estuaryPolysAU, distinctSites_AUtoDo, estuaryTorF = T) %>%
-  mutate(ID305B_1 = ID305B) %>%
+  mutate(ID305B_1 = ID305B, 
+         OBJECTID = as.numeric(as.character(OBJECTID.y))) %>%
   dplyr::select(names(distinctSites_AU)) %>%
   group_by(FDT_STA_ID) %>%
   mutate(n = n(),
@@ -664,21 +744,20 @@ nrow(distinctSites_AU) + nrow(distinctSites_AUtoDo) == nrow(distinctSites_AUall)
 Find any sites that fall into a lake AU polygon. This method is applied to all subbasins.
 Removes any lake sites from the data frame of unique sites that need AU information.
 
-**This is DRAFT 2020 IR AU SPATIAL DATA, Needs to potentially be rerun with FINAL 2020 IR SPATIAL DATA**
-
 
 ```{r lake methods AU}
 source('preprocessingModules/AU_Poly.R')
 
 # Bring in Lakes layer
-lakesPolyAU <- st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_draft/va_20ir_aus.gdb', layer = 'va_2020_aus_reservoir' , 
-                          fid_column_name = "OBJECTID") %>%
+lakesPolyAU <- st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_final/2020IR_GISData/va_20ir_aus_final.gdb', 
+                       layer = 'va_aus_reservoir' , fid_column_name = "OBJECTID") %>%
    st_transform( 4326 ) %>%
    st_cast("MULTIPOLYGON") # special step for weird WKB error reading in geodatabase, never encountered before, fix from: https://github.com/r-spatial/sf/issues/427
 
 lakesPolysAUjoin <- polygonJoinAU(lakesPolyAU, distinctSites_AUtoDo, estuaryTorF = T)%>%
   mutate(ID305B_1 = ID305B,
-         `Buffer Distance` = 'In polygon') %>%
+         `Buffer Distance` = 'In polygon',
+         OBJECTID = as.numeric(as.character(OBJECTID.y))) %>%
   dplyr::select(names(distinctSites_AU)) %>%
   group_by(FDT_STA_ID) %>%
   mutate(n = n()) %>%
@@ -718,15 +797,15 @@ Buffer all sites that don't fall into a polygon layer. The output will add a fie
 
 Removes any riverine sites from the data frame of unique sites that need AU information.
 
-**This is DRAFT 2020 IR AU SPATIAL DATA, Needs to potentially be rerun with FINAL 2020 IR SPATIAL DATA**
 
 
 ```{r riverine methods AU}
 source('snappingFunctions/snapPointToStreamNetwork.R')
 
-riverineAU <- st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_draft/va_2020_aus_riverine.shp') %>%
-    st_transform(102003) # forcing to albers from start bc such a huge layer   
-  
+riverineAU <- st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_final/2020IR_GISData/va_aus_riverine.shp') %>%
+     st_transform('+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m no_defs')
+  # 2/3/21 have to manually feed character proj4string bc doesn't recognize albers epsg 
+
   # Even the Edzer hack didn't work on riverine layers so exported draft riverine layer to shapefile for now. Hopefully final dataset comes as decent .gdb
   #st_read('C:/HardDriveBackup/GIS/Assessment/2020IR_draft/va_20ir_aus.gdb', layer = 'va_2020_aus_riverine' , 
               #            fid_column_name = "OBJECTID") %>%
