@@ -1,55 +1,63 @@
-"ASSESS_REG","SUBBASIN","Assessment Type","Sites for Review","Total Sites for Review"
-"BRRO","James River - Middle","Not sure yet",1,48
-"BRRO","James River - Middle","Riverine",5,48
-"BRRO","James River - Upper","Riverine",8,48
-"BRRO","Roanoke River","Not sure yet",3,48
-"BRRO","Roanoke River","Riverine",23,48
-"BRRO",NA,"Not sure yet",1,48
-"BRRO",NA,"Riverine",7,48
-"CO","Chesapeake Bay - Mainstem","Estuarine",1,8
-"CO","Chesapeake Bay - Mainstem","Not sure yet",7,8
-"NRO","Potomac River","Riverine",6,28
-"NRO",NA,"Estuarine",1,28
-"NRO",NA,"Lacustrine",6,28
-"NRO",NA,"Not sure yet",1,28
-"NRO",NA,"Riverine",14,28
-"PRO","Appomattox River","Estuarine",2,147
-"PRO","Appomattox River","Lacustrine",1,147
-"PRO","Appomattox River","Riverine",16,147
-"PRO","Chesapeake Bay Tributaries","Estuarine",10,147
-"PRO","Chesapeake Bay Tributaries","Lacustrine",2,147
-"PRO","Chesapeake Bay Tributaries","Not sure yet",2,147
-"PRO","Chesapeake Bay Tributaries","Riverine",6,147
-"PRO","Chowan River","Riverine",30,147
-"PRO","James River - Lower","Estuarine",2,147
-"PRO","James River - Lower","Riverine",13,147
-"PRO","James River - Middle","Riverine",22,147
-"PRO","Potomac River","Estuarine",6,147
-"PRO","Potomac River","Riverine",7,147
-"PRO",NA,"Estuarine",13,147
-"PRO",NA,"Riverine",15,147
-"SWRO","Big Sandy River","Riverine",13,65
-"SWRO","Clinch and Powell Rivers","Riverine",20,65
-"SWRO","Holston River","Riverine",16,65
-"SWRO","Yadkin River","Riverine",1,65
-"SWRO",NA,"Riverine",15,65
-"TRO","Atlantic Ocean Coastal","Estuarine",15,74
-"TRO","Atlantic Ocean Coastal","Not sure yet",1,74
-"TRO","Atlantic Ocean Coastal","Riverine",2,74
-"TRO","Chesapeake Bay Tributaries","Estuarine",20,74
-"TRO","Chesapeake Bay Tributaries","Lacustrine",2,74
-"TRO","Chesapeake Bay Tributaries","Riverine",1,74
-"TRO","Chowan River","Riverine",6,74
-"TRO","Dismal Swamp/Albemarle Sound","Estuarine",5,74
-"TRO","Dismal Swamp/Albemarle Sound","Not sure yet",2,74
-"TRO","Dismal Swamp/Albemarle Sound","Riverine",3,74
-"TRO","James River - Lower","Estuarine",10,74
-"TRO","James River - Lower","Not sure yet",1,74
-"TRO","James River - Lower","Riverine",2,74
-"TRO",NA,"Estuarine",3,74
-"TRO",NA,"Not sure yet",1,74
-"VRO","James River - Middle","Not sure yet",1,38
-"VRO","James River - Middle","Riverine",14,38
-"VRO","James River - Upper","Riverine",9,38
-"VRO","Potomac River","Riverine",1,38
-"VRO","Shenandoah River","Riverine",13,38
+"ASSESS_REG","BASIN_CODE","Assessment Type","Sites for Review","Total Sites for Review"
+"BRRO","2A","Riverine",8,50
+"BRRO","2B","Not sure yet",1,50
+"BRRO","2B","Riverine",5,50
+"BRRO","4A","Not sure yet",4,50
+"BRRO","4A","Riverine",24,50
+"BRRO","9","Not sure yet",1,50
+"BRRO","9","Riverine",7,50
+"CO","7B","Estuarine",1,8
+"CO","7B","Not sure yet",7,8
+"NRO","1A","Not sure yet",3,30
+"NRO","1A","Riverine",6,30
+"NRO","3","Estuarine",1,30
+"NRO","3","Not sure yet",1,30
+"NRO","3","Riverine",10,30
+"NRO","8","Lacustrine",6,30
+"NRO","8","Riverine",3,30
+"PRO","1A","Estuarine",6,138
+"PRO","1A","Riverine",7,138
+"PRO","2B","Riverine",19,138
+"PRO","2C","Estuarine",2,138
+"PRO","2C","Riverine",12,138
+"PRO","2D","Estuarine",2,138
+"PRO","2D","Lacustrine",1,138
+"PRO","2D","Riverine",14,138
+"PRO","3","Estuarine",8,138
+"PRO","3","Riverine",4,138
+"PRO","5A","Not sure yet",2,138
+"PRO","5A","Riverine",30,138
+"PRO","7A","Estuarine",10,138
+"PRO","7A","Lacustrine",2,138
+"PRO","7A","Not sure yet",2,138
+"PRO","7A","Riverine",5,138
+"PRO","8","Estuarine",5,138
+"PRO","8","Riverine",7,138
+"SWRO","4B","Riverine",1,66
+"SWRO","6A","Not sure yet",1,66
+"SWRO","6A","Riverine",11,66
+"SWRO","6B","Not sure yet",4,66
+"SWRO","6B","Riverine",19,66
+"SWRO","6C","Riverine",15,66
+"SWRO","9","Not sure yet",1,66
+"SWRO","9","Riverine",14,66
+"TRO","2C","Estuarine",10,74
+"TRO","2C","Not sure yet",1,74
+"TRO","2C","Riverine",2,74
+"TRO","5A","Riverine",6,74
+"TRO","5B","Estuarine",5,74
+"TRO","5B","Not sure yet",2,74
+"TRO","5B","Riverine",3,74
+"TRO","7A","Estuarine",20,74
+"TRO","7A","Lacustrine",2,74
+"TRO","7A","Riverine",1,74
+"TRO","7C","Estuarine",15,74
+"TRO","7C","Not sure yet",1,74
+"TRO","7C","Riverine",2,74
+"TRO","8","Estuarine",3,74
+"TRO","8","Not sure yet",1,74
+"VRO","1A","Riverine",1,34
+"VRO","1B","Riverine",10,34
+"VRO","2A","Riverine",9,34
+"VRO","2B","Not sure yet",1,34
+"VRO","2B","Riverine",13,34

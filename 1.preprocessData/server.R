@@ -127,13 +127,24 @@ shinyServer(function(input, output, session) {
     # All sites limited to waterbody type and subbasin and region
     reactive_objects$snap_input_region <- reactive_objects$original_input %>%
       filter(ASSESS_REG %in% input$AUDEQregionSelection) %>% # region filter
-      filter(gsub("_", "", str_extract(ID305B_1, ".{1}_")) %in% 
-               str_extract(filter(WQSlayerConversion, waterbodyType %in% input$assessmentType) %>%
-                             distinct(WQS_ID) %>%
-                             {if(input$assessmentType == 'Estuarine')
-                               filter(., WQS_ID == 'EP') 
-                               else .} %>%
-                             pull(), ".{1}" ) )  %>% # complicated assessment type filter
+      {if(input$AUDEQregionSelection == 'CO')
+        . 
+        # extra step to make sure central office weird AU naming schema isn't dropped bc not all have _
+        else filter(., gsub("_", "", str_extract(ID305B_1, ".{1}_")) %in% 
+                      str_extract(filter(WQSlayerConversion, waterbodyType %in% input$assessmentType) %>%
+                                    distinct(WQS_ID) %>%
+                                    {if(input$assessmentType == 'Estuarine')
+                                      filter(., WQS_ID == 'EP') 
+                                      else .} %>%
+                                    pull(), ".{1}" ) ) }  %>% # complicated assessment type filter
+      
+      # filter(gsub("_", "", str_extract(ID305B_1, ".{1}_")) %in% 
+      #          str_extract(filter(WQSlayerConversion, waterbodyType %in% input$assessmentType) %>%
+      #                        distinct(WQS_ID) %>%
+      #                        {if(input$assessmentType == 'Estuarine')
+      #                          filter(., WQS_ID == 'EP') 
+      #                          else .} %>%
+      #                        pull(), ".{1}" ) )  %>% # complicated assessment type filter
       # add back in sites that did not snap to anything bc they are lost on the previous filter based on ID305B_1 field
       bind_rows(
         reactive_objects$original_input %>%
@@ -144,19 +155,61 @@ shinyServer(function(input, output, session) {
       left_join(dplyr::select(conventionals_DWQS, FDT_STA_ID, Latitude, Longitude), by = 'FDT_STA_ID' ) %>% # just using this for spatial data since some missing from original_input
       st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
                remove = T, # remove these lat/lon cols from df
-               crs = 4326) %>%
-      #subbasin intersection (string searching FDT_STA_ID is too unreliable here bc mix of 2A and 2-)
-      st_intersection(., filter(subbasins, BASIN_CODE %in% basinCodesAU()) %>%
-                        dplyr::select(subbasin)) %>%
+               crs = 4326) 
+    
+    #subbasin intersection (string searching FDT_STA_ID is too unreliable here bc mix of 2A and 2-)
+    reactive_objects$snap_input_region1 <-  st_intersection(reactive_objects$snap_input_region, dplyr::select(subbasins, subbasin)) %>%
       st_drop_geometry() %>% # back to tibble
       rename('Buffer Distance' = 'Buffer.Distance', 'Spatially Snapped' = 'Spatially.Snapped')
-    # Fix messed up string search bc VACB ID305B doesn't follow conventions
-    if(input$assessmentType == 'Estuarine' & input$AUDEQregionSelection == 'CO'){
-      reactive_objects$snap_input_region <- rbind(reactive_objects$snap_input_region,
-                                                  filter(reactive_objects$original_input, str_extract(ID305B_1, ".{4}") == 'VACB') %>%
-                                                    left_join(dplyr::select(conventionals_DWQS, FDT_STA_ID, Latitude, Longitude), by = 'FDT_STA_ID' ) %>% # just using this for spatial data since some missing from original_input
-                                                    mutate(subbasin = 'CB') %>% 
-                                                    dplyr::select(names(reactive_objects$snap_input_region))    )}
+    
+    # add back in stations that were dropped by joining to subbasins because they fall outside polygon boundary
+    if(nrow(reactive_objects$snap_input_region) != nrow(reactive_objects$snap_input_region1)){
+      reactive_objects$snap_input_region <- bind_rows(reactive_objects$snap_input_region1,
+                                                      filter(reactive_objects$snap_input_region %>% st_drop_geometry(), !FDT_STA_ID %in% reactive_objects$snap_input_region1$FDT_STA_ID) %>%
+                                                        # if outside the spatial framework then just take the basin information from CEDS data
+                                                        left_join(dplyr::select(subbasins, BASIN_CODE, subbasin, ASSESS_REG) %>% st_drop_geometry(),
+                                                                  by = c('VAHUSB' = 'subbasin', 'ASSESS_REG')) %>%
+                                                        mutate(BASIN_CODE.x = BASIN_CODE.y) %>%
+                                                        rename('BASIN_CODE' = 'BASIN_CODE.x') %>%
+                                                        dplyr::select(-BASIN_CODE.y) ) %>%
+        # after fixing all subbasin issues outside the polygon borders for region then filter to chosen subbasin
+        filter(BASIN_CODE %in% basinCodesAU()) 
+        
+        
+        # bind_rows(reactive_objects$snap_input_region1,
+        #                               filter(reactive_objects$snap_input_region %>% st_drop_geometry(), !FDT_STA_ID %in% reactive_objects$snap_input_region1$FDT_STA_ID) %>%
+        #                                 mutate(subbasinJoin = str_extract(FDT_STA_ID, ".{2}")) %>% # grab first two characters to identify subbasins
+        #                                 mutate(subbasinJoin = case_when(subbasinJoin == '9-' ~ '9',
+        #                                                                 subbasinJoin == '3-' ~ '3',
+        #                                                                 subbasinJoin == '8-' ~ '8', 
+        #                                                                 TRUE ~ as.character(subbasinJoin))) %>% # alter X- format to something that can join
+        #                                 left_join(filter(subbasins, BASIN_CODE %in% basinCodesAU()) %>%
+        #                                             st_drop_geometry() %>%
+        #                                             dplyr::select(BASIN_CODE, subbasin),#dplyr::select(subbasins, BASIN_CODE, subbasin) %>% st_drop_geometry(),
+        #                                           by = c('subbasinJoin' = 'BASIN_CODE')) %>%
+        #                                 distinct(FDT_STA_ID, .keep_all = TRUE) %>% # run a distinct here to avoid duplicate rows, just chooses first alphabetically
+        #                                 dplyr::select(-subbasinJoin)) %>%
+        # # after fixing all subbasin issues outside the polygon borders for region then filter to chosen subbasin
+        # filter(BASIN_CODE %in% basinCodesAU())
+    } else {reactive_objects$snap_input_region <- reactive_objects$snap_input_region1 %>%
+      # be sure to filter to chosen subbasin
+      filter(BASIN_CODE %in% basinCodesAU()) }
+    ## careful this method drops stations that fall outside polygons
+    ##st_intersection(., filter(subbasins, BASIN_CODE %in% basinCodesAU()) %>%
+    ##                    dplyr::select(subbasin)) %>%
+    ##  st_drop_geometry() %>% # back to tibble
+    ##  rename('Buffer Distance' = 'Buffer.Distance', 'Spatially Snapped' = 'Spatially.Snapped')
+
+    
+    # No longer needed???????????????????????????????????????????????????????????
+#    # Fix messed up string search bc VACB ID305B doesn't follow conventions
+#    if(input$assessmentType == 'Estuarine' & input$AUDEQregionSelection == 'CO'){
+#      reactive_objects$snap_input_region <- rbind(reactive_objects$snap_input_region,
+#                                                  filter(reactive_objects$original_input, str_extract(ID305B_1, ".{4}") == 'VACB') %>%
+#                                                    left_join(dplyr::select(conventionals_DWQS, FDT_STA_ID, Latitude, Longitude), by = 'FDT_STA_ID' ) %>% # just using this for spatial data since some missing from original_input
+#                                                    mutate(subbasin = 'CB') %>% 
+#                                                    dplyr::select(names(reactive_objects$snap_input_region))    )}
+    
     # limit conventionals_DWQS to just chosen subbasin
     reactive_objects$conventionals_DAU_Region <- st_intersection(conventionals_DWQS,
                                                                  filter(subbasins, BASIN_CODE %in% basinCodesAU())) %>%
@@ -187,11 +240,27 @@ shinyServer(function(input, output, session) {
     #dplyr::select(-c(WQS_ID, `Buffer Distance`, n))
  
     # Make dataset of sites that snapped to a single AU and IN REGION
-    reactive_objects$snapSingle <- filter(reactive_objects$sitesUnique, n == 1) %>%
+    reactive_objects$snapSingle1 <- filter(reactive_objects$sitesUnique, n == 1) %>%
       filter(FDT_STA_ID %in% filter(reactive_objects$snap_input_region, n == 1)$FDT_STA_ID) %>%#
-      filter(`Spatially Snapped` == T) %>% # only want ones user needs to deal with
-      filter(`Buffer Distance` != 'No connections within 80 m') %>%
-      mutate(`Buffer Distance` = as.factor(`Buffer Distance`))
+      filter(`Spatially Snapped` == T) # only want ones user needs to deal with
+    if(all(is.na(reactive_objects$snapSingle1$`Buffer Distance`))){ # the filter doesn't work if all NA for some reason
+      reactive_objects$snapSingle <- mutate(reactive_objects$snapSingle1, `Buffer Distance` = as.factor(`Buffer Distance`))
+    } else{
+      if(input$AUDEQregionSelection != 'CO') # special case again for CO, CO only appears in Estuarine so doesn't change other things
+        reactive_objects$snapSingle <- filter(reactive_objects$snapSingle1, `Buffer Distance` != 'No connections within 80 m') %>%
+          mutate(`Buffer Distance` = as.factor(`Buffer Distance`))
+      else{reactive_objects$snapSingle <-  mutate(reactive_objects$snapSingle1, `Buffer Distance` = as.factor(`Buffer Distance`))} }
+    
+    
+#      {if(input$AUDEQregionSelection != 'CO') # special case again for CO, CO only appears in Estuarine so doesn't change other things
+#        filter(., `Buffer Distance` != 'No connections within 80 m') %>%
+#          mutate(`Buffer Distance` = as.factor(`Buffer Distance`))
+#        else  mutate(., `Buffer Distance` = as.factor(`Buffer Distance`))}
+     
+     # filter(`Buffer Distance` != 'No connections within 80 m') %>%
+      # mutate(`Buffer Distance` = as.factor(`Buffer Distance`))
+    
+    
     # Make a dataset of actual segments that snapped to a single site for plotting
     reactive_objects$snapSingle_sf <- filter(AUs(), ID305B %in% reactive_objects$snapSingle$ID305B_1) %>%
       left_join(dplyr::select( reactive_objects$snapSingle, FDT_STA_ID, `Buffer Distance`, n, ID305B_1) %>% st_drop_geometry(), 

@@ -14,14 +14,14 @@ subbasins <- st_read('data/GIS/DEQ_VAHUSB_subbasins_EVJ.shp') %>%
 
 
 
-WQSwaterbodyType1 <- 'Estuarine'#'Riverine'
+WQSwaterbodyType1 <-'Riverine' #  'Estuarine'#
 
-WQSDEQregionSelection1 <- "TRO"#'BRRO'#
+WQSDEQregionSelection1 <- "SWRO"#"TRO"#'BRRO'#
   #filter(subbasinOptionsByWQStype, waterbodyType %in% WQSwaterbodyType1) %>%
   #distinct(AssessmentRegion) %>% 
   #pull()
 
-WQSsubbasinSelection1 <- "Small Coastal"#"James-Middle"#
+WQSsubbasinSelection1 <- "New"#'Chowan-Albermarle'# "Small Coastal"#"James-Middle"#
   #filter(subbasinOptionsByWQStype, waterbodyType %in% WQSwaterbodyType1) %>%
   #filter(AssessmentRegion %in% WQSDEQregionSelection1) %>%
   #distinct(Basin_Code) %>% 
@@ -73,9 +73,9 @@ if(length(basinCodes1) > 1){
                rbind(st_zm(st_read(paste0('data/GIS/processedWQS/',typeName1[2],'_', basinCodes1[2], '.shp') , fid_column_name = "OBJECTID"))) %>%
                  rbind(st_zm(st_read(paste0('data/GIS/processedWQS/',typeName1[2],'_', basinCodes1[3], '.shp') , fid_column_name = "OBJECTID")))
                #) 
-  } else {WQSsEL1 <- withProgress(message = 'Reading in Additional Estuarine Spatial File',
+  } else {WQSsEL1 <- #withProgress(message = 'Reading in Additional Estuarine Spatial File',
                                st_zm(
-                                 st_read(paste0('data/GIS/processedWQS/',typeName1[2],'_', basinCodes1, '.shp') , fid_column_name = "OBJECTID")) )  }
+                                 st_read(paste0('data/GIS/processedWQS/',typeName1[2],'_', basinCodes1, '.shp') , fid_column_name = "OBJECTID"))  }
 WQSsEL1 <- WQSsEL1 %>%
   st_transform(4326) %>%
     # match polygon structure
@@ -224,3 +224,54 @@ filter(WQSs1, WQS_ID %in% filter(snap_input, StationID %in% namesToSmash)$WQS_ID
   st_drop_geometry() %>%
   dplyr::select(WQS_ID, everything())# %>%
  # datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'))  
+
+
+
+
+
+
+# Data breakdown
+
+snap_input_OG <- readRDS('data/WQStable02032021.RDS') %>% # February 2021 update prior to official 2022 IR
+  distinct(StationID, .keep_all = T) %>%
+  left_join(conventionals_DWQS, by = 'StationID') %>%
+  # drop missing lat lng sites to make spatial conversion work
+  filter(!is.na(Latitude) | !is.na(Longitude)) %>% # must double check all these sites that they aren't acutally in conventionalsRaw, 
+  #which I did and everything is cool to drop these sites bc they were not sampled in Roger's 2022 IR data pull
+  st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+           remove = T, # don't remove these lat/lon cols from df
+           crs = 4326) %>%
+  st_intersection(assessmentRegions) %>%
+  st_drop_geometry() %>% # back to tibble
+  rename('Buffer Distance' = 'Buffer.Distance') %>%
+  # Add back any missing sites that are dropped because they don't fall into assessment region boundaries
+  bind_rows(
+    filter(snap_input, StationID %in% 
+             readRDS('data/missingSites.RDS')$FDT_STA_ID) %>%
+      left_join(conventionals_DWQS, by = 'StationID') %>%
+      dplyr::select(StationID, WQS_ID, `Buffer Distance`) ) %>%
+  distinct(StationID, .keep_all = T) %>%
+  
+  mutate(Type = str_extract(WQS_ID, "^.{2}"),
+         basin = gsub("_","",str_extract(WQS_ID, ".{3}_")) ) %>%
+  mutate(`Assessment Type` = case_when(Type %in% c('EL','EP') ~ 'Estuarine', 
+                                       Type == 'RL' ~ 'Riverine', 
+                                       Type == 'LP' ~ 'Lacustrine', 
+                                       is.na(Type) ~ 'Not sure yet',
+                                       TRUE ~ as.character(Type))) %>%
+  dplyr::select(StationID, WQS_ID, `Buffer Distance`, `Assessment Type`, ASSESS_REG, basin) 
+  
+
+nrow(filter(snap_input_OG, str_detect(WQS_ID, '_NA'))) # 41 sites with no WQS_ID suggestions
+
+
+snap_input_OG %>% group_by(ASSESS_REG) %>% summarise(`Total Sites for Review` = n()) 
+snap_input_OG %>% group_by(ASSESS_REG, basin) %>% summarise(`Sites for Review` = n()) 
+View(
+  snap_input_OG %>% group_by(ASSESS_REG, basin, `Assessment Type`) %>% summarise(`Sites for Review` = n())  %>%
+    left_join(snap_input_OG %>% group_by(ASSESS_REG) %>% summarise(`Total Sites for Review` = n()),
+              by = 'ASSESS_REG'))
+write.csv(snap_input_OG %>% group_by(ASSESS_REG, basin, `Assessment Type`) %>% summarise(`Sites for Review` = n())  %>%
+            left_join(snap_input_OG %>% group_by(ASSESS_REG) %>% summarise(`Total Sites for Review` = n()),
+                      by = 'ASSESS_REG'),
+          'WQSbreakdown.csv', row.names = F)
