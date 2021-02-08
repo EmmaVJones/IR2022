@@ -67,10 +67,14 @@ original_input <- read.csv('data/preAnalyzedAUdata.csv') %>% # read_csv was not 
   mutate(`Spatially Snapped` = case_when(is.na(`Buffer Distance`) ~ F,
                                          TRUE ~ TRUE),
          Comments = NA) %>% # mark what needs to be reviewed and add comment field
-  mutate(`Buffer Distance` = ifelse(`Buffer Distance` == 'In polygon',NA, as.character(`Buffer Distance`))) %>% # and change polygons back to NA to not mess up color pal
+  mutate(`Buffer Distance` = ifelse(`Buffer Distance` == 'In polygon',NA, as.character(`Buffer Distance`)), # and change polygons back to NA to not mess up color pal
+         ToHUC = as.numeric(as.character(ToHUC))) %>% # make sure factors don't get wonky
   filter(! FDT_STA_ID %in% userReviews$FDT_STA_ID) %>% # drop stations users have reviewed
   #dplyr::select(names(userReviews))
-  rbind(userReviews)
+  bind_rows(userReviews) %>%
+  filter(FDT_STA_ID != 'FakeStation') #drop fake line of data that forces userReviews into proper data format
+
+
 
 # All sites limited to waterbody type and subbasin and region
 snap_input_region <- original_input %>%
