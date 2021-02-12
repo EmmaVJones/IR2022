@@ -368,6 +368,21 @@ write.csv(PCB, 'data/PCBfixed.csv', row.names = F) # dont write out a character 
 
 Fish tissue is a disaster. 
 
+```{r}
+source('fishTissueCleaning.R')
+```
+
+
+
+
+
+
+
+
+
+
+
+
 ```{r fish tissue}
 fish2015 <- read_excel('data/2015_2020_fish_tissue_data_WQA/2015_fish_PCBs_v122.xlsx')
 ```

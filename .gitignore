@@ -77,6 +77,9 @@ vignettes/*.pdf
 4.RiverineApplication/userDataToUpload/
 4.RiverineApplication/AU_working/
 
+5.BioassessmentTools/data/
+5.BioassessmentTools/config.yml
+
 WQSlookupTable/
 
 rsconnect/

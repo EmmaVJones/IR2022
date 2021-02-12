@@ -1,0 +1,34 @@
+---
+title: "Bioassessment Tool Data Organization"
+author: "Emma Jones"
+date: "2/9/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(sf)
+```
+
+## Background
+
+This document walks users through the process of building the IR2022 bioassessment tools. These tools will live on the Connect server and will take advantage of the weekly pinned biological data, so no real data organization needs to occur.
+
+The tools available will consist of a dashboard where biologists can interactively investigate the stations that need assessment in the window (any station sampled from 2015-2020) and a fact sheet generating app. The workflow will go as follows:
+
+1)  Emma builds a bioassessment shiny app that lives on the server, populated by pinned data (VSCI/VCPMI scores, habitat) that gets updated every week.
+
+2)  Biologists will enter data into CEDS, which will be automatically run for SCI scores each week, feeding the application.
+
+-   This frequency can be increased as the data needs increase.
+
+3)  Biologists will review the bioassessment tool to make assessment decisions about stations that fall into the assessment window in their region. They will include their assessment decisions and comments in a standardized spreadsheet for this assessment cycle (since CEDS EDAS has nowhere to store this information at present).
+
+4)  The spreadsheet will feed the fact sheet generation app with biologist decisions and comments. The fact sheet generation app will generate standardized fact sheets based on the same pinned data that feeds the bioassessment app. These fact sheets will offer plots and statistics based on the pinned data that falls into the IR window. Biologists may upload their bioassessment results spreadsheet and regenerate a standardized fact sheet that includes their comments and assessment decisions.
+
+-   The uploaded bioassessment results spreadsheet will be added to a pinned dataset on the server. This bioassessment results dataset will feed the Riverine Assessment application, providing the regional assessors with the biologist's thoughts on a given station.
+
+-   The uploaded bioassessment results will overwrite previous results pinned on the server for a given StationID. e.g. Biologist 1 uploads a spreadsheet for StationXXX with a set of comments and decision. Later, Biologist 1 assesses more stations and changes their mind about StationXXX and uploads a new version of the spreadsheet with more stations and a change to StationXXX in the spreadsheet. The additional stations comments and decisions will be pinned to the server and the original comments and decision for StationXXX will be overwritten with the new information. This change will be reflected in the newly generated fact sheets and the Riverine app.
+
+-   It will be the responsibility of the regional biologists to communicate with the regional assessment staff to let them know that changes have occurred to bioassessment information.
