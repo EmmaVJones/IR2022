@@ -22,3 +22,6 @@ benSampsFilter <- benSamps %>%
     filter(., RepNum %in% repFilter)
     else .}
 
+benSampsFilterStations <- filter(benSampsStations, StationID %in% benSampsFilter$StationID)
+
+# Map 

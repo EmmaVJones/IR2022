@@ -15,14 +15,24 @@ ui <- dashboardPage(
                ' down options in subsequent selection ', br(),
                ' fields.'),
       uiOutput('filters'))),
-  dashboardBody(verbatimTextOutput('table1'),
-                verbatimTextOutput('table2'),
-                verbatimTextOutput('table3'),
-                verbatimTextOutput('table4'))
+  dashboardBody(
+    tabsetPanel(
+      tabPanel(title = span(tagList(icon("globe", lib = "glyphicon"), " Map")),
+               leafletOutput('map'),
+               verbatimTextOutput('table1')),
+      tabPanel(title = span(tagList(icon("stats", lib = "glyphicon"), " SCI Scores"))),
+      tabPanel(title = span(tagList(icon("stats", lib = "glyphicon"), " Habitat Scores"))),
+      tabPanel(title = span(tagList(icon("calculator"), " Station Summary"))),
+      tabPanel(title = span(tagList(icon("balance-scale"), " Assessment Decision")))
+      
+      
+    )
+  )
 )
 
 server <- function(input, output, session) {
   
+  # original filters
   output$filters <- renderUI({
     list(
       selectInput("collectorFilter", "Collector Filter", choices = sort(unique(benSamps$`Collected By`)), multiple = TRUE),
@@ -30,7 +40,7 @@ server <- function(input, output, session) {
       selectInput("stationFilter", "StationID Filter", choices = sort(unique(benSamps$StationID)), selected = NULL, multiple = TRUE),
       selectInput("repFilter", "Rep Filter", choices = sort(unique(benSamps$RepNum)), selected = NULL, multiple = TRUE)    )})
   
-  
+  # update filters if user uses collector first
   observe({ updateSelectInput(session, "basinFilter", "Basin Filter",
                               #choices = sort(unique(benSampsFilter()$Basin_Code))) })
                               choices = if(!is.null(input$collectorFilter)){
@@ -53,6 +63,7 @@ server <- function(input, output, session) {
                                   distinct(RepNum) %>% arrange(RepNum) %>% pull()
                               } else {distinct(benSamps, RepNum) %>% arrange(RepNum) %>% pull()} ) })
   
+  # Filter by user input
   benSampsFilter <- reactive({
     benSamps %>%
       {if(!is.null(input$collectorFilter))
@@ -67,8 +78,14 @@ server <- function(input, output, session) {
       {if(!is.null(input$repFilter))
         filter(., RepNum %in% input$repFilter)
         else .} })
+  benSampsFilterStations <- reactive({req(benSampsFilter())
+    filter(benSampsStations, StationID %in% benSampsFilter()$StationID)})
   
-  output$table2 <- renderPrint({ #input$collectorFilter })
+  output$map <- renderLeaflet({req(benSampsFilter())
+    # begin here
+    })
+  
+  output$table1 <- renderPrint({ #input$collectorFilter })
     benSampsFilter() })
 }
 
