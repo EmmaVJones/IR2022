@@ -6,14 +6,10 @@ library(leaflet)
 library(leaflet.extras)
 library(inlmisc)
 library(DT)
-library(DBI)
-#library(measurements) #only necessary if don't use Rex's dataset for points
 library(plotly)
 library(lubridate)
 library(pool)
-library(geojsonsf)
 library(pins)
-library(sqldf)
 library(config)
 
 #####################################   UPDATE EACH NEW TOOL REBUILD #############################################
@@ -43,7 +39,9 @@ board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_K
 
 # limit data to assessment window From the start
 benSamps <- pin_get("ejones/benSamps", board = "rsconnect") %>%
-  filter(between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]))# limit data to assessment window
+  filter(between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2])) %>%# limit data to assessment window
+  filter(RepNum %in% c('1', '2')) %>% # drop QA and wonky rep numbers
+  filter(`Target Count` == 110) # only assess rarified data
 habSamps <- pin_get("ejones/habSamps", board = "rsconnect") %>%
   filter(between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]))# limit data to assessment window
 Wqm_Stations_View <- pin_get("ejones/WQM-Stations-View", board = "rsconnect") %>%
@@ -53,10 +51,11 @@ WQM_Stations <- pin_get("ejones/WQM-Sta-GIS-View", board = "rsconnect") %>%
 #WQM_Station_Full <- pin_get("ejones/WQM-Station-Full", board = "rsconnect") %>%
 #  filter(WQM_STA_ID %in% benSamps$StationID) %>%
 #  distinct(WQM_STA_ID, .keep_all = T) %>%
-benSampsStations <- pin_get("ejones/benSampsStations", board = "rsconnect") %>%
+benSampsStations <- st_as_sf(pin_get("ejones/benSampsStations", board = "rsconnect")) %>%
   filter(StationID %in% benSamps$StationID)
-benSamps <- left_join(benSamps, benSampsStations, by = 'StationID') # update with spatial, assess reg, vahu6, basin/subbasin, & ecoregion info
-
+benSamps <- left_join(benSamps, benSampsStations, by = 'StationID') %>% # update with spatial, assess reg, vahu6, basin/subbasin, & ecoregion info
+  dplyr::select(StationID, Sta_Desc, everything()) %>% 
+  arrange(StationID)
 
 
 VSCIresults <- pin_get("ejones/VSCIresults", board = "rsconnect") %>%
