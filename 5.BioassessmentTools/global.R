@@ -74,4 +74,28 @@ habObs <- pin_get("ejones/habObs", board = "rsconnect") %>%
 
 
 
+totalHabScore <- function(habValues){
+  habValues %>%
+    group_by(HabSampID) %>%
+    summarise(`Total Habitat Score` = sum(HabValue, na.rm = T))
+}
 
+totalHabScoreAverages <- function(habValues_totHab){
+  habValues_totHab %>%
+    group_by(StationID) %>%
+    summarise(`Total Habitat Average` = format(mean(`Total Habitat Score`, na.rm = T), digits = 3),
+              `n Samples` = n()) %>% 
+    mutate(Window = 'User Selected Window') %>%
+    dplyr::select(StationID, Window, `Total Habitat Average`, `n Samples`) %>%
+    bind_rows(habValues_totHab %>%
+                group_by(StationID, Season) %>%
+                summarise(`Total Habitat Average` = format(mean(`Total Habitat Score`, na.rm = T), digits = 3),
+                          `n Samples` = n()) %>%
+                rename('Window' = 'Season') %>% ungroup()) %>%
+    bind_rows(habValues_totHab %>%
+                mutate(Window = year(`Collection Date`)) %>%
+                group_by(StationID, Window) %>%
+                summarise(`Total Habitat Average` = format(mean(`Total Habitat Score`, na.rm = T), digits=3),
+                          `n Samples` = n()) %>% ungroup() %>%
+                mutate(Window = as.character(Window)))
+}
