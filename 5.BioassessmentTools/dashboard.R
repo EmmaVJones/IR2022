@@ -1,7 +1,7 @@
-# source('global.R')
-# 
-# assessmentRegions <- st_read( 'data/GIS/AssessmentRegions_simple.shp')
-# ecoregion <- st_read('data/GIS/vaECOREGIONlevel3__proj84.shp') 
+source('global.R')
+
+assessmentRegions <- st_read( 'data/GIS/AssessmentRegions_simple.shp')
+ecoregion <- st_read('data/GIS/vaECOREGIONlevel3__proj84.shp')
 
 ui <- dashboardPage(
   
@@ -23,14 +23,18 @@ ui <- dashboardPage(
                h4('Selected Station Information'),
                dataTableOutput('stationInfoTable')),
       tabPanel(title = span(tagList(icon("stats", lib = "glyphicon"), " SCI Scores")),
-               plotlyOutput('SCIplot'),
+               plotlyOutput('SCIplot'), br(),
                dataTableOutput('SCITable')),
       tabPanel(title = span(tagList(icon("stats", lib = "glyphicon"), " Habitat Scores")),
-               plotlyOutput('SCIplot1'),
+               plotlyOutput('SCIplot1'), br(),
                #br(),
-               plotly::plotlyOutput('habitatPlot', width='100%', height='100%')), 
-               #dataTableOutput('habitatTable')),
-      tabPanel(title = span(tagList(icon("calculator"), " Station Summary"))),
+               #plotly::plotlyOutput('habitatPlot', width='100%', height='100%')), 
+               dataTableOutput('habitatTable')),
+      tabPanel(title = span(tagList(icon("calculator"), " Station Summary")),
+               h4('SCI Summary'), 
+               dataTableOutput('SCIavgTable'),br(),
+               h4('Total Habitat Summary'),
+               dataTableOutput('totHabAvgTable')),
       tabPanel(title = span(tagList(icon("balance-scale"), " Assessment Decision")))
       
       
@@ -222,34 +226,18 @@ server <- function(input, output, session) {
     dplyr::select(StationID, HabSampID, everything()) %>%
     arrange(`Collection Date`) %>% ungroup() })
   
-  # avgTotalHab <- totalHab %>% ungroup() %>%
-  #   summarise(`Total Habitat Average` = format(mean(`Total Habitat Score`, na.rm = T), digits = 3),
-  #             `n Samples` = n()) %>%
-  #   mutate(StationID = 'User Selected Stations',
-  #          Window = paste0('IR ', assessmentCycle)) %>%
-  #   dplyr::select(StationID, Window, `Total Habitat Average`, `n Samples`) %>%
-  #   bind_rows(
-  #     totalHab %>% ungroup() %>%
-  #       group_by(Season) %>%
-  #       summarise(`Total Habitat Average` = format(mean(`Total Habitat Score`, na.rm = T), digits = 3),
-  #                 `n Samples` = n()) %>%
-  #       mutate(StationID = 'User Selected Stations', 
-  #              Window = Season) %>%
-  #       dplyr::select(StationID, Window, `Total Habitat Average`, `n Samples`)  ) %>%
-  #   bind_rows(
-  #     totalHabScoreAverages(totalHab) %>%
-  #       arrange(StationID))
-  
   habitatCrosstab <- reactive({req(totalHab())
-    left_join(habValues_Filter(),
-              dplyr::select(habSamps_Filter(), HabSampID, StationID, `Collection Date`),
-              by = 'HabSampID') %>%
-    group_by(StationID, HabSampID, `Collection Date`) %>%
-    arrange(HabParameterDescription) %>% ungroup() %>%
-    pivot_wider(id_cols = c('StationID','HabSampID','Collection Date'), names_from = HabParameterDescription, values_from = HabValue) %>%
-    left_join(dplyr::select(totalHab(), HabSampID, `Total Habitat Score`), by = 'HabSampID') %>%
-    dplyr::select(StationID, HabSampID, `Collection Date`, `Total Habitat Score`, everything()) %>%
-    arrange(StationID, `Collection Date`)  })
+    bind_rows(habitatTemplate,
+              left_join(habValues_Filter(), 
+                        dplyr::select(habSamps_Filter(), HabSampID, StationID, `Collection Date`),
+                        by = 'HabSampID') %>%
+                group_by(StationID, HabSampID, `Collection Date`) %>%
+                arrange(HabParameterDescription) %>% ungroup() %>%
+                pivot_wider(id_cols = c('StationID','HabSampID','Collection Date'), names_from = HabParameterDescription, values_from = HabValue) %>%
+                left_join(dplyr::select(totalHab(), HabSampID, `Total Habitat Score`), by = 'HabSampID') %>%
+                dplyr::select(StationID, HabSampID, `Collection Date`, `Total Habitat Score`, everything()) ) %>%
+      drop_na(StationID) %>%
+      arrange(StationID, `Collection Date`)   })
   
   output$SCIplot1 <- renderPlotly({ req(SCI_filter())
     plot_ly(totalHab(), #%>% mutate( hab1 = 100, hab2 = 130, hab3 = 150, hab4= 200),
@@ -281,52 +269,66 @@ server <- function(input, output, session) {
              yaxis=list(title="Total Habitat Score"),
              xaxis=list(title="Sample Date",tickfont = list(size = 10),
                         type = 'date',tickformat = "%B %Y"))   })
-  output$habitatPlot <- renderPlotly({req(totalHab())
-    plot_ly( totalHab() %>% ungroup(), 
-       x = ~`Collection Date`, y = ~`Total Habitat Score`, type = 'bar', 
-               color = ~Season, width = 0.5, stroke = list(color = 'rgb(0, 0, 0)', width = 3),
-               #marker = list(line = list(width = 1.5)),
-               hoverinfo="text", text=~paste(sep="<br>",
-                                             paste("StationID: ", StationID),
-                                             paste("Collection Date: ", as.Date(`Collection Date`)),
-                                             #paste('Replicate: ', RepNum),
-                                             paste("Field Team: ",`Field Team`),
-                                             paste("HabSampID: ", HabSampID),
-                                             paste("Total Habitat Score: ", `Total Habitat Score`))) %>%
-      add_segments(., x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'),  y = 60, yend = 60, 
-                   text = 'VSCI Criteria = 60', name = 'VSCI Criteria = 60',line = list(color = 'red')) %>%
-      layout(showlegend=TRUE,
-             yaxis=list(title="Total Habitat Score",
-                        range = c(0, 210)),
-             xaxis=list(title="Sample Date",tickfont = list(size = 10),
-                        type = 'date',tickformat = "%B %Y"))   })
+  # output$habitatPlot <- renderPlotly({req(totalHab())
+  #   plot_ly( totalHab() %>% ungroup(), 
+  #      x = ~`Collection Date`, y = ~`Total Habitat Score`, type = 'bar', 
+  #              color = ~Season, width = 0.5, stroke = list(color = 'rgb(0, 0, 0)', width = 3),
+  #              #marker = list(line = list(width = 1.5)),
+  #              hoverinfo="text", text=~paste(sep="<br>",
+  #                                            paste("StationID: ", StationID),
+  #                                            paste("Collection Date: ", as.Date(`Collection Date`)),
+  #                                            #paste('Replicate: ', RepNum),
+  #                                            paste("Field Team: ",`Field Team`),
+  #                                            paste("HabSampID: ", HabSampID),
+  #                                            paste("Total Habitat Score: ", `Total Habitat Score`))) %>%
+  #     add_segments(., x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'),  y = 60, yend = 60, 
+  #                  text = 'VSCI Criteria = 60', name = 'VSCI Criteria = 60',line = list(color = 'red')) %>%
+  #     layout(showlegend=TRUE,
+  #            yaxis=list(title="Total Habitat Score",
+  #                       range = c(0, 210)),
+  #            xaxis=list(title="Sample Date",tickfont = list(size = 10),
+  #                       type = 'date',tickformat = "%B %Y"))   })
   
   
   
-  # output$habitatTable <- renderDataTable({req(habitatCrosstab())
-  #   # Set how many colors you will use and call them out by hex name
-  #   brks <- 1:19
-  #   clrs <- c("#8B0000", "#9D0000", "#AF0000", "#C10000", "#D40000", "#E60000", "#F80000", "#FF1415", "#FF3235", "#FF5055", "#FF6F75",
-  #             "#FF8D95", "#FFABB5", "#FFC3CD", "#FFCDD5", "#FFD7DE", "#FFE1E6", "#FFEBEE", "#FFF5F6", "#FFFFFF")
-  #   datatable(habitatCrosstab(), escape = F, rownames = F, extensions = 'Buttons',
-  #             options = list(dom='Bift', scrollX= TRUE, scrollY = '300px',
-  #                            pageLength = nrow(habitatCrosstab()), buttons=list('copy','colvis'))) %>%
-  #     formatStyle(c("Bank Stability", "Channel Alteration", "Channel Flow Status", "Channel Sinuosity", "Embeddedness",
-  #                   "Epifaunal Substrate / Available Cover", "Frequency of riffles (or bends)", "Pool Substrate Characterization", 
-  #                   "Pool Variability", "Riparian Vegetative Zone Width", "Sediment Deposition", "Vegetative Protection",
-  #                   "Velocity / Depth Regime"),
-  #                 backgroundColor = styleInterval(brks, clrs), 
-  #                 textAlign = 'center', `font-family` = 'Arial') %>%
-  #     formatStyle(c("Bank Stability", "Channel Alteration", "Channel Flow Status", "Channel Sinuosity", "Embeddedness",
-  #                   "Epifaunal Substrate / Available Cover", "Frequency of riffles (or bends)", "Pool Substrate Characterization", 
-  #                   "Pool Variability", "Riparian Vegetative Zone Width", "Sediment Deposition", "Vegetative Protection",
-  #                   "Velocity / Depth Regime"),
-  #                 fontWeight = styleInterval(10, c('bold','normal')), 
-  #                 textAlign = 'center', `font-family` = 'Arial') %>%
-  #     formatStyle('Total Habitat Score', backgroundColor = "lightgray")  })
-  # 
+  output$habitatTable <- renderDataTable({req(habitatCrosstab())
+    # Set how many colors you will use and call them out by hex name
+    brks <- 1:19
+    clrs <- c("#8B0000", "#9D0000", "#AF0000", "#C10000", "#D40000", "#E60000", "#F80000", "#FF1415", "#FF3235", "#FF5055", "#FF6F75",
+              "#FF8D95", "#FFABB5", "#FFC3CD", "#FFCDD5", "#FFD7DE", "#FFE1E6", "#FFEBEE", "#FFF5F6", "#FFFFFF")
+    datatable(habitatCrosstab(), escape = F, rownames = F, extensions = 'Buttons',
+              options = list(dom='Bift', scrollX= TRUE, scrollY = '300px',
+                             pageLength = nrow(habitatCrosstab()), buttons=list('copy','colvis'))) %>%
+      formatStyle(c("Bank Stability", "Channel Alteration", "Channel Flow Status", "Channel Sinuosity", "Embeddedness",
+                    "Epifaunal Substrate / Available Cover", "Frequency of riffles (or bends)", "Pool Substrate Characterization",
+                    "Pool Variability", "Riparian Vegetative Zone Width", "Sediment Deposition", "Vegetative Protection",
+                    "Velocity / Depth Regime"),
+                  backgroundColor = styleInterval(brks, clrs),
+                  textAlign = 'center', `font-family` = 'Arial') %>%
+      formatStyle(c("Bank Stability", "Channel Alteration", "Channel Flow Status", "Channel Sinuosity", "Embeddedness",
+                    "Epifaunal Substrate / Available Cover", "Frequency of riffles (or bends)", "Pool Substrate Characterization",
+                    "Pool Variability", "Riparian Vegetative Zone Width", "Sediment Deposition", "Vegetative Protection",
+                    "Velocity / Depth Regime"),
+                  fontWeight = styleInterval(10, c('bold','normal')),
+                  textAlign = 'center', `font-family` = 'Arial') %>%
+      formatStyle('Total Habitat Score', backgroundColor = "lightgray")  })
+
+
+
   
+  ## Station Summary Tab
+  output$SCIavgTable <- renderDataTable({req(SCI_filter())
+    z <- averageSCI_windows(benSampsFilter(), SCI_filter(), assessmentCycle)
+    datatable(z, rownames = F, escape= F, extensions = 'Buttons',
+              options = list(dom = 'Bift', scrollX= TRUE, scrollY = '300px',
+                             pageLength = nrow(z), buttons=list('copy','colvis'))) })
   
+  output$totHabAvgTable <- renderDataTable({req(totalHab())
+    avgTotalHab <- averageTotHab_windows(totalHab())
+    
+    datatable(avgTotalHab, rownames = F, escape= F, extensions = 'Buttons',
+              options = list(dom = 'Bift', scrollX= TRUE, scrollY = '300px',
+                             pageLength = nrow(avgTotalHab), buttons=list('copy','colvis'))) })
   
   
   #output$table1 <- renderPrint({ sort(unique(benSampsFilter()$RepNum)) })

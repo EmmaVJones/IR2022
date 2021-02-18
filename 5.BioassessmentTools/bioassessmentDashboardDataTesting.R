@@ -3,9 +3,9 @@ source('global.R')
 assessmentRegions <- st_read( 'data/GIS/AssessmentRegions_simple.shp')
 ecoregion <- st_read('data/GIS/vaECOREGIONlevel3__proj84.shp') 
 
-collectorFilter <- sort(unique(benSamps$`Collected By`))[3] #NULL
-basinFilter <- NULL#"Potomac-Lower" #NULL # sort(unique(benSamps$Basin_Code))[3]
-stationFilter <- NULL#c('1AWOT000.92', '1ACAA001.18') #sort(unique(benSamps$StationID))
+collectorFilter <- sort(unique(benSamps$`Collected By`))[6] #NULL
+basinFilter <- 'New'#NULL#"Potomac-Lower" #NULL # sort(unique(benSamps$Basin_Code))[3]
+stationFilter <- '9-ADR000.13'# NULL#c('1AWOT000.92', '1ACAA001.18') #sort(unique(benSamps$StationID))
 repFilter <- NULL #sort(unique(benSamps$RepNum))
 
 benSampsFilter <- benSamps %>%
@@ -81,9 +81,11 @@ SCI_filter$SeasonGradient <- factor(SCI_filter$SeasonGradient,levels=c("Spring (
 
 glimpse(SCI_filter)
 
+
+
 plot_ly(#SCI_filter,
   #filter(SCI_filter, StationID == '1ACAA001.18'), #%>%
-  SCI_filter %>% mutate(`VSCI Criteria` = 60, `VCPMI Criteria` = 40),
+  SCI_filter,
         x = ~`Collection Date`, y = ~`SCI Score`, type = 'bar', 
         color = ~SeasonGradient,  #marker = list(color = ~SeasonGradientColor,width = 0.5), # throws off color for some reason
         stroke = list(color = 'rgb(0, 0, 0)', width = 1),
@@ -96,7 +98,7 @@ plot_ly(#SCI_filter,
                                       paste("SCI Score: ", format(`SCI Score`, digits=2)),
                                       paste("Gradient: ", Gradient)),
         name = ~paste('Rep ',RepNum, SeasonGradient)) %>%
-  {if('VSCI' %in% SCI_filter$SCI)
+ {if('VSCI' %in% SCI_filter$SCI)
     add_segments(., x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'), y = 60, yend = 60, 
                  text = 'VSCI Criteria = 60', name = 'VSCI Criteria = 60',line = list(color = 'red'))
     else . } %>%
@@ -110,8 +112,8 @@ plot_ly(#SCI_filter,
                type = 'date',tickformat = "%B %Y"))  
 
 
-averageSCI_multistationAVG(benSamps_Filter_fin, SCI_filter) %>%
-  arrange(SCI)
+# SCI averages a bunch of ways
+View(averageSCI_windows(benSampsFilter, SCI_filter, assessmentCycle))
 
 ## Habitat Data
 habSamps_Filter <- filter(habSamps, StationID %in% benSampsFilterStations$StationID) 
@@ -128,33 +130,120 @@ totalHab <- habSamps_Filter %>%
   arrange(`Collection Date`) %>%
   ungroup()
 
-avgTotalHab <- totalHab %>% ungroup() %>%
-  summarise(`Total Habitat Average` = format(mean(`Total Habitat Score`, na.rm = T), digits = 3),
-            `n Samples` = n()) %>%
-  mutate(StationID = 'User Selected Stations',
-         Window = paste0('IR ', assessmentCycle)) %>%
-  dplyr::select(StationID, Window, `Total Habitat Average`, `n Samples`) %>%
-  bind_rows(
-    totalHab %>% ungroup() %>%
-      group_by(Season) %>%
-      summarise(`Total Habitat Average` = format(mean(`Total Habitat Score`, na.rm = T), digits = 3),
-                `n Samples` = n()) %>%
-      mutate(StationID = 'User Selected Stations', 
-             Window = Season) %>%
-      dplyr::select(StationID, Window, `Total Habitat Average`, `n Samples`)  ) %>%
-  bind_rows(
-    totalHabScoreAverages(totalHab) %>%
-      arrange(StationID))
+avgTotalHab <- averageTotHab_windows(totalHab)
 
-habitatCrosstab <- left_join(habValues_Filter, 
-          dplyr::select(habSamps_Filter, HabSampID, StationID, `Collection Date`),
-          by = 'HabSampID') %>%
-  group_by(StationID, HabSampID, `Collection Date`) %>%
-  arrange(HabParameterDescription) %>% ungroup() %>%
-  pivot_wider(id_cols = c('StationID','HabSampID','Collection Date'), names_from = HabParameterDescription, values_from = HabValue) %>%
-  left_join(dplyr::select(totalHab, HabSampID, `Total Habitat Score`), by = 'HabSampID') %>%
-  dplyr::select(StationID, HabSampID, `Collection Date`, `Total Habitat Score`, everything()) %>%
+habitatCrosstab <- bind_rows(habitatTemplate,
+                             left_join(habValues_Filter, 
+                                       dplyr::select(habSamps_Filter, HabSampID, StationID, `Collection Date`),
+                                       by = 'HabSampID') %>%
+                               group_by(StationID, HabSampID, `Collection Date`) %>%
+                               arrange(HabParameterDescription) %>% ungroup() %>%
+                               pivot_wider(id_cols = c('StationID','HabSampID','Collection Date'), names_from = HabParameterDescription, values_from = HabValue) %>%
+                               left_join(dplyr::select(totalHab, HabSampID, `Total Habitat Score`), by = 'HabSampID') %>%
+                               dplyr::select(StationID, HabSampID, `Collection Date`, `Total Habitat Score`, everything()) ) %>%
+  drop_na(StationID) %>%
   arrange(StationID, `Collection Date`) 
+
+
+
+
+
+plot_ly(totalHab, #%>% mutate( hab1 = 100, hab2 = 130, hab3 = 150, hab4= 200),
+        x = ~`Collection Date`, y = ~`Total Habitat Score` , type = 'bar', 
+        color = ~Season,  #marker = list(color = ~SeasonGradientColor,width = 0.5), # throws off color for some reason
+        stroke = list(color = 'rgb(0, 0, 0)', width = 3),
+        hoverinfo="text", text=~paste(sep="<br>",
+                                      paste("StationID: ", StationID),
+                                      paste("Collection Date: ", as.Date(`Collection Date`)),
+                                      #paste('Replicate: ', RepNum),
+                                      #paste("Collector ID: ",`Collected By`),
+                                      #paste("BenSampID: ", BenSampID),
+                                      #paste("SCI Score: ", format(`SCI Score`, digits=2)),
+                                      paste("Gradient: ", Gradient)),
+        name = ~paste0(Season, " (", Gradient, " Method)")) %>%
+  add_segments(x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'),  y = 200, yend = 200, 
+               text = 'No Probability of Stress to Aquatic Life', 
+               name = 'No Probability of Stress to Aquatic Life',line = list(color = '#0072B2')) %>%
+  add_segments(x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'),  y = 150, yend = 150, 
+               text = 'Low Probability of Stress to Aquatic Life', 
+               name = 'Low Probability of Stress to Aquatic Life',line = list(color = '#009E73')) %>%
+  add_segments(x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'),  y = 130, yend = 130, 
+               text = 'Medium Probability of Stress to Aquatic Life', 
+               name = 'Medium Probability of Stress to Aquatic Life',line = list(color = '#F0E442')) %>%
+  add_segments(x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'),  y = 100, yend = 100, 
+               text = 'High Probability of Stress to Aquatic Life', 
+               name = 'High Probability of Stress to Aquatic Life',line = list(color = 'red')) %>%
+  layout(showlegend=TRUE,
+         yaxis=list(title="Total Habitat Score"),
+         xaxis=list(title="Sample Date",tickfont = list(size = 10),
+                    type = 'date',tickformat = "%B %Y"))  
+
+
+# Set how many colors you will use and call them out by hex name
+brks <- 1:19
+clrs <- c("#8B0000", "#9D0000", "#AF0000", "#C10000", "#D40000", "#E60000", "#F80000", "#FF1415", "#FF3235", "#FF5055", "#FF6F75",
+          "#FF8D95", "#FFABB5", "#FFC3CD", "#FFCDD5", "#FFD7DE", "#FFE1E6", "#FFEBEE", "#FFF5F6", "#FFFFFF")
+
+datatable(habitatCrosstab, escape = F, rownames = F, extensions = 'Buttons',
+          options = list(dom='Bift', scrollX= TRUE, scrollY = '300px',
+                         pageLength = nrow(habitatCrosstab), buttons=list('copy','colvis'))) %>%
+  formatStyle(c("Bank Stability", "Channel Alteration", "Channel Flow Status", "Channel Sinuosity", "Embeddedness",
+                "Epifaunal Substrate / Available Cover", "Frequency of riffles (or bends)", "Pool Substrate Characterization", 
+                "Pool Variability", "Riparian Vegetative Zone Width", "Sediment Deposition", "Vegetative Protection",
+                "Velocity / Depth Regime"),
+              backgroundColor = styleInterval(brks, clrs), 
+              textAlign = 'center', `font-family` = 'Arial') %>%
+  formatStyle(c("Bank Stability", "Channel Alteration", "Channel Flow Status", "Channel Sinuosity", "Embeddedness",
+                "Epifaunal Substrate / Available Cover", "Frequency of riffles (or bends)", "Pool Substrate Characterization", 
+                "Pool Variability", "Riparian Vegetative Zone Width", "Sediment Deposition", "Vegetative Protection",
+                "Velocity / Depth Regime"),
+              fontWeight = styleInterval(10, c('bold','normal')), 
+              textAlign = 'center', `font-family` = 'Arial') %>%
+  formatStyle('Total Habitat Score', backgroundColor = "lightgray")
+
+
+
+cat(names(habitatCrosstab), sep = ', ')
+
+
+
+
+
+###
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 box1 <- tibble(`Collection Date` = c(as.Date('2015-01-01'), as.Date('2015-01-01'), as.Date('2020-12-31'),as.Date('2020-12-31')), y = c(0, 100, 100, 0))
 
@@ -285,25 +374,3 @@ plot_ly(totalHab3, x = ~`Collection Date`, y = ~`Total Habitat Score`, type = 'b
            hoverinfo="text", name ='High Probability of Stress to Aquatic Life',
            text='High Probability of Stress to Aquatic Life')
 
-
-# Set how many colors you will use and call them out by hex name
-brks <- 1:19
-clrs <- c("#8B0000", "#9D0000", "#AF0000", "#C10000", "#D40000", "#E60000", "#F80000", "#FF1415", "#FF3235", "#FF5055", "#FF6F75",
-          "#FF8D95", "#FFABB5", "#FFC3CD", "#FFCDD5", "#FFD7DE", "#FFE1E6", "#FFEBEE", "#FFF5F6", "#FFFFFF")
-
-datatable(habitatCrosstab, escape = F, rownames = F, extensions = 'Buttons',
-          options = list(dom='Bift', scrollX= TRUE, scrollY = '300px',
-                         pageLength = nrow(habitatCrosstab), buttons=list('copy','colvis'))) %>%
-  formatStyle(c("Bank Stability", "Channel Alteration", "Channel Flow Status", "Channel Sinuosity", "Embeddedness",
-                "Epifaunal Substrate / Available Cover", "Frequency of riffles (or bends)", "Pool Substrate Characterization", 
-                "Pool Variability", "Riparian Vegetative Zone Width", "Sediment Deposition", "Vegetative Protection",
-                "Velocity / Depth Regime"),
-              backgroundColor = styleInterval(brks, clrs), 
-              textAlign = 'center', `font-family` = 'Arial') %>%
-  formatStyle(c("Bank Stability", "Channel Alteration", "Channel Flow Status", "Channel Sinuosity", "Embeddedness",
-                "Epifaunal Substrate / Available Cover", "Frequency of riffles (or bends)", "Pool Substrate Characterization", 
-                "Pool Variability", "Riparian Vegetative Zone Width", "Sediment Deposition", "Vegetative Protection",
-                "Velocity / Depth Regime"),
-              fontWeight = styleInterval(10, c('bold','normal')), 
-              textAlign = 'center', `font-family` = 'Arial') %>%
-  formatStyle('Total Habitat Score', backgroundColor = "lightgray")

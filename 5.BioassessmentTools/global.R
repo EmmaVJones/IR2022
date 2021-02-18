@@ -74,19 +74,36 @@ habObs <- pin_get("ejones/habObs", board = "rsconnect") %>%
 
 
 
+# Template to standardize variables for DT habitat heatmap across high and low gradients
+habitatTemplate <- tibble(StationID = NA, HabSampID = NA, `Collection Date` = NA, `Total Habitat Score` = NA, `Bank Stability` = NA, 
+                          `Channel Alteration` = NA, `Channel Flow Status` = NA, `Channel Sinuosity` = NA, Embeddedness = NA, 
+                          `Epifaunal Substrate / Available Cover` = NA, `Pool Substrate Characterization` = NA, `Pool Variability` = NA, 
+                          `Frequency of riffles (or bends)` = NA, `Riparian Vegetative Zone Width` = NA, `Sediment Deposition` = NA, 
+                          `Vegetative Protection` = NA, `Velocity / Depth Regime` = NA)
+
+
+
 totalHabScore <- function(habValues){
   habValues %>%
     group_by(HabSampID) %>%
     summarise(`Total Habitat Score` = sum(HabValue, na.rm = T))
 }
 
-totalHabScoreAverages <- function(habValues_totHab){
+averageTotHab_windows <- function(habValues_totHab){
   habValues_totHab %>%
     group_by(StationID) %>%
     summarise(`Total Habitat Average` = format(mean(`Total Habitat Score`, na.rm = T), digits = 3),
               `n Samples` = n()) %>% 
-    mutate(Window = 'User Selected Window') %>%
+    mutate(Window = paste0('IR ', assessmentCycle, ' (6 year Average)')) %>%
     dplyr::select(StationID, Window, `Total Habitat Average`, `n Samples`) %>%
+    # Two Year Average
+    bind_rows(habValues_totHab %>%
+                filter(year(`Collection Date`) %in% c(2019, 2020)) %>%
+                group_by(StationID) %>%
+                summarise(`Total Habitat Average` = format(mean(`Total Habitat Score`, na.rm = T), digits = 3),
+                          `n Samples` = n()) %>% ungroup() %>%
+                mutate(Window = as.character('2019-2020 Average')) %>% 
+                dplyr::select(StationID, Window, everything())) %>%
     bind_rows(habValues_totHab %>%
                 group_by(StationID, Season) %>%
                 summarise(`Total Habitat Average` = format(mean(`Total Habitat Score`, na.rm = T), digits = 3),
@@ -97,5 +114,45 @@ totalHabScoreAverages <- function(habValues_totHab){
                 group_by(StationID, Window) %>%
                 summarise(`Total Habitat Average` = format(mean(`Total Habitat Score`, na.rm = T), digits=3),
                           `n Samples` = n()) %>% ungroup() %>%
-                mutate(Window = as.character(Window)))
+                mutate(Window = as.character(Window))) %>% 
+    mutate(Window = factor(Window, levels = c('IR 2022 (6 year Average)', '2019-2020 Average',
+                                              'Spring', 'Fall', '2020', '2019', '2018', '2017', '2016', '2015'))) %>%
+    arrange(StationID, Window)
+}
+
+
+averageSCI_windows <- function(benSamps_Filter_fin, SCI_filter, assessmentCycle){
+  dat <- left_join(benSamps_Filter_fin, dplyr::select(SCI_filter, StationID, BenSampID, SCI, `SCI Score`),
+                   by = c('StationID', 'BenSampID')) 
+  dat %>%
+    # IR window Average
+    group_by(StationID, SCI) %>%
+    summarise(`SCI Average` = format(mean(`SCI Score`, na.rm = T), digits = 3),
+              `n Samples` = n()) %>% 
+    mutate(Window = paste0('IR ', assessmentCycle, ' (6 year Average)'))  %>%
+    dplyr::select(SCI, Window, `SCI Average`, `n Samples`) %>%
+    # Two Year Average
+    bind_rows(dat %>%
+                filter(year(`Collection Date`) %in% c(2019, 2020)) %>%
+                group_by(StationID, SCI) %>%
+                summarise(`SCI Average` = format(mean(`SCI Score`, na.rm = T), digits=3),
+                          `n Samples` = n()) %>% ungroup() %>%
+                mutate(Window = as.character('2019-2020 Average')) %>% 
+                dplyr::select(StationID, SCI, Window, everything())) %>%
+    # Add Yearly Averages
+    bind_rows(dat %>%
+                mutate(Window = year(`Collection Date`)) %>%
+                group_by(StationID, SCI, Window) %>%
+                summarise(`SCI Average` = format(mean(`SCI Score`, na.rm = T), digits=3),
+                          `n Samples` = n()) %>% ungroup() %>%
+                mutate(Window = as.character(Window))) %>%
+    # Add seasonal averages
+    bind_rows(dat %>%
+                group_by(StationID, SCI, Season) %>%
+                summarise(`SCI Average` = format(mean(`SCI Score`, na.rm = T), digits = 3),
+                          `n Samples` = n()) %>%
+                rename('Window' = 'Season') %>% ungroup()) %>%
+    mutate(Window = factor(Window, levels = c('IR 2022 (6 year Average)', '2019-2020 Average',
+                                              'Spring', 'Fall', '2020', '2019', '2018', '2017', '2016', '2015'))) %>%
+    arrange(StationID, SCI, Window)
 }
