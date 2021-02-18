@@ -139,8 +139,8 @@ habitatCrosstab <- bind_rows(habitatTemplate,
                                group_by(StationID, HabSampID, `Collection Date`) %>%
                                arrange(HabParameterDescription) %>% ungroup() %>%
                                pivot_wider(id_cols = c('StationID','HabSampID','Collection Date'), names_from = HabParameterDescription, values_from = HabValue) %>%
-                               left_join(dplyr::select(totalHab, HabSampID, `Total Habitat Score`), by = 'HabSampID') %>%
-                               dplyr::select(StationID, HabSampID, `Collection Date`, `Total Habitat Score`, everything()) ) %>%
+                               left_join(dplyr::select(totalHab, HabSampID, `HabSample Comment`, `Total Habitat Score`), by = 'HabSampID') %>%
+                               dplyr::select(StationID, HabSampID, `Collection Date`, `HabSample Comment`, `Total Habitat Score`, everything()) ) %>%
   drop_na(StationID) %>%
   arrange(StationID, `Collection Date`) 
 
@@ -160,7 +160,7 @@ plot_ly(totalHab, #%>% mutate( hab1 = 100, hab2 = 130, hab3 = 150, hab4= 200),
                                       #paste("BenSampID: ", BenSampID),
                                       #paste("SCI Score: ", format(`SCI Score`, digits=2)),
                                       paste("Gradient: ", Gradient)),
-        name = ~paste0(Season, " (", Gradient, " Method)")) %>%
+        name = ~paste0(Season, " (", Gradient, " Gradient Method)")) %>%
   add_segments(x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'),  y = 200, yend = 200, 
                text = 'No Probability of Stress to Aquatic Life', 
                name = 'No Probability of Stress to Aquatic Life',line = list(color = '#0072B2')) %>%
@@ -177,6 +177,65 @@ plot_ly(totalHab, #%>% mutate( hab1 = 100, hab2 = 130, hab3 = 150, hab4= 200),
          yaxis=list(title="Total Habitat Score"),
          xaxis=list(title="Sample Date",tickfont = list(size = 10),
                     type = 'date',tickformat = "%B %Y"))  
+
+
+
+dat <- mutate(oneStation(), bottom = `Dissolved Oxygen Min (mg/L)`)
+dat$SampleDate <- as.POSIXct(dat$FDT_DATE_TIME, format="%m/%d/%y")
+
+# Fix look of single measure
+if(nrow(totalHab) == 1){
+  print('yes')
+  totalHab <- bind_rows(totalHab,
+                   tibble(`Collection Date` = c(totalHab$`Collection Date` - days(5), totalHab$`Collection Date` + days(5))))
+  
+  plot_ly(totalHab, #%>% mutate( hab1 = 100, hab2 = 130, hab3 = 150, hab4= 200),
+          x = ~`Collection Date`, y = ~`Total Habitat Score` , type = 'bar', 
+          color = ~Season,  #marker = list(color = ~SeasonGradientColor,width = 0.5), # throws off color for some reason
+          stroke = list(color = 'rgb(0, 0, 0)', width = 3),
+          hoverinfo="text", text=~paste(sep="<br>",
+                                        paste("StationID: ", StationID),
+                                        paste("Collection Date: ", as.Date(`Collection Date`)),
+                                        #paste('Replicate: ', RepNum),
+                                        #paste("Collector ID: ",`Collected By`),
+                                        #paste("BenSampID: ", BenSampID),
+                                        #paste("SCI Score: ", format(`SCI Score`, digits=2)),
+                                        paste("Gradient: ", Gradient)),
+          name = ~paste0(Season, " (", Gradient, " Gradient Method)")) %>%
+    layout(showlegend=TRUE,
+           yaxis=list(title="Total Habitat Score"),
+           xaxis=list(title="Sample Date",tickfont = list(size = 10),
+                      type = 'date',tickformat = "%B %Y")) 
+}
+
+maxheight <- ifelse(max(dat$DO_mg_L, na.rm=T) < 10, 12, max(dat$DO_mg_L, na.rm=T)* 1.2)
+
+if(input$displayBSAcolors == TRUE){
+  box1 <- data.frame(SampleDate = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(10, maxheight, maxheight, 10))
+  box2 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(8, 10, 10, 8))
+  box3 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(7, 8, 8, 7))
+  box4 <- data.frame(x = c(min(dat$SampleDate), min(dat$SampleDate), max(dat$SampleDate),max(dat$SampleDate)), y = c(0, 7, 7, 0))
+  
+  plot_ly(data=box1)%>%
+    add_polygons(x = ~SampleDate, y = ~y, data = box1, fillcolor = "#0072B2",opacity=0.6, line = list(width = 0),
+                 hoverinfo="text", name =paste('No Probability of Stress to Aquatic Life')) %>%
+    add_polygons(data = box2, x = ~x, y = ~y, fillcolor = "#009E73",opacity=0.6, line = list(width = 0),
+                 hoverinfo="text", name =paste('Low Probability of Stress to Aquatic Life')) %>%
+    add_polygons(data = box3, x = ~x, y = ~y, fillcolor = "#F0E442",opacity=0.6, line = list(width = 0),
+                 hoverinfo="text", name =paste('Medium Probability of Stress to Aquatic Life')) %>%
+    add_polygons(data = box4, x = ~x, y = ~y, fillcolor = "firebrick",opacity=0.6, line = list(width = 0),
+                 hoverinfo="text", name =paste('High Probability of Stress to Aquatic Life')) %>%
+    add_lines(data=dat, x=~SampleDate,y=~bottom, mode='line', line = list(color = 'black'),
+              hoverinfo = "text", text="DO Standard", name="DO Standard") %>%
+    add_markers(data=dat, x= ~SampleDate, y= ~DO_mg_L,mode = 'scatter', name="DO (mg/L)", marker = list(color= '#535559'),
+                hoverinfo="text",text=~paste(sep="<br>",
+                                             paste("Date: ",SampleDate),
+                                             paste("Depth: ",FDT_DEPTH, "m"),
+                                             paste("DO: ",DO_mg_L," (mg/L)")))%>%
+    layout(showlegend=FALSE,
+           yaxis=list(title="DO (mg/L)"),
+           xaxis=list(title="Sample Date",tickfont = list(size = 10)))
+
 
 
 # Set how many colors you will use and call them out by hex name

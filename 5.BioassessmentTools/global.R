@@ -75,7 +75,7 @@ habObs <- pin_get("ejones/habObs", board = "rsconnect") %>%
 
 
 # Template to standardize variables for DT habitat heatmap across high and low gradients
-habitatTemplate <- tibble(StationID = NA, HabSampID = NA, `Collection Date` = NA, `Total Habitat Score` = NA, `Bank Stability` = NA, 
+habitatTemplate <- tibble(StationID = NA, HabSampID = NA, `Collection Date` = NA, `HabSample Comment` = NA, `Total Habitat Score` = NA, `Bank Stability` = NA, 
                           `Channel Alteration` = NA, `Channel Flow Status` = NA, `Channel Sinuosity` = NA, Embeddedness = NA, 
                           `Epifaunal Substrate / Available Cover` = NA, `Pool Substrate Characterization` = NA, `Pool Variability` = NA, 
                           `Frequency of riffles (or bends)` = NA, `Riparian Vegetative Zone Width` = NA, `Sediment Deposition` = NA, 

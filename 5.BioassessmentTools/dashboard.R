@@ -10,7 +10,7 @@ ui <- dashboardPage(
     sidebarMenu(
       helpText('Pro Tip: You can use each of the drop', br(),
                ' down boxes independently; however, ', br(),
-               'if you start with the Collector Filter,', br(),
+               'if you start with the Basin Filter,', br(),
                ' the cross validation features narrow',br(), 
                ' down options in subsequent selection ', br(),
                ' fields.'),
@@ -49,26 +49,40 @@ server <- function(input, output, session) {
   # original filters
   output$filters <- renderUI({
     list(
-      selectInput("collectorFilter", "Collector Filter", choices = sort(unique(benSamps$`Collected By`)), multiple = TRUE),
       selectInput("basinFilter", "Basin Filter", choices = sort(unique(benSamps$Basin_Code)), selected = NULL, multiple = TRUE),
+      selectInput("collectorFilter", "Collector Filter", choices = sort(unique(benSamps$`Collected By`)), multiple = TRUE),
       selectInput("stationFilter", "StationID Filter", choices = sort(unique(benSamps$StationID)), selected = NULL, multiple = TRUE)#,
       #selectInput("repFilter", "Rep Filter", choices = sort(unique(benSampsFilter$RepNum)), selected = NULL, multiple = TRUE)    )
       ) })
   
   # update filters if user uses collector first
-  observe({ updateSelectInput(session, "basinFilter", "Basin Filter",
-                              #choices = sort(unique(benSampsFilter()$Basin_Code))) })
-                              choices = if(!is.null(input$collectorFilter)){
-                                filter(benSamps, `Collected By` %in% input$collectorFilter) %>%
-                                  distinct(Basin_Code) %>% arrange(Basin_Code) %>% pull()
-                              } else {distinct(benSamps, Basin_Code) %>% arrange(Basin_Code) %>% pull()} ) })
+  observe({ updateSelectInput(session, "collectorFilter", "Collector Filter",
+                              choices = if(!is.null(input$basinFilter)){
+                                filter(benSamps,  Basin_Code %in% input$basinFilter) %>%
+                                  distinct(`Collected By`) %>% arrange(`Collected By`) %>% pull()
+                              } else {distinct(benSamps, `Collected By`) %>% arrange(`Collected By`) %>% pull()} 
+                              ) })
   
+  # observe({ updateSelectInput(session, "basinFilter", "Basin Filter",
+  #                             #choices = sort(unique(benSampsFilter()$Basin_Code))) })
+  #                             choices = #if(!is.null(input$collectorFilter)){
+  #                               filter(benSamps, `Collected By` %in% input$collectorFilter) %>%
+  #                                 distinct(Basin_Code) %>% arrange(Basin_Code) %>% pull()
+  #                             #} #else {distinct(benSamps, Basin_Code) %>% arrange(Basin_Code) %>% pull()}
+  #                             ) })
+  # 
   observe({ updateSelectInput(session, "stationFilter", "StationID Filter",
-                              choices = if(!is.null(input$collectorFilter)){
-                                filter(benSamps, `Collected By` %in% input$collectorFilter) %>%
-                                  filter( Basin_Code %in% input$basinFilter) %>%
+                              choices = if(!is.null(input$basinFilter)){
+                                filter(benSamps,  Basin_Code %in% input$basinFilter) %>%
+                                  {if(!is.null(input$collectorFilter))
+                                    filter(., `Collected By` %in% input$collectorFilter)
+                                      else . } %>%
                                   distinct(StationID) %>% arrange(StationID) %>% pull()
-                              } else {distinct(benSamps, StationID) %>% arrange(StationID) %>% pull()} ) })
+                              } else {
+                                if(!is.null(input$collectorFilter)){
+                                  filter(benSamps, `Collected By` %in% input$collectorFilter) %>%
+                                    distinct(StationID) %>% arrange(StationID) %>% pull()
+                                } else { distinct(benSamps, StationID) %>% arrange(StationID) %>% pull()} } ) })
   
   # Filter by user input
   benSampsFilter <- reactive({
@@ -177,31 +191,51 @@ server <- function(input, output, session) {
   return(SCI_filter)  })
   
   output$SCIplot <- renderPlotly({ req(SCI_filter())
-    plot_ly(SCI_filter() %>% mutate(`VSCI Criteria` = 60, `VCPMI Criteria` = 40),
-            x = ~`Collection Date`, y = ~`SCI Score`, type = 'bar', 
-            color = ~SeasonGradient,  #marker = list(color = ~SeasonGradientColor,width = 0.5), # throws off color for some reason
-            stroke = list(color = 'rgb(0, 0, 0)', width = 3),
-            hoverinfo="text", text=~paste(sep="<br>",
-                                          paste("StationID: ", StationID),
-                                          paste("Collection Date: ", as.Date(`Collection Date`)),
-                                          paste('Replicate: ', RepNum),
-                                          paste("Collector ID: ",`Collected By`),
-                                          paste("BenSampID: ", BenSampID),
-                                          paste("SCI Score: ", format(`SCI Score`, digits=2)),
-                                          paste("Gradient: ", Gradient)),
-            name = ~paste('Rep ',RepNum, SeasonGradient)) %>%
-      {if('VSCI' %in% SCI_filter()$SCI)
-        add_segments(., x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'),  y = 60, yend = 60, 
-                     text = 'VSCI Criteria = 60', name = 'VSCI Criteria = 60',line = list(color = 'red'))
-        else . } %>%
-      {if(any(c('VCPMI + 63', 'VCPMI - 65') %in% SCI_filter()$SCI))
-        add_segments(., x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'), y = 40, yend = 40, 
-                     text = 'VCPMI Criteria = 40', name = 'VCPMI Criteria = 40',line = list(color = 'red'))
-        else . }%>%
-      layout(showlegend=TRUE,
-        yaxis=list(title="SCI"),
-        xaxis=list(title="Sample Date",tickfont = list(size = 10),
-                   type = 'date',tickformat = "%B %Y"))   })
+    if(nrow(SCI_filter()) == 1){
+      plot_ly(SCI_filter(),  x = ~`Collection Date`, y = ~`SCI Score`, type = 'bar', 
+              color = ~SeasonGradient,  #marker = list(color = ~SeasonGradientColor,width = 0.5), # throws off color for some reason
+              stroke = list(color = 'rgb(0, 0, 0)', width = 3),
+              hoverinfo="text", text=~paste(sep="<br>",
+                                            paste("StationID: ", StationID),
+                                            paste("Collection Date: ", as.Date(`Collection Date`)),
+                                            paste('Replicate: ', RepNum),
+                                            paste("Collector ID: ",`Collected By`),
+                                            paste("BenSampID: ", BenSampID),
+                                            paste("SCI Score: ", format(`SCI Score`, digits=2)),
+                                            paste("Gradient: ", Gradient)),
+              name = ~paste('Rep ',RepNum, SeasonGradient)) %>%
+        layout(showlegend=TRUE,
+              yaxis=list(title="SCI"),
+              xaxis=list(title="Sample Date",tickfont = list(size = 10),
+                         type = 'date',tickformat = #"%B %Y"))   })
+                           "%Y")) 
+    } else {
+      plot_ly(SCI_filter() %>% mutate(`VSCI Criteria` = 60, `VCPMI Criteria` = 40),
+              x = ~`Collection Date`, y = ~`SCI Score`, type = 'bar', 
+              color = ~SeasonGradient,  #marker = list(color = ~SeasonGradientColor,width = 0.5), # throws off color for some reason
+              stroke = list(color = 'rgb(0, 0, 0)', width = 3),
+              hoverinfo="text", text=~paste(sep="<br>",
+                                            paste("StationID: ", StationID),
+                                            paste("Collection Date: ", as.Date(`Collection Date`)),
+                                            paste('Replicate: ', RepNum),
+                                            paste("Collector ID: ",`Collected By`),
+                                            paste("BenSampID: ", BenSampID),
+                                            paste("SCI Score: ", format(`SCI Score`, digits=2)),
+                                            paste("Gradient: ", Gradient)),
+              name = ~paste('Rep ',RepNum, SeasonGradient)) %>%
+        {if('VSCI' %in% SCI_filter()$SCI)
+          add_segments(., x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'),  y = 60, yend = 60, 
+                       text = 'VSCI Criteria = 60', name = 'VSCI Criteria = 60',line = list(color = 'red'))
+          else . } %>%
+        {if(any(c('VCPMI + 63', 'VCPMI - 65') %in% SCI_filter()$SCI))
+          add_segments(., x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'), y = 40, yend = 40, 
+                       text = 'VCPMI Criteria = 40', name = 'VCPMI Criteria = 40',line = list(color = 'red'))
+          else . }%>%
+        layout(showlegend=TRUE,
+               yaxis=list(title="SCI"),
+               xaxis=list(title="Sample Date",tickfont = list(size = 10),
+                          type = 'date',tickformat = #"%B %Y"))   })
+                            "%Y"))    }  })
   
   output$SCITable <- renderDataTable({req(SCI_filter())
     z <- mutate(SCI_filter(), `Collection Date` = as.Date(`Collection Date`)) %>%
@@ -234,60 +268,54 @@ server <- function(input, output, session) {
                 group_by(StationID, HabSampID, `Collection Date`) %>%
                 arrange(HabParameterDescription) %>% ungroup() %>%
                 pivot_wider(id_cols = c('StationID','HabSampID','Collection Date'), names_from = HabParameterDescription, values_from = HabValue) %>%
-                left_join(dplyr::select(totalHab(), HabSampID, `Total Habitat Score`), by = 'HabSampID') %>%
-                dplyr::select(StationID, HabSampID, `Collection Date`, `Total Habitat Score`, everything()) ) %>%
+                left_join(dplyr::select(totalHab(), HabSampID, `HabSample Comment`, `Total Habitat Score`), by = 'HabSampID') %>%
+                dplyr::select(StationID, HabSampID, `Collection Date`, `HabSample Comment`, `Total Habitat Score`, everything()) ) %>%
       drop_na(StationID) %>%
       arrange(StationID, `Collection Date`)   })
   
   output$SCIplot1 <- renderPlotly({ req(SCI_filter())
-    plot_ly(totalHab(), #%>% mutate( hab1 = 100, hab2 = 130, hab3 = 150, hab4= 200),
-            x = ~`Collection Date`, y = ~`Total Habitat Score` , type = 'bar', 
-            color = ~Season,  #marker = list(color = ~SeasonGradientColor,width = 0.5), # throws off color for some reason
-            stroke = list(color = 'rgb(0, 0, 0)', width = 3),
-            hoverinfo="text", text=~paste(sep="<br>",
-                                          paste("StationID: ", StationID),
-                                          paste("Collection Date: ", as.Date(`Collection Date`)),
-                                          #paste('Replicate: ', RepNum),
-                                          #paste("Collector ID: ",`Collected By`),
-                                          #paste("BenSampID: ", BenSampID),
-                                          #paste("SCI Score: ", format(`SCI Score`, digits=2)),
-                                          paste("Gradient: ", Gradient)),
-            name = ~paste0(Season, " (", Gradient, " Method)")) %>%
+    
+    if(nrow(totalHab()) == 1){
+      plot_ly(totalHab(), 
+              x = ~`Collection Date`, y = ~`Total Habitat Score` , type = 'bar', 
+              color = ~Season, 
+              stroke = list(color = 'rgb(0, 0, 0)', width = 3),
+              hoverinfo="text", text=~paste(sep="<br>",
+                                            paste("StationID: ", StationID),
+                                            paste("Collection Date: ", as.Date(`Collection Date`)),
+                                            paste("Gradient: ", Gradient)),
+              name = ~paste0(Season, " (", Gradient, " Gradient Method)")) %>%
+        layout(showlegend=TRUE,
+               yaxis=list(title="Total Habitat Score"),
+               xaxis=list(title="Sample Date",tickfont = list(size = 10),
+                          type = 'date',tickformat = "%B %Y")) 
+    } else {
+      plot_ly(totalHab(),
+              x = ~`Collection Date`, y = ~`Total Habitat Score` , type = 'bar', 
+              color = ~Season,  
+              stroke = list(color = 'rgb(0, 0, 0)', width = 3),
+              hoverinfo="text", text=~paste(sep="<br>",
+                                            paste("StationID: ", StationID),
+                                            paste("Collection Date: ", as.Date(`Collection Date`)),
+                                            paste("Gradient: ", Gradient)),
+              name = ~paste0(Season, " (", Gradient, " Gradient Method)")) %>%
         add_segments(x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'),  y = 200, yend = 200, 
                      text = 'No Probability of Stress to Aquatic Life', 
                      name = 'No Probability of Stress to Aquatic Life',line = list(color = '#0072B2')) %>%
-      add_segments(x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'),  y = 150, yend = 150, 
-                   text = 'Low Probability of Stress to Aquatic Life', 
-                   name = 'Low Probability of Stress to Aquatic Life',line = list(color = '#009E73')) %>%
-      add_segments(x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'),  y = 130, yend = 130, 
-                   text = 'Medium Probability of Stress to Aquatic Life', 
-                   name = 'Medium Probability of Stress to Aquatic Life',line = list(color = '#F0E442')) %>%
-      add_segments(x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'),  y = 100, yend = 100, 
-                   text = 'High Probability of Stress to Aquatic Life', 
-                   name = 'High Probability of Stress to Aquatic Life',line = list(color = 'red')) %>%
-      layout(showlegend=TRUE,
-             yaxis=list(title="Total Habitat Score"),
-             xaxis=list(title="Sample Date",tickfont = list(size = 10),
-                        type = 'date',tickformat = "%B %Y"))   })
-  # output$habitatPlot <- renderPlotly({req(totalHab())
-  #   plot_ly( totalHab() %>% ungroup(), 
-  #      x = ~`Collection Date`, y = ~`Total Habitat Score`, type = 'bar', 
-  #              color = ~Season, width = 0.5, stroke = list(color = 'rgb(0, 0, 0)', width = 3),
-  #              #marker = list(line = list(width = 1.5)),
-  #              hoverinfo="text", text=~paste(sep="<br>",
-  #                                            paste("StationID: ", StationID),
-  #                                            paste("Collection Date: ", as.Date(`Collection Date`)),
-  #                                            #paste('Replicate: ', RepNum),
-  #                                            paste("Field Team: ",`Field Team`),
-  #                                            paste("HabSampID: ", HabSampID),
-  #                                            paste("Total Habitat Score: ", `Total Habitat Score`))) %>%
-  #     add_segments(., x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'),  y = 60, yend = 60, 
-  #                  text = 'VSCI Criteria = 60', name = 'VSCI Criteria = 60',line = list(color = 'red')) %>%
-  #     layout(showlegend=TRUE,
-  #            yaxis=list(title="Total Habitat Score",
-  #                       range = c(0, 210)),
-  #            xaxis=list(title="Sample Date",tickfont = list(size = 10),
-  #                       type = 'date',tickformat = "%B %Y"))   })
+        add_segments(x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'),  y = 150, yend = 150, 
+                     text = 'Low Probability of Stress to Aquatic Life', 
+                     name = 'Low Probability of Stress to Aquatic Life',line = list(color = '#009E73')) %>%
+        add_segments(x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'),  y = 130, yend = 130, 
+                     text = 'Medium Probability of Stress to Aquatic Life', 
+                     name = 'Medium Probability of Stress to Aquatic Life',line = list(color = '#F0E442')) %>%
+        add_segments(x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'),  y = 100, yend = 100, 
+                     text = 'High Probability of Stress to Aquatic Life', 
+                     name = 'High Probability of Stress to Aquatic Life',line = list(color = 'red')) %>%
+        layout(showlegend=TRUE,
+               yaxis=list(title="Total Habitat Score"),
+               xaxis=list(title="Sample Date",tickfont = list(size = 10),
+                          type = 'date',tickformat = #"%B %Y"))   })
+                            "%Y"))  }    })
   
   
   
