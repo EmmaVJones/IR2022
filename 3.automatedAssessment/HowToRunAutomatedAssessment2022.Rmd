@@ -61,6 +61,15 @@ WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
 Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
 ```
 
+## Bring in additional Data
+
+```{r other Datasets}
+markPCB <- read_excel('data/2022 IR PCBDatapull_EVJ.xlsx', sheet = '2022IR Datapull EVJ')
+fishPCB <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'PCBs')
+fishMetals <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'Metals')
+```
+
+
 ## Bring in Station Table Bulk Upload Template
 
 ```{r bulk upload template}
@@ -268,20 +277,27 @@ for(i in 1:nrow(stationTable)){
                            chronic = freshwaterNH3Assessment(ammoniaAnalysisStation, 'chronic'),
                            fourDay = freshwaterNH3Assessment(ammoniaAnalysisStation, 'four-day'))), 
     
-      # Exact copy of last cycle's scripts for WAT_MET_EXC, WAT_MET_STAT, 
+      # Roger's water column metals analysis, transcribed
       metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData$FDT_STA_ID) %>% 
                                        dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
-      # Need more clarification on water column metals, what comes in, what desired in columns
-      # WAT_TOX_EXC, WAT_TOX_STAT
+      # Mark's water column PCB results, flagged
+      PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Water')) %>%
+                            filter(StationID %in% stationData$FDT_STA_ID), 'WAT_TOX'), 
     
-      # Exact copy of last cycle's scripts for SED_MET_EXC, SED_MET_STAT
+      # Roger's sediment metals analysis, transcribed
       metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData$FDT_STA_ID) %>% 
                                       dplyr::select(ARSENIC:ZINC), 'SED_MET'), 
-      # Need more clarification on sediment metals, what comes in, what desired in columns
-      # SED_TOX_EXC, SED_TOX_STAT
-    
-      # Need more clarification on Fish, what comes in, what desired in columns
-      # FISH_MET_EXC, FISH_MET_STAT, FISH_TOX_EXC, FISH_TOX_STAT
+      
+      # Mark's sediment PCB results, flagged
+      PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Sediment')) %>%
+                      filter(StationID %in% stationData$FDT_STA_ID), 'SED_TOX'),
+      
+      # Gabe's fish metals results, flagged
+      PCBmetalsDataExists(filter(fishMetals, Station_ID %in% stationData$FDT_STA_ID), 'FISH_MET'),
+      
+      # Gabe's fish PCB results, flagged
+      PCBmetalsDataExists(filter(fishPCB, `DEQ rivermile` %in%  stationData$FDT_STA_ID), 'FISH_TOX'),
+
     
       # Benthics 
       # BENTHIC_STAT, BENTHIC_WOE_CAT, BIBI_SCORE

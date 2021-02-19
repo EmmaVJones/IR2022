@@ -366,7 +366,9 @@ write.csv(PCB, 'data/PCBfixed.csv', row.names = F) # dont write out a character 
 
 ### Fish Tissue Data
 
-Fish tissue is a disaster. 
+Fish tissue is a disaster. I ended up combining Gabe's final yearly products by hand in C:\HardDriveBackup\Assessment\IR2022\Fish Tissue\2015_2020_fish_tissue_data_WQA\FishTissuePCBsMetals_EVJ.xlsx
+
+2020 data still needs to be hand combined. This is not a long term solution but the VIMS raw data Gabe sent does not include species information so there is a good amount of hand work going on somewhere in his methods that we need access to to join in.
 
 ```{r}
 source('fishTissueCleaning.R')
@@ -384,6 +386,7 @@ source('fishTissueCleaning.R')
 
 
 ```{r fish tissue}
+
 fish2015 <- read_excel('data/2015_2020_fish_tissue_data_WQA/2015_fish_PCBs_v122.xlsx')
 ```
 

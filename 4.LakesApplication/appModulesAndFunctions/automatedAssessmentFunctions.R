@@ -304,7 +304,22 @@ metalsExceedances <- function(x, metalType){
 }
 
 
+## Identify if further review needs to happen for PCB or metals data 
+PCBmetalsDataExists <- function(x, parameterType){
+  # if any data given to function
+  if(nrow(x) > 0){ 
+    x <- data.frame(EXC = NA, STAT = 'Review')
+  }else {
+    x <- data.frame(EXC = NA, STAT = NA) }
+  
+  names(x) <- paste(parameterType, names(x), sep='_')
+  return(x)
+}
 
+# PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Water')) %>%
+#                       filter(StationID %in% stationData$FDT_STA_ID), 'WAT_TOX')
+# PCBmetalsDataExists(filter(fishMetals, Station_ID %in% stationData$FDT_STA_ID), 'FISH_MET')
+# PCBmetalsDataExists(filter(fishPCB, `DEQ rivermile` %in%  stationData$FDT_STA_ID), 'FISH_TOX')
 
 #### PWS Assessment Functions ---------------------------------------------------------------------------------------------------
 # The app doesn't use this function for modules because you need to be able to toggle assessment on/off with WQS adjustment on the
