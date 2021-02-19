@@ -79,6 +79,7 @@ vignettes/*.pdf
 
 5.BioassessmentTools/data/
 5.BioassessmentTools/config.yml
+5.BioassessmentTools/fromLucy/
 
 WQSlookupTable/
 
