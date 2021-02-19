@@ -283,13 +283,23 @@ shinyServer(function(input, output, session) {
                                          ammoniaDecision(list(acute = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'acute'),
                                                               chronic = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'chronic'),
                                                               fourDay = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'four-day'))),
+                                         # Roger's water column metals analysis, transcribed
                                          metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
                                                              dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
-                                         tibble(WAT_TOX_EXC = NA,	WAT_TOX_STAT = NA),
+                                         # Mark's water column PCB results, flagged
+                                         PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Water')) %>%
+                                                               filter(StationID %in%  stationData()$FDT_STA_ID), 'WAT_TOX'),
+                                         # Roger's sediment metals analysis, transcribed
                                          metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
                                                              dplyr::select(ARSENIC:ZINC), 'SED_MET'),
-                                         tibble(SED_TOX_EXC	= NA, SED_TOX_STAT = NA, FISH_MET_EXC= NA, FISH_MET_STAT= NA, FISH_TOX_EXC= NA, FISH_TOX_STAT= NA, BENTHIC_STAT = NA, 
-                                                BENTHIC_WOE_CAT= NA, BIBI_SCORE = NA),
+                                         # Mark's sediment PCB results, flagged
+                                         PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Sediment')) %>%
+                                                               filter(StationID %in%  stationData()$FDT_STA_ID), 'SED_TOX'),
+                                         # Gabe's fish metals results, flagged
+                                         PCBmetalsDataExists(filter(fishMetals, Station_ID %in% stationData()$FDT_STA_ID), 'FISH_MET'),
+                                         # Gabe's fish PCB results, flagged
+                                         PCBmetalsDataExists(filter(fishPCB, `DEQ rivermile` %in%  stationData()$FDT_STA_ID), 'FISH_TOX'),
+                                         tibble(BENTHIC_STAT = NA, BENTHIC_WOE_CAT= NA, BIBI_SCORE = NA),
                                          TP_Assessment(stationData()),
                                          chlA_Assessment(stationData()) ) %>%
       mutate(COMMENTS = NA) %>%
@@ -313,11 +323,14 @@ shinyServer(function(input, output, session) {
       formatStyle(c('ECOLI_EXC','ECOLI_SAMP','ECOLI_GM_EXC','ECOLI_GM_SAMP','ECOLI_STAT'), 'ECOLI_STAT', backgroundColor = styleEqual(c('IM'), c('red'))) %>%
       formatStyle(c('AMMONIA_EXC','AMMONIA_STAT'), 'AMMONIA_STAT', backgroundColor = styleEqual(c('Review', 'IM'), c('yellow','red'))) %>%
       formatStyle(c('WAT_MET_EXC','WAT_MET_STAT'), 'WAT_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
-      formatStyle(c('SED_MET_EXC','SED_MET_STAT'), 'SED_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+      formatStyle(c('WAT_TOX_EXC','WAT_TOX_STAT'), 'WAT_TOX_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+      formatStyle(c('SED_MET_EXC','SED_MET_STAT'), 'SED_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%   
+      formatStyle(c('SED_TOX_EXC','SED_TOX_STAT'), 'SED_TOX_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+      formatStyle(c('FISH_MET_EXC','FISH_MET_STAT'), 'FISH_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%   
+      formatStyle(c('FISH_TOX_EXC','FISH_TOX_STAT'), 'FISH_TOX_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
       formatStyle(c('BENTHIC_STAT'), 'BENTHIC_STAT', backgroundColor = styleEqual(c('Review'), c('yellow'))) %>%
       formatStyle(c('NUT_TP_EXC','NUT_TP_SAMP'), 'NUT_TP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>% 
       formatStyle(c('NUT_CHLA_EXC','NUT_CHLA_SAMP'), 'NUT_CHLA_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red')))  })
-  
   
   
   ## PWS table
