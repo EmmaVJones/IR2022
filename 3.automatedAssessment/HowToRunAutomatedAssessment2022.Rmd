@@ -231,7 +231,8 @@ for(i in 1:nrow(stationTable)){
   # is attributed to in the automated assessment scripts
   
   # PWS stuff
-   if(is.na(unique(stationData$PWS))  ){
+  if(nrow(stationData) > 0){
+    if(is.na(unique(stationData$PWS))  ){
       PWSconcat <- tibble(#STATION_ID = unique(stationData$FDT_STA_ID),
                           PWS= NA)
    } else {
@@ -251,6 +252,10 @@ for(i in 1:nrow(stationTable)){
     WCtoxics <- tibble(WAT_TOX_EXC = NA, WAT_TOX_STAT = 'Review')
     } else { WCtoxics <- tibble(WAT_TOX_EXC = NA, WAT_TOX_STAT = NA)} 
   
+  } else {
+    WCtoxics <- tibble(WAT_TOX_EXC = NA, WAT_TOX_STAT = NA)
+  }
+   
   # If data exists for station, run it, otherwise just output what last cycle said and comment
   if(nrow(stationData) > 0){
     # Nutrients based on station type
