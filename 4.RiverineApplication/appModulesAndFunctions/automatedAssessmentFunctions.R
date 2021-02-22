@@ -337,7 +337,9 @@ assessPWS <- function(x, fieldName, commentName, PWSlimit, outputName){
       rename(parameter = !!names(.[4])) %>% # rename columns to make functions easier to apply
       mutate(exceeds = ifelse(parameter > limit, T, F)) # Identify where above WQS limit
     return(quickStats(parameterData, outputName)) #%>% dplyr::select(-ends_with('STAT')))    
-  } }
+  }
+  return(quickStats(tibble(limit = NA), outputName))
+  }
 
 #assessPWS(x, NITRATE_mg_L, LEVEL_NITRATE, 10, 'PWS_Nitrate')
 #assessPWS(x, CHLORIDE_mg_L, LEVEL_CHLORIDE, 250, 'PWS_Chloride')

@@ -231,23 +231,23 @@ for(i in 1:nrow(stationTable)){
   # is attributed to in the automated assessment scripts
   
   # PWS stuff
-   if(is.na(unique(stationData$PWS))){
-      PWSconcat <- tibble(STATION_ID = unique(stationData()$FDT_STA_ID),
-                          PWS= 'PWS Standards Do Not Apply To Station')
+   if(is.na(unique(stationData$PWS))  ){
+      PWSconcat <- tibble(#STATION_ID = unique(stationData$FDT_STA_ID),
+                          PWS= NA)
    } else {
-     PWSconcat <- cbind(tibble(STATION_ID = unique(stationData$FDT_STA_ID)),
+     PWSconcat <- cbind(#tibble(STATION_ID = unique(stationData$FDT_STA_ID)),
                          assessPWS(stationData, NITRATE_mg_L, LEVEL_NITRATE, 10, 'PWS_Nitrate'),
                          assessPWS(stationData, CHLORIDE_mg_L, LEVEL_CHLORIDE, 250, 'PWS_Chloride'),
                          assessPWS(stationData, SULFATE_TOTAL_mg_L, LEVEL_SULFATE_TOTAL, 250, 'PWS_Total_Sulfate')) %>%
-        dplyr::select(-ends_with('exceedanceRate')) }
+       dplyr::select(-ends_with('exceedanceRate')) }
   
   # Water toxics combination with PWS
   if(nrow(bind_cols(PWSconcat,
                     PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Water')) %>%
                                         filter(StationID %in% stationData$FDT_STA_ID), 'WAT_TOX')) %>%
           dplyr::select(contains(c('_EXC','_STAT'))) %>%
-          pivot_longer(cols = contains(c('_EXC','_STAT')), names_to = 'parameter', values_to = 'values') %>%
-          filter(!is.na(values)) ) > 0){
+          mutate(across( everything(),  as.character)) %>%
+          pivot_longer(cols = contains(c('_EXC','_STAT')), names_to = 'parameter', values_to = 'values', values_drop_na = TRUE) ) > 1) {
     WCtoxics <- tibble(WAT_TOX_EXC = NA, WAT_TOX_STAT = 'Review')
     } else { WCtoxics <- tibble(WAT_TOX_EXC = NA, WAT_TOX_STAT = NA)} 
   
@@ -341,8 +341,8 @@ for(i in 1:nrow(stationTable)){
     
       # COMMENTS
       mutate(COMMENTS = paste0(DO_Daily_Avg_STAT, 
-                               ' | ECOLI Comment: ', ECOLI_STATECOLI_VERBOSE,
-                               ' | ENTEROCOCCI Comment: ', ENTER_STATENTER_VERBOSE,
+                               ' | E.coli Comment: ', ECOLI_STATECOLI_VERBOSE,
+                               ' | Enterococci Comment: ', ENTER_STATENTER_VERBOSE,
                                ' | AMMONIA Comment: ', `Assessment Decision`)) %>%
       left_join(comments, by = 'STATION_ID') %>%
       dplyr::select(-ends_with(c('exceedanceRate', 'VERBOSE', 'Assessment Decision', 'StationID'))) # to match Bulk Upload template but helpful to keep visible til now for testing
