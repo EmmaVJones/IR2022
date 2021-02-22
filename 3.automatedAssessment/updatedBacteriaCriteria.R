@@ -199,7 +199,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
                             `_GM.EXC` = nrow(exceedGeomean),
                             `_GM.SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
                             `_STAT` = "IM",
-                            `_STAT_VERBOSE` = "Impaired- 2 or more STV hits in the same 90-day period with < 10 samples after verifying geomean passes where applicable.",
+                            `_STAT_VERBOSE` = "Impaired- 2 or more STV exceedances in the same 90-day period with < 10 samples, no geomean exceedances.", #2 or more STV hits in the same 90-day period with < 10 samples after verifying geomean passes where applicable.",
                             associatedDecisionData = list(z) ) %>%
                        rename_with( ~ gsub("_", paste0(stationTableName,"_"), .x, fixed = TRUE)) %>%  # fix names to match station table format
                        rename_with( ~ gsub(".", "_", .x, fixed = TRUE)) ) # special step to get around accidentally replacing _GM with station table name
@@ -210,7 +210,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
                               `_GM.EXC` = nrow(exceedGeomean),
                               `_GM.SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
                               `_STAT` = "OE",
-                              `_STAT_VERBOSE` = "Fully Supporting with an observed effect- 1 STV hit in one or multiple 90-day periods with < 10 samples after verifying geomean passes where applicable.",
+                              `_STAT_VERBOSE` = "Fully Supporting with Observed Effects - No geomean exceedances and only 1 STV exceedance in one or multiple 90-day periods represented by < 10 samples.", # previous language: 1 STV hit in one or multiple 90-day periods with < 10 samples after verifying geomean passes where applicable.",
                               associatedDecisionData = list(z) ) %>%
                          rename_with( ~ gsub("_", paste0(stationTableName,"_"), .x, fixed = TRUE)) %>%  # fix names to match station table format
                          rename_with( ~ gsub(".", "_", .x, fixed = TRUE)) ) # special step to get around accidentally replacing _GM with station table name
@@ -237,7 +237,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
                       `_GM.EXC` = nrow(exceedGeomean),
                       `_GM.SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
                       `_STAT` = "IM",
-                      `_STAT_VERBOSE` = "Impaired- geomean exceedance(s) in any 90-day period with >= 10 samples.",
+                      `_STAT_VERBOSE` = "Impaired- geomean exceedance in any 90-day period.", #geomean exceedance(s) in any 90-day period with >= 10 samples.",
                       associatedDecisionData = list(z) ) %>%
                  rename_with( ~ gsub("_", paste0(stationTableName,"_"), .x, fixed = TRUE)) %>%  # fix names to match station table format
                  rename_with( ~ gsub(".", "_", .x, fixed = TRUE)) ) # special step to get around accidentally replacing _GM with station table name
@@ -253,7 +253,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
                       `_GM.EXC` = nrow(exceedGeomean),
                       `_GM.SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
                       `_STAT` = "IN", # is this the right code???
-                      `_STAT_VERBOSE` = "Insufficient Information (Prioritize for follow up monitoring)- 0 STV hits but insufficient data to analyze geomean.",
+                      `_STAT_VERBOSE` = "Insufficient Information (Prioritize for follow up monitoring)- No STV exceedances but insufficient data to analyze geomean.", #0 STV hits but insufficient data to analyze geomean.",
                       associatedDecisionData = list(z) ) %>%
                  rename_with( ~ gsub("_", paste0(stationTableName,"_"), .x, fixed = TRUE))%>%  # fix names to match station table format
                  rename_with( ~ gsub(".", "_", .x, fixed = TRUE)) ) # special step to get around accidentally replacing _GM with station table name
@@ -279,7 +279,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
                           `_GM.EXC` = nrow(exceedGeomean),
                           `_GM.SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
                           `_STAT` = "IN", # is this the right code???
-                          `_STAT_VERBOSE` = "Insufficient Information (Prioritize for follow up monitoring)- 1 STV hit in one or multiple 90-day periods but insufficient data to analyze geomean.",
+                          `_STAT_VERBOSE` = "Insufficient Information (Prioritize for follow up monitoring)- One STV exceedance in one or multiple 90-day periods but insufficient data to analyze geomean.",#1 STV hit in one or multiple 90-day periods but insufficient data to analyze geomean.",
                           associatedDecisionData = list(z) ) %>%
                      rename_with( ~ gsub("_", paste0(stationTableName,"_"), .x, fixed = TRUE)) %>%  # fix names to match station table format
                      rename_with( ~ gsub(".", "_", .x, fixed = TRUE)) ) # special step to get around accidentally replacing _GM with station table name
