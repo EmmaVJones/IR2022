@@ -29,7 +29,8 @@ VCPMI65results <- pin_get("VCPMI65results", board = "rsconnect") %>%
   #left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME, WQS_BASIN_CODE) %>%
   #            distinct(WQM_STA_ID, .keep_all = TRUE), by = c('StationID' = 'WQM_STA_ID'))
 ammoniaAnalysis <- readRDS('userDataToUpload/processedStationData/ammoniaAnalysis.RDS')
-markPCB <- read_excel('data/2022 IR PCBDatapull_EVJ.xlsx', sheet = '2022IR Datapull EVJ')
+markPCB <- read_excel('data/2022 IR PCBDatapull_EVJ.xlsx', sheet = '2022IR Datapull EVJ') %>%
+  mutate(SampleDate = as.Date(SampleDate))
 fishPCB <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'PCBs')
 fishMetals <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'Metals') %>%
   rename("# of Fish" = "# of fish...4", "Species_Name"  = "Species_Name...5", 
@@ -655,9 +656,7 @@ plot_ly(data=fourDayWindowData) %>%
 
 
 ## Fish Metals work
-fishMetalsScreeningValues1 <- fishMetalsScreeningValues %>% group_by(`Screening Method`) %>% 
-  pivot_longer(cols = -`Screening Method`, names_to = 'Metal', values_to = 'Screening Value') %>%
-  arrange(Metal)
+
 
 Fmetals <- filter(fishMetals, Station_ID %in% '2-JKS023.61') 
 if(nrow(Fmetals) > 0){
@@ -671,4 +670,16 @@ if(nrow(Fmetals) > 0){
 } else { FmetalsSV <- dplyr::select(Fmetals, Station_ID, Collection_Date_Time, Sample_ID,  `# of Fish`, Species_Name, length, weight) %>%
   mutate(Metal = NA, Measure = NA, `Screening Method` = NA, `Screening Value` = NA)}
   
+
+# Fish PCB work
+fPCB <- filter(fishPCB, `DEQ rivermile` %in% '2-JKS023.61')
+
+datatable(fishPCB %>% dplyr::select(`Total PCBs`, everything()), rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(fishPCB), scrollY = "250px", dom='t'), selection = 'none') %>%
+  formatStyle('Total PCBs', backgroundColor = styleInterval(c( 18, 20, 100, 500), c(NA, '#f2a972', '#c34eed', '#4a57e8', '#ed4242' )))
+
+tibble(Description = c('DEQ screening value of 18 ppb', 'DEQ screening value of 20 ppb', 'VDH lower level of concern of 100 ppb', 'VDH upper level of concern of 500 ppb'),
+       `Screening Value` = c(18.001, 20.001, 100.001, 500.001)) %>% # extra digits to force colors to come in correctly
+  datatable(rownames = FALSE, options= list(scrollX = TRUE, pageLength = 4, dom='t')) %>%
+  formatRound('Screening Value',digits = 0) %>%
+  formatStyle(c('Description', 'Screening Value'), backgroundColor = styleInterval(c( 18, 20, 100, 500), c(NA, '#f2a972', '#c34eed', '#4a57e8', '#ed4242' )))
 

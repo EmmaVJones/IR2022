@@ -269,14 +269,8 @@ shinyUI(fluidPage(theme="yeti.css",
                                                                           automated assessment scripts, so please direct questions to Roger Stewart (roger.stewart@deq.virginia.gov).'),
                                                                 metalsTableSingleStationUI('metals')),
                                             tabPanel('Toxics Data', 
-                                                      tabsetPanel(
-                                                        tabPanel('Water Column Toxics',
-                                                                 br(), h4('Hang tight, module still in development.'), br(), br(), br(), br(), br(), br()),
-                                                        tabPanel('Sediment Toxics',
-                                                                 br(), h4('Hang tight, module still in development.'), br(), br(), br(), br(), br(), br()),
-                                                        tabPanel('Fish Tissue Data',
-                                                                 br(), h4('Hang tight, module still in development.'), br(), br(), br(), br(), br(), br())
-                                                      ))
+                                                     toxicsSingleStationUI('PBC'))
+                                                     
                                             
                                           ))        
                                           

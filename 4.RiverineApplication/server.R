@@ -27,7 +27,8 @@ VCPMI65results <- pin_get("VCPMI65results", board = "rsconnect") %>%
 
 # Bring in local data (for now)
 ammoniaAnalysis <- readRDS('userDataToUpload/processedStationData/ammoniaAnalysis.RDS')
-markPCB <- read_excel('data/2022 IR PCBDatapull_EVJ.xlsx', sheet = '2022IR Datapull EVJ')
+markPCB <- read_excel('data/2022 IR PCBDatapull_EVJ.xlsx', sheet = '2022IR Datapull EVJ') %>%
+  mutate(SampleDate = as.Date(SampleDate))
 fishPCB <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'PCBs')
 fishMetals <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'Metals') %>%
   rename("# of Fish" = "# of fish...4", "Species_Name"  = "Species_Name...5", 
@@ -531,5 +532,8 @@ shinyServer(function(input, output, session) {
   
   #### Metals Sub Tab ####---------------------------------------------------------------------------------------------------
   callModule(metalsTableSingleStation,'metals', AUData, WCmetals ,Smetals, fishMetals, fishMetalsScreeningValues, stationSelected)
+  
+  #### Toxics Sub Tab ####---------------------------------------------------------------------------------------------------
+  callModule(toxicsSingleStation,'PBC', AUData, markPCB, fishPCB, stationSelected)
   
 })
