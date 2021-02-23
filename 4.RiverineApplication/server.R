@@ -27,7 +27,15 @@ VCPMI65results <- pin_get("VCPMI65results", board = "rsconnect") %>%
 
 # Bring in local data (for now)
 ammoniaAnalysis <- readRDS('userDataToUpload/processedStationData/ammoniaAnalysis.RDS')
-
+markPCB <- read_excel('data/2022 IR PCBDatapull_EVJ.xlsx', sheet = '2022IR Datapull EVJ')
+fishPCB <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'PCBs')
+fishMetals <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'Metals') %>%
+  rename("# of Fish" = "# of fish...4", "Species_Name"  = "Species_Name...5", 
+         "species_name" = "Species_Name...47", "number of fish" = "# of fish...48")
+fishMetalsScreeningValues <- read_csv('data/FishMetalsScreeningValues.csv') %>%
+  group_by(`Screening Method`) %>% 
+  pivot_longer(cols = -`Screening Method`, names_to = 'Metal', values_to = 'Screening Value') %>%
+  arrange(Metal)
 
 
 
@@ -522,6 +530,6 @@ shinyServer(function(input, output, session) {
   callModule(BenthicsPlotlySingleStation,'Benthics', AUData, stationSelected, VSCIresults, VCPMI63results, VCPMI65results)
   
   #### Metals Sub Tab ####---------------------------------------------------------------------------------------------------
-  callModule(metalsTableSingleStation,'metals', AUData, WCmetals ,Smetals, stationSelected)
+  callModule(metalsTableSingleStation,'metals', AUData, WCmetals ,Smetals, fishMetals, fishMetalsScreeningValues, stationSelected)
   
 })

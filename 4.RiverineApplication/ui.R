@@ -266,16 +266,17 @@ shinyUI(fluidPage(theme="yeti.css",
                                                      BenthicsPlotlySingleStationUI('Benthics')),
                                             tabPanel('Metals Data',
                                                      helpText('Review each site using the single site visualization section. All analyses were performed outside of the
-                                                              automated assessment scripts, so please direct questions to Roger Stewart (roger.stewart@deq.virginia.gov).'),
-                                                     metalsTableSingleStationUI('metals')),
+                                                                          automated assessment scripts, so please direct questions to Roger Stewart (roger.stewart@deq.virginia.gov).'),
+                                                                metalsTableSingleStationUI('metals')),
                                             tabPanel('Toxics Data', 
                                                       tabsetPanel(
-                                                        tabPanel('Fish Tissue Data',
-                                                                 br(), h4('Hang tight, module still in development.'), br(), br(), br(), br(), br(), br()),
                                                         tabPanel('Water Column Toxics',
                                                                  br(), h4('Hang tight, module still in development.'), br(), br(), br(), br(), br(), br()),
                                                         tabPanel('Sediment Toxics',
-                                                                 br(), h4('Hang tight, module still in development.'), br(), br(), br(), br(), br(), br())))
+                                                                 br(), h4('Hang tight, module still in development.'), br(), br(), br(), br(), br(), br()),
+                                                        tabPanel('Fish Tissue Data',
+                                                                 br(), h4('Hang tight, module still in development.'), br(), br(), br(), br(), br(), br())
+                                                      ))
                                             
                                           ))        
                                           

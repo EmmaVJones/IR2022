@@ -29,6 +29,16 @@ VCPMI65results <- pin_get("VCPMI65results", board = "rsconnect") %>%
   #left_join(dplyr::select(WQMstationFull, WQM_STA_ID, EPA_ECO_US_L3CODE, EPA_ECO_US_L3NAME, WQS_BASIN_CODE) %>%
   #            distinct(WQM_STA_ID, .keep_all = TRUE), by = c('StationID' = 'WQM_STA_ID'))
 ammoniaAnalysis <- readRDS('userDataToUpload/processedStationData/ammoniaAnalysis.RDS')
+markPCB <- read_excel('data/2022 IR PCBDatapull_EVJ.xlsx', sheet = '2022IR Datapull EVJ')
+fishPCB <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'PCBs')
+fishMetals <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'Metals') %>%
+  rename("# of Fish" = "# of fish...4", "Species_Name"  = "Species_Name...5", 
+         "species_name" = "Species_Name...47", "number of fish" = "# of fish...48")
+fishMetalsScreeningValues <- read_csv('data/FishMetalsScreeningValues.csv') %>%
+  group_by(`Screening Method`) %>% 
+  pivot_longer(cols = -`Screening Method`, names_to = 'Metal', values_to = 'Screening Value') %>%
+  arrange(Metal)
+
 
 
 
@@ -87,7 +97,7 @@ carryoverStations <- filter(stationTable, VAHU6 %in% huc6_filter$VAHU6 & str_det
 
 ## Assessment Unit Review Tab
 
-conventionals_HUC <- filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>%
+conventionals_HUC <- conventionals %>% # filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>%
     left_join(dplyr::select(stationTable, STATION_ID:VAHU6,lakeStation,
                             WQS_ID:EPA_ECO_US_L3NAME),
                             #WQS_ID:`Max Temperature (C)`), 
@@ -626,3 +636,39 @@ plot_ly(data=fourDayWindowData) %>%
   layout(showlegend=FALSE,
          yaxis=list(title="Ammonia (mg/L as N)"),
          xaxis=list(title="Sample Date",tickfont = list(size = 10))) 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Fish Metals work
+fishMetalsScreeningValues1 <- fishMetalsScreeningValues %>% group_by(`Screening Method`) %>% 
+  pivot_longer(cols = -`Screening Method`, names_to = 'Metal', values_to = 'Screening Value') %>%
+  arrange(Metal)
+
+Fmetals <- filter(fishMetals, Station_ID %in% '2-JKS023.61') 
+if(nrow(Fmetals) > 0){
+  FmetalsSV <- dplyr::select(Fmetals, Station_ID, Collection_Date_Time, Sample_ID,  `# of Fish`, Species_Name, length, weight, Beryllium:Lead) %>%
+    dplyr::select(-contains('RMK_')) %>%
+    group_by( Station_ID, Collection_Date_Time, Sample_ID, `# of Fish`, Species_Name, length, weight) %>%
+    pivot_longer(cols= Beryllium:Lead, names_to = "Metal", values_to = 'Measure') %>%
+    left_join(fishMetalsScreeningValues, by = 'Metal') %>%
+    filter(Measure > `Screening Value`) %>%
+    arrange(Metal)
+} else { FmetalsSV <- dplyr::select(Fmetals, Station_ID, Collection_Date_Time, Sample_ID,  `# of Fish`, Species_Name, length, weight) %>%
+  mutate(Metal = NA, Measure = NA, `Screening Method` = NA, `Screening Value` = NA)}
+  
+
