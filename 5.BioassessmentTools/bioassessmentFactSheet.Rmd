@@ -15,15 +15,31 @@ params:
 
 ```{r setup, include=FALSE, message= FALSE}
 knitr::opts_chunk$set(echo = FALSE)
-```
 
-## test report
-
-```{r}
 assessmentDecision <- params$assessmentDecision
 SCI <- params$SCI
 habitat <- params$habitat
 ```
+
+
+**Integrated Report Year:** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; `r unique(assessmentDecision$IRYear)`
+
+**River Basin:** &nbsp;&nbsp; `r unique(SCI$Basin)`
+
+**Stream Name:** &nbsp;&nbsp;`r unique(assessmentDecision$StreamName)`
+
+**Location Information:** &nbsp;&nbsp;`r unique(SCI$Sta_Desc)`
+
+**Station ID:** &nbsp;&nbsp;`r unique(assessmentDecision$StationID)`
+
+**Collection Method:** &nbsp;&nbsp;`r unique(SCI$Gradient)`
+
+**Assessment Method: ** &nbsp;&nbsp;`r unique(assessmentDecision$AssessmentMethod)`
+
+**Reviewer:** &nbsp;&nbsp; `r unique(assessmentDecision$Reviewer)`
+
+
+
 
 assessment decision
 

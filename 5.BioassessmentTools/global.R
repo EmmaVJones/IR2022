@@ -12,6 +12,7 @@ library(pool)
 library(pins)
 library(config)
 library(readxl)
+library(rmarkdown)
 
 #####################################   UPDATE EACH NEW TOOL REBUILD #############################################
 # Establish Assessment Period 

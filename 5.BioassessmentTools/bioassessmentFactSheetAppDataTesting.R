@@ -37,35 +37,32 @@ SCI_UserSelection <- filter(VSCIresults, StationID %in% filter(assessmentDecisio
 
 habitatUserSelection <- habitatConsolidation( userStationChoice, habSamps, habValues)
 
-# reorganize to only send individual station data to report
 #forReport <- list()
+# dat <- list(assessmentDecision = as_tibble(filter(assessmentDecision_UserSelection, StationID %in% i)),
+#                   SCI = filter(SCI_UserSelection, StationID %in% i),
+#                   habitat = filter(habitatUserSelection, StationID %in% i))
+# forReport[i] <- list(dat)
+
+
+# run report
 for(i in unique(assessmentDecision_UserSelection$StationID)){
-  # dat <- list(assessmentDecision = as_tibble(filter(assessmentDecision_UserSelection, StationID %in% i)),
-  #                   SCI = filter(SCI_UserSelection, StationID %in% i),
-  #                   habitat = filter(habitatUserSelection, StationID %in% i))
-  # forReport[i] <- list(dat)
-  #myStation <- stationID[i]  # my species - to be reused as 1) parameter & 2) file name
   render("bioassessmentFactSheet.Rmd", # the template
+         # reorganize data from app to send to report
          params = list(assessmentDecision = as_tibble(filter(assessmentDecision_UserSelection, StationID %in% i)),
                        SCI = filter(SCI_UserSelection, StationID %in% i),
                        habitat = filter(habitatUserSelection, StationID %in% i)),
-         output_file = paste(i, '.html', sep = ''), # name of the output file - species name and pdf extension
+         output_dir = "reports", # drop this for shiny app
+         output_file = paste(i, '.html', sep = ''), # name of the output file
          quiet = T,
          encoding = 'UTF-8')
 }
 
 
-
-View(forReport)
-
-forReport$`2BBUF006.39`
-
-
-forReport$assessmentDecision
-
-forReport$StationID
+# for report testing
+dat <- list(assessmentDecision = as_tibble(filter(assessmentDecision_UserSelection, StationID %in% i)),
+            SCI = filter(SCI_UserSelection, StationID %in% i),
+            habitat = filter(habitatUserSelection, StationID %in% i))
 
 
 
-# run report
 
