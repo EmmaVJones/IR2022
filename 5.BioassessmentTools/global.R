@@ -11,6 +11,7 @@ library(lubridate)
 library(pool)
 library(pins)
 library(config)
+library(readxl)
 
 #####################################   UPDATE EACH NEW TOOL REBUILD #############################################
 # Establish Assessment Period 
@@ -155,4 +156,60 @@ averageSCI_windows <- function(benSamps_Filter_fin, SCI_filter, assessmentCycle)
     mutate(Window = factor(Window, levels = c('IR 2022 (6 year Average)', '2019-2020 Average',
                                               'Spring', 'Fall', '2020', '2019', '2018', '2017', '2016', '2015'))) %>%
     arrange(StationID, SCI, Window)
+}
+
+
+
+
+
+### Functions for fact sheet generation
+
+# Check user uploaded data against pinned data
+pinCheck <- function(pinName, userUpload){
+  pinnedDecisions <- pin_get(pinName, board = 'rsconnect')
+  removeOlderDecisions <- filter(pinnedDecisions, StationID %in% userUpload$StationID)
+  overwriteOld <- bind_rows(filter(pinnedDecisions, ! StationID %in% removeOlderDecisions$StationID),
+                            userUpload) %>%
+    group_by(StationID) %>%
+    mutate(n = n())
+  
+  # double check no duplicates
+  if(nrow(filter(overwriteOld, n > 1)) == 0 ){
+    # pin back to server
+    pin(dplyr::select(overwriteOld, -n), 
+        name = 'IR2022bioassessmentDecisions_test', 
+        description = paste0('Test dataset for developing IR2022 bioassessment fact sheet tool ', Sys.time()), 
+        board = 'rsconnect')
+    return('pin updated on server')
+  } else {
+    return(filter(filter(overwriteOld, n > 1)))  }
+}
+#pinCheck('IR2022bioassessmentDecisions_test', userUpload)
+
+# Do all habitat things efficiently
+
+habitatConsolidation <- function( userStationChoice, habSamps, habValues){
+  habSampsUserSelection <- filter(habSamps, StationID %in% userStationChoice) 
+  habValuesUserSelection <- filter(habValues, HabSampID %in% habSampsUserSelection$HabSampID)
+  totalHabitat <- habSampsUserSelection %>%
+    group_by(HabSampID) %>%
+    # get total habitat values
+    left_join(totalHabScore(habValuesUserSelection), by = 'HabSampID') %>%
+    mutate(Season = factor(Season,levels=c("Spring","Outside Sample Window","Fall"))) %>%
+    dplyr::select(StationID, HabSampID, everything()) %>%
+    arrange(`Collection Date`) %>%
+    ungroup() 
+  
+  habitatCrosstab <- bind_rows(habitatTemplate,
+                               left_join(habValuesUserSelection, 
+                                         dplyr::select(habSampsUserSelection, HabSampID, StationID, `Collection Date`),
+                                         by = 'HabSampID') %>%
+                                 group_by(StationID, HabSampID, `Collection Date`) %>%
+                                 arrange(HabParameterDescription) %>% ungroup() %>%
+                                 pivot_wider(id_cols = c('StationID','HabSampID','Collection Date'), names_from = HabParameterDescription, values_from = HabValue) %>%
+                                 left_join(dplyr::select(totalHabitat, HabSampID, `HabSample Comment`, `Total Habitat Score`), by = 'HabSampID') %>%
+                                 dplyr::select(StationID, HabSampID, `Collection Date`, `HabSample Comment`, `Total Habitat Score`, everything()) ) %>%
+    drop_na(StationID) %>%
+    arrange(StationID, `Collection Date`) 
+  return(habitatCrosstab)
 }

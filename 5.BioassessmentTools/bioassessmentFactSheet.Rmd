@@ -1,0 +1,45 @@
+---
+title: "Virginia Department of Environmental Quality Biological Monitoring Program
+  Benthic Assessment Factsheet"
+author: "Emma Jones"
+date: "2/24/2021"
+html_document:
+  toc: true
+  toc_float: true
+always_allow_html: yes
+params:
+  assessmentDecision: 'NULL'
+  SCI: 'NULL'
+  habitat: 'NULL'
+---
+
+```{r setup, include=FALSE, message= FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## test report
+
+```{r}
+assessmentDecision <- params$assessmentDecision
+SCI <- params$SCI
+habitat <- params$habitat
+```
+
+assessment decision
+
+```{r}
+assessmentDecision 
+```
+
+SCI
+
+```{r}
+SCI
+```
+
+habitat
+
+```{r}
+habitat
+```
+
