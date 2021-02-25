@@ -4,10 +4,12 @@ shinyUI(fluidPage(theme="yeti.css",
                              tabPanel('Report',
                                       sidebarPanel(
                                         fileInput('userData','Upload Site (.xlsx)',accept='.xlsx',width='100%'),
-                                        uiOutput('userStations_')),
+                                        uiOutput('userStations_'),
+                                        uiOutput('downloadReport_')),
                                       mainPanel(
-                                        dataTableOutput('inputTable'),
-                                        verbatimTextOutput('test'),
-                                        downloadButton('downloadReport', 'Generate Report'))
+                                        h5('User uploaded data'),
+                                        dataTableOutput('inputTable')
+                                        #verbatimTextOutput('test'),
+                                        )
                                       ),
                              tabPanel("About"))))

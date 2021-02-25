@@ -94,6 +94,8 @@ habitatPlot(habitat)
 
 </div>
 
+<br>
+
 <center>
 ![Habitat Color Legend](images/HabitatColor.jpg)
 </center>

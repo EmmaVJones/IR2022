@@ -20,18 +20,34 @@ params:
 
 ```{r setup, include=FALSE, message= FALSE}
 knitr::opts_chunk$set(echo = FALSE)
-#params$assessmentDecision
-# # for testing
+# for testing
 # assessmentDecision1 <- dat$assessmentDecision
 # SCI1 <- dat$SCI
 # habitat1 <- dat$habitat
 
-#assessmentDecision <- params$assessmentDecision
-#SCI <- params$SCI
-#habitat <- params$habitat
+assessmentDecision <- params$assessmentDecision
+SCI <- params$SCI
+habitat <- params$habitat
+```
+
+
+![Stressor Analysis Legend](images/riskCategories.PNG)
+
+
+![Habitat Color Legend](images/HabitatColor.jpg)
+
+```{r}
+glimpse(assessmentDecision)
+```
+
+
+```{r}
+
+glimpse(SCI)
 ```
 
 ```{r}
-mtcars
+
+glimpse(habitat)
 ```
 
