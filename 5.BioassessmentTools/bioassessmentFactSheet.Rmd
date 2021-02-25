@@ -94,11 +94,38 @@ habitatPlot(habitat)
 
 </div>
 
+<center>
+![Habitat Color Legend](images/HabitatColor.jpg)
+</center>
 
 ```{r habitat table, warning=FALSE, message=FALSE}
 habitatDTcoloredTable(habitat)
 ```
 
-<center>
-![Habitat Color Legend](images/HabitatColor.jpg)
-</center>
+
+
+
+
+**Are there any seasonal differences noted?**
+
+`r unique(assessmentDecision$SeasonalDifferences)` 
+
+**Summary of any comments associated with assessments**
+
+`r unique(assessmentDecision$SummaryAssessment)`
+
+
+**Any factors observed in watershed that may be affecting the benthic community?**
+
+`r unique(assessmentDecision$FactorsWatershed)`
+
+
+**Have there been any recent changes in activity in the watershed that may have affected the more recent bioassessments.  Are these changes likely to affect the benthic community for a short or long term basis?**
+
+##`r unique(assessmentDecision$RecentChange)`
+
+
+
+**Final Assessment Rating:**
+`r unique(assessmentDecision$FinalAssessmentRating)`
+
