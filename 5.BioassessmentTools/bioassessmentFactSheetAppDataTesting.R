@@ -63,6 +63,26 @@ dat <- list(assessmentDecision = as_tibble(filter(assessmentDecision_UserSelecti
             SCI = filter(SCI_UserSelection, StationID %in% i),
             habitat = filter(habitatUserSelection, StationID %in% i))
 
+assessmentDecision1 <- dat$assessmentDecision
+SCI1 <- dat$SCI
+habitat1 <- dat$habitat
 
 
+## Plot SCI results
+SCIresultsPlot(SCI1, assessmentDecision1)
 
+# SCI Results table
+rawBugData(SCI1)
+
+## SCI metrics table
+SCImetricsTable(SCI1)
+  
+## SCI statistics
+SCIstatistics(SCI1)
+    
+
+## Habitat plot
+habitatPlot(habitat1)
+
+# habitat table
+habitatDTcoloredTable(habitat1)

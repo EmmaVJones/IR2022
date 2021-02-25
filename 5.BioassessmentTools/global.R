@@ -214,3 +214,150 @@ habitatConsolidation <- function( userStationChoice, habSamps, habValues){
     arrange(StationID, `Collection Date`) 
   return(habitatCrosstab)
 }
+
+# Raw Bug data results for Report
+rawBugData <- function(SCI){
+  bioResultsTableTemplate <- tibble(StationID = NA, `Collection Date` = NA, `Replicate Number` = NA, SCI = NA, 
+                                    `Spring SCI Score` = NA, `Fall SCI Score` = NA)
+  bind_rows(bioResultsTableTemplate, 
+            SCI %>%
+              group_by(StationID, `Collection Date`, SCI, RepNum) %>%
+              dplyr::select(StationID, `Collection Date`, `Replicate Number` = RepNum, SCI, Season, `SCI Score`) %>%
+              mutate(`Collection Date` = as.Date(`Collection Date`),#, format = '%M-%D-%Y'),
+                     Season = paste0(Season, ' SCI Score')) %>%
+              pivot_wider(names_from = Season, values_from = `SCI Score`) ) %>%
+    drop_na(StationID) %>%
+    arrange(`Collection Date`, `Replicate Number`)
+}
+
+# SCI Statistics for report
+SCIstatistics <- function(SCI1){
+  suppressMessages(suppressWarnings(
+    SCI1 %>%
+      # IR window Average
+      group_by(StationID, SCI) %>%
+      summarise(`SCI Average` = format(mean(`SCI Score`, na.rm = T), digits = 3),
+                `n Samples` = n()) %>% 
+      mutate(Window = paste0('IR ', assessmentCycle, ' (6 year) Average'))  %>%
+      dplyr::select(SCI, Window, `SCI Average`, `n Samples`) %>%
+      # Two Year Average
+      bind_rows(SCI1 %>%
+                  filter(year(`Collection Date`) %in% c(2019, 2020)) %>%
+                  group_by(StationID, SCI) %>%
+                  summarise(`SCI Average` = format(mean(`SCI Score`, na.rm = T), digits=3),
+                            `n Samples` = n()) %>% ungroup() %>%
+                  mutate(Window = as.character('2019-2020 Average')) %>% 
+                  dplyr::select(StationID, SCI, Window, everything())) %>%
+      # Two Year Spring Average
+      bind_rows(SCI1 %>%
+                  filter(year(`Collection Date`) %in% c(2019, 2020) & Season == 'Spring') %>%
+                  group_by(StationID, SCI) %>%
+                  summarise(`SCI Average` = format(mean(`SCI Score`, na.rm = T), digits=3),
+                            `n Samples` = n()) %>% ungroup() %>%
+                  mutate(Window = as.character('2019-2020 Spring Average')) %>% 
+                  dplyr::select(StationID, SCI, Window, everything())) %>%
+      # Two Year Fall Average
+      bind_rows(SCI1 %>%
+                  filter(year(`Collection Date`) %in% c(2019, 2020) & Season == 'Fall') %>%
+                  group_by(StationID, SCI) %>%
+                  summarise(`SCI Average` = format(mean(`SCI Score`, na.rm = T), digits=3),
+                            `n Samples` = n()) %>% ungroup() %>%
+                  mutate(Window = as.character('2019-2020 Fall Average')) %>% 
+                  dplyr::select(StationID, SCI, Window, everything())) %>%
+      # Add seasonal averages
+      bind_rows(SCI1 %>%
+                  group_by(StationID, SCI, Season) %>%
+                  mutate(Season = paste0('IR ', assessmentCycle, ' (6 year) ', Season,' Average')) %>%
+                  summarise(`SCI Average` = format(mean(`SCI Score`, na.rm = T), digits = 3),
+                            `n Samples` = n()) %>%
+                  rename('Window' = 'Season') %>% ungroup()) %>%
+      mutate(Window = factor(Window, levels = c('2019-2020 Average', '2019-2020 Spring Average', '2019-2020 Fall Average', 'IR 2022 (6 year) Average', 
+                                                'IR 2022 (6 year) Spring Average', 'IR 2022 (6 year) Fall Average'))) %>%
+      arrange(StationID, SCI, Window)  %>% ungroup() ) )
+}
+
+
+# SCI plot for report
+SCIresultsPlot <- function(SCI, assessmentDecision){
+  if(unique(assessmentDecision$AssessmentMethod) == 'VSCI'){
+    mutate(SCI, `Collection Date` = as.Date(`Collection Date`)) %>% 
+      ggplot(aes(x = `Collection Date`, y = `SCI Score`, fill=Season)) +
+      geom_col()+
+      scale_fill_manual("Season", values = c("Fall" = "black", "Spring" = "dark grey"))+
+      labs(x="Collection Year", y="VSCI Score") +
+      scale_y_continuous(#name="VSCI", 
+        breaks=seq(0, 100, 10),limits=c(0,100)) +
+      scale_x_date(date_labels = '%Y') +
+      geom_hline(yintercept=60, color="red", size=1)+
+      theme(axis.text.x=element_text(angle=45,hjust=1))
+  } else {
+    mutate(SCI, `Collection Date` = as.Date(`Collection Date`)) %>% 
+      ggplot(aes(x = `Collection Date`, y = `SCI Score`, fill=Season)) +
+      geom_col()+
+      scale_fill_manual("Season", values = c("Fall" = "black", "Spring" = "dark grey"))+
+      labs(x="Collection Year", y="VCPMI Score") +
+      scale_y_continuous(#name="VSCI", 
+        breaks=seq(0, 100, 10),limits=c(0,100)) +
+      scale_x_date(date_labels = '%Y') +
+      geom_hline(yintercept=60, color="red", size=1)+
+      theme(axis.text.x=element_text(angle=45,hjust=1))
+  }
+}
+
+# SCI metrics table for report
+SCImetricsTable <- function(SCI){
+  SCI %>%
+    mutate(`Collection Date` = as.Date(`Collection Date`)) %>% 
+    group_by(StationID, `Collection Date`, SCI, RepNum) %>%
+    dplyr::select(StationID, `Collection Date`, `Replicate Number` = RepNum, Season, SCI, `SCI Score`,`Family Total Taxa`:`Fam %MFBI Score`, 
+                  `Family %5 Dominant`:PctIntol) %>%
+    #clean up empty columns with a quick pivot longer (with drop na) and then back to wide
+    pivot_longer(cols = `Family Total Taxa`:PctIntol, names_to = 'metric', values_to = 'metricVal', values_drop_na = TRUE) %>%
+    pivot_wider(names_from = metric, values_from = metricVal) %>% ungroup() %>% 
+    arrange(`Collection Date`, `Replicate Number`)
+}
+
+
+## Habitat plot for report
+habitatPlot <- function(habitat){
+  if(nrow(habitat) > 0){
+    minDate <- as.Date(as.character("2015-01-01") , origin ="%Y-%m-%d")
+    maxDate <- as.Date(as.character("2020-12-31"), origin ="%Y-%m-%d")# add min and max dates to make rectagle plotting easier, starting at 6 month buffer by can play with
+    
+    habitat %>%
+      mutate(`Collection Date` = as.Date(`Collection Date`)) %>% 
+      ggplot(aes(x = `Collection Date`, y = `Total Habitat Score`))+
+      #geom_bar(stat="identity")
+      annotate("rect", xmin=minDate, xmax=maxDate, ymin=150 ,  ymax=Inf, alpha=1, fill="#0072B2")+ 
+      annotate("rect",xmin=minDate, xmax=maxDate, ymin=130, ymax=150, alpha=1, fill="#009E73" ) +
+      annotate("rect",xmin=minDate, xmax=maxDate, ymin=100, ymax=130, alpha=1, fill="#F0E442") +
+      annotate("rect",xmin=minDate, xmax=maxDate, ymin=-Inf, ymax=100, alpha=1, fill="firebrick" ) +
+      geom_bar(stat="identity", width = 75)+
+      theme(axis.text=element_text(size=14, face="bold"),
+            axis.title=element_text(size=14, face="bold"),
+            legend.position = "none") +
+      scale_y_continuous(name="Total Habitat Score", breaks=seq(0, 200, 25),limits=c(0,200)) +
+      scale_x_date(date_breaks='1 year', date_labels =  "%Y")+
+      theme(axis.text.x=element_text(angle=45,hjust=1))  }
+}
+
+# Habitat Table for final Report
+habitatDTcoloredTable <- function(habitat){
+  if(nrow(habitat) > 0){
+    habitatTable <- habitat %>%
+      mutate(`Collection Date` = as.Date(`Collection Date`)) %>% 
+      dplyr::select(-HabSampID) %>%
+      #clean up empty columns with a quick pivot longer (with drop na) and then back to wide
+      pivot_longer(cols = `Bank Stability`:`Velocity / Depth Regime`, names_to = 'metric', values_to = 'metricVal', values_drop_na = TRUE) %>%
+      pivot_wider(names_from = metric, values_from = metricVal) %>% ungroup() %>% 
+      arrange(`Collection Date`)
+    
+    habBreaks<-seq(0,20, 1)
+    habClrs<-c('firebrick', 'firebrick','firebrick','firebrick','firebrick','firebrick', "#F0E442","#F0E442","#F0E442","#F0E442","#F0E442", 
+               "#009E73","#009E73","#009E73","#009E73","#009E73", "#0072B2","#0072B2","#0072B2","#0072B2","#0072B2")
+    
+    DT::datatable(habitatTable, escape=F, rownames = F, options=list(pageLength=nrow(habitatTable),dom= 'Bt', scrollX=TRUE)) %>% 
+      formatStyle('Total Habitat Score', backgroundColor = "lightgray") %>%
+      formatStyle(names(habitatTable)[5:length(habitatTable)],  backgroundColor = styleEqual(habBreaks, habClrs), alpha=0.1,
+                  textAlign = 'center')  }
+}

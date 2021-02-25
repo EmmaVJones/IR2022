@@ -1,8 +1,5 @@
 ---
-title: "Virginia Department of Environmental Quality Biological Monitoring Program
-  Benthic Assessment Factsheet"
-author: "Emma Jones"
-date: "2/24/2021"
+title: "Virginia Department of Environmental Quality Assessment Factsheet"
 html_document:
   toc: true
   toc_float: true
@@ -13,14 +10,28 @@ params:
   habitat: 'NULL'
 ---
 
+<style>
+  .col2 {
+    columns: 2 200px;         /* number of columns and width in pixels*/
+    -webkit-columns: 2 200px; /* chrome, safari */
+    -moz-columns: 2 200px;    /* firefox */
+  }
+</style>
+
 ```{r setup, include=FALSE, message= FALSE}
 knitr::opts_chunk$set(echo = FALSE)
+
+# # for testing
+# assessmentDecision1 <- dat$assessmentDecision
+# SCI1 <- dat$SCI
+# habitat1 <- dat$habitat
 
 assessmentDecision <- params$assessmentDecision
 SCI <- params$SCI
 habitat <- params$habitat
 ```
 
+<div class="col2">
 
 **Integrated Report Year:** &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; `r unique(assessmentDecision$IRYear)`
 
@@ -28,9 +39,9 @@ habitat <- params$habitat
 
 **Stream Name:** &nbsp;&nbsp;`r unique(assessmentDecision$StreamName)`
 
-**Location Information:** &nbsp;&nbsp;`r unique(SCI$Sta_Desc)`
-
 **Station ID:** &nbsp;&nbsp;`r unique(assessmentDecision$StationID)`
+
+**Location Information:** &nbsp;&nbsp;`r unique(SCI$Sta_Desc)`
 
 **Collection Method:** &nbsp;&nbsp;`r unique(SCI$Gradient)`
 
@@ -38,24 +49,56 @@ habitat <- params$habitat
 
 **Reviewer:** &nbsp;&nbsp; `r unique(assessmentDecision$Reviewer)`
 
+</div>
 
+### SCI Results
 
-
-assessment decision
-
-```{r}
-assessmentDecision 
+```{r sci plot, warning=FALSE, message=FALSE}
+SCIresultsPlot(SCI, assessmentDecision)
 ```
 
-SCI
 
-```{r}
-SCI
+```{r sci table, warning=FALSE, message=FALSE}
+SCItable <- rawBugData(SCI)
+datatable(SCItable, rownames = F,  options= list(scrollX = TRUE, pageLength = nrow(SCItable), #scrollY = "150px", 
+                                                 dom='t'), selection = 'none') 
 ```
 
-habitat
+### SCI Metrics
 
-```{r}
-habitat
+```{r sci metric table, warning=FALSE, message=FALSE}
+SCImetricstable <- SCImetricsTable(SCI)
+datatable(SCImetricstable, rownames = F,  options= list(scrollX = TRUE, pageLength = nrow(SCImetricstable), #scrollY = "150px", 
+                                                 dom='t'), selection = 'none') 
 ```
 
+### SCI Statistics
+
+*Note: Replicate samples are included in total and seasonal averages.*
+
+```{r sci statistics, warning=FALSE, message=FALSE}
+SCIstatisticsResults <- SCIstatistics(SCI)
+datatable(SCIstatisticsResults, rownames = F,  options= list(scrollX = TRUE, pageLength = nrow(SCIstatisticsResults), #scrollY = "150px", 
+                                                 dom='t'), selection = 'none') 
+```
+
+### Habitat Results
+
+<div class="col2">
+
+```{r habitat plot, warning=FALSE, message=FALSE}
+habitatPlot(habitat)
+```
+
+![Stressor Analysis Legend](images/riskCategories.PNG)
+
+</div>
+
+
+```{r habitat table, warning=FALSE, message=FALSE}
+habitatDTcoloredTable(habitat)
+```
+
+<center>
+![Habitat Color Legend](images/HabitatColor.jpg)
+</center>
