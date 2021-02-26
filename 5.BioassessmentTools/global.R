@@ -74,8 +74,6 @@ habObs <- pin_get("ejones/habObs", board = "rsconnect") %>%
   filter(HabSampID %in% habSamps$HabSampID)
 #masterTaxaGenus <- pin_get("ejones/masterTaxaGenus", board = "rsconnect")
 
-
-
 IR2020assessmentDecisions <- read_excel('data/BioassessmentRegionalResultsIR2020.xlsx') # not fully filled out but will help the bios who participated last cycle
 
 # Template to standardize variables for DT habitat heatmap across high and low gradients
@@ -166,6 +164,16 @@ averageSCI_windows <- function(benSamps_Filter_fin, SCI_filter, assessmentCycle)
 
 
 ### Functions for fact sheet generation
+
+# Make sure input stations are valid
+stationValidation <- function(userUpload){
+  validStations <- filter(benSampsStations, StationID %in% userUpload$StationID)
+  if(nrow(validStations) == nrow(userUpload)){
+    return(userUpload)
+  } else {
+    return(filter(userUpload, StationID %in% validStations$StationID))  }
+}
+#stationValidation(userUploadFail)
 
 # Check user uploaded data against pinned data
 pinCheck <- function(pinName, userUpload){

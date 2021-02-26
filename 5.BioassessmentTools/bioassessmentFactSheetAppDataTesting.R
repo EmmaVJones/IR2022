@@ -5,24 +5,46 @@ IR2020 <- read_excel('data/BioassessmentRegionalResultsIR2020.xlsx') %>%
   filter(!is.na(FinalAssessmentRating))
 
 #IR2022 <- read_excel('data/BioassessmentRegionalResultsIR2022test.xlsx')
-userUpload <- IR2022[2:5,]
 
 # check against pinned data, overwrite if necessary
 # this is the original pin in case it needs to be reset during testing
 #pin(IR2022[1:3,], name = 'IR2022bioassessmentDecisions_test', description = 'Test dataset for developing IR2022 bioassessment fact sheet tool', board = 'rsconnect') # original pin
 
-pinCheck('IR2022bioassessmentDecisions_test', userUpload) # can change to real deal pin in time
+# original list of what's available on the server
+OGpinnedDecisions <- pin_get('IR2022bioassessmentDecisions_test', board = 'rsconnect')
+
+# what user uploads
+userUpload <- IR2022[2:5,]
+userUploadFail <- mutate(userUpload, StationID = case_when(StationID == "2-CAT026.29" ~ "2-CAT026.00", 
+                                                           TRUE ~ as.character(StationID)))
+
+# make sure all uploaded stations are valid
+userUploadValid <- stationValidation(userUploadFail)
+
+# display any stations that cannot undergo more work
+invalidInputData <- filter(userUpload, ! StationID %in% userUploadValid$StationID)
+
+DT::datatable(mutate(userUpload, invalidData = case_when(StationID %in% invalidInputData$StationID ~ 1,
+                                                         TRUE ~ 0)),
+              escape=F, rownames = F, options=list(scrollX = TRUE, scrollY = "800px",pageLength=nrow(userUpload))) %>%
+  formatStyle('StationID', 'invalidData', backgroundColor = styleEqual(c(0, 1), c(NA, 'yellow'))  )
+
+pinCheck('IR2022bioassessmentDecisions_test', userUploadValid) # can change to real deal pin in time
 
 # pull new pin
-pinnedDecisions <- pin_get('IR2022bioassessmentDecisions_test', board = 'rsconnect')
+pinnedDecisions <- pin_get('IR2022bioassessmentDecisions_test', board = 'rsconnect') # new list of what's available to make a report
 
 # Allow users to choose which stations to run report on (start with what was just uploaded, then whatever else is available from pin)
-userStationChoice <- bind_rows(filter(pinnedDecisions, StationID %in% userUpload$StationID),
-                               filter(pinnedDecisions, ! StationID %in% userUpload$StationID)) %>%
-  dplyr::select(StationID) %>% pull() 
+userStationChoice <- if(exists('pinnedDecisions')){
+  bind_rows(filter(pinnedDecisions, StationID %in% userUploadValid$StationID),
+            filter(pinnedDecisions, ! StationID %in% userUploadValid$StationID)) %>%
+    dplyr::select(StationID) %>% pull()
+} else{unique(OGpinnedDecisions$StationID)   }
 
 # organize benthic and habitat data for chosen stations to send to report
-assessmentDecision_UserSelection <- filter(pinnedDecisions, StationID %in% userStationChoice)
+if(exists('pinnedDecisions')){
+  assessmentDecision_UserSelection <- filter(pinnedDecisions, StationID %in% userStationChoice)
+  } else {assessmentDecision_UserSelection <- filter(OGpinnedDecisions, StationID %in% userStationChoice)}
 
 SCI_UserSelection <- filter(VSCIresults, StationID %in% filter(assessmentDecision_UserSelection, AssessmentMethod == 'VSCI')$StationID) %>%
   bind_rows(
