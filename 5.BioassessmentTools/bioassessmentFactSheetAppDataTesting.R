@@ -57,6 +57,7 @@ for(i in unique(assessmentDecision_UserSelection$StationID)){
          encoding = 'UTF-8')
 }
 
+i =  "5AASM017.27"
 
 # for report testing
 dat <- list(assessmentDecision = as_tibble(filter(assessmentDecision_UserSelection, StationID %in% i)),

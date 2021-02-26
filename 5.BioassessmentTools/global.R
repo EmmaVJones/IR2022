@@ -76,6 +76,8 @@ habObs <- pin_get("ejones/habObs", board = "rsconnect") %>%
 
 
 
+IR2020assessmentDecisions <- read_excel('data/BioassessmentRegionalResultsIR2020.xlsx') # not fully filled out but will help the bios who participated last cycle
+
 # Template to standardize variables for DT habitat heatmap across high and low gradients
 habitatTemplate <- tibble(StationID = NA, HabSampID = NA, `Collection Date` = NA, `HabSample Comment` = NA, `Total Habitat Score` = NA, `Bank Stability` = NA, 
                           `Channel Alteration` = NA, `Channel Flow Status` = NA, `Channel Sinuosity` = NA, Embeddedness = NA, 
@@ -299,7 +301,7 @@ SCIresultsPlot <- function(SCI, assessmentDecision){
       scale_y_continuous(#name="VSCI", 
         breaks=seq(0, 100, 10),limits=c(0,100)) +
       scale_x_date(date_labels = '%Y') +
-      geom_hline(yintercept=60, color="red", size=1)+
+      geom_hline(yintercept=40, color="red", size=1)+
       theme(axis.text.x=element_text(angle=45,hjust=1))
   }
 }

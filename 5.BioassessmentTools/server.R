@@ -53,7 +53,8 @@ shinyServer(function(input, output, session) {
   
   
   output$downloadReport_ <- renderUI({req(reactive_objects$habitatUserSelection)
-    downloadButton('downloadReport', 'Generate Report')})
+    list(downloadButton('downloadReport', 'Generate Report'),
+         helpText('This button must be clicked for each station in order to generate a unique report.'))})
 
   output$downloadReport <- downloadHandler(
     filename = fileNameForReport, 

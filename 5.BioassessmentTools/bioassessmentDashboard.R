@@ -2,6 +2,8 @@ source('global.R')
 
 assessmentRegions <- st_read( 'data/GIS/AssessmentRegions_simple.shp')
 ecoregion <- st_read('data/GIS/vaECOREGIONlevel3__proj84.shp')
+# Get pinned decisions, don't want this in global so bioassessment fact sheet tool doesn't accidentally source this
+pinnedDecisions <- pin_get('IR2022bioassessmentDecisions_test', board = 'rsconnect') ########################################### change to production when time
 
 ui <- dashboardPage(
   
@@ -34,8 +36,19 @@ ui <- dashboardPage(
                h4('SCI Summary'), 
                dataTableOutput('SCIavgTable'),br(),
                h4('Total Habitat Summary'),
-               dataTableOutput('totHabAvgTable')),
-      tabPanel(title = span(tagList(icon("balance-scale"), " Assessment Decision")))
+               dataTableOutput('totHabAvgTable'),
+               br(), hr(),
+               h4('IR2020 Assessment Information'),
+               helpText('If you participated in the IR2020 automated bioassessment tools pilot project, you may have 
+                        information available below detailing the selected station(s) assessment decisions for the last cycle.'),
+               dataTableOutput('IR2020decisionTable')),
+      tabPanel(title = span(tagList(icon("balance-scale"), " Assessment Decision")),
+               h4('Assessment Decision Summary'), 
+               helpText('If you have uploaded information about the chosen station(s) to the VDEQ Benthic Assessment Fact Sheet Tool, 
+                        you will see information that is saved on the server in the table below. If you upload new data about the 
+                        selected station(s) to the VDEQ Benthic Assessment Fact Sheet Tool, that information will be reflect here after
+                        you refresh the dashboard.'),
+               dataTableOutput('pinnedDataTable'))
       
       
     )
@@ -358,6 +371,17 @@ server <- function(input, output, session) {
               options = list(dom = 'Bift', scrollX= TRUE, scrollY = '300px',
                              pageLength = nrow(avgTotalHab), buttons=list('copy','colvis'))) })
   
+  output$IR2020decisionTable <- renderDataTable({req(benSampsFilter())
+    z <- filter(IR2020assessmentDecisions, StationID %in% benSampsFilter()$StationID)
+    datatable(z, rownames = F, escape= F, extensions = 'Buttons',
+                options = list(dom = 'Bift', scrollX= TRUE, scrollY = '300px',
+                               pageLength = nrow(z), buttons=list('copy','colvis')))})
+  
+  output$pinnedDataTable <- renderDataTable({req(benSampsFilter(), pinnedDecisions)
+    z <- filter(pinnedDecisions, StationID %in% benSampsFilter()$StationID)
+    datatable(z, rownames = F, escape= F, extensions = 'Buttons',
+              options = list(dom = 'Bift', scrollX= TRUE, scrollY = '300px',
+                             pageLength = nrow(z), buttons=list('copy','colvis')))})
   
   #output$table1 <- renderPrint({ sort(unique(benSampsFilter()$RepNum)) })
   #output$table2 <- renderPrint({ benSampsFilter() })
