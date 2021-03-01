@@ -1,0 +1,199 @@
+---
+title: "Virginia Department of Environmental Quality Assessment Factsheet"
+output: word_document
+params:
+  SCI: 'NULL'
+  habitat: 'NULL'
+always_allow_html: yes
+
+---
+
+<style>
+  .col2 {
+    columns: 2 200px;         /* number of columns and width in pixels*/
+    -webkit-columns: 2 200px; /* chrome, safari */
+    -moz-columns: 2 200px;    /* firefox */
+  }
+</style>
+
+```{r setup, include=FALSE, message= FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(webshot)
+# # for testing
+# SCI <- dat1$SCI
+# habitat <- dat1$habitat
+
+SCI <- params$SCI
+habitat <- params$habitat
+```
+
+<div class="col2">
+
+**Station ID:** &nbsp;&nbsp;`r unique(SCI$StationID)`
+
+**Location Information:** &nbsp;&nbsp;`r unique(SCI$Sta_Desc)`
+
+**Stream Name:** &nbsp;&nbsp;
+
+**River Basin:** &nbsp;&nbsp; `r unique(SCI$Basin)`
+
+**US Level 3 Ecoregion:** &nbsp;&nbsp; `r unique(SCI$US_L3NAME)`
+
+**Collection Method:** &nbsp;&nbsp;`r unique(SCI$Gradient)`
+
+**Assessment Method: ** &nbsp;&nbsp;`r unique(SCI$SCI)`
+
+**Reviewer:** &nbsp;&nbsp; 
+
+</div>
+
+### SCI Results
+
+```{r sci plot, warning=FALSE, message=FALSE}
+SCIresultsPlot(SCI, unique(SCI$SCI))
+```
+
+
+```{r sci table, warning=FALSE, message=FALSE}
+SCItable <- rawBugData(SCI)
+#DT::datatable(SCItable, rownames = F,  options= list(scrollX = TRUE, pageLength = nrow(SCItable), #scrollY = "150px", 
+#                                                 dom='t'), selection = 'none') 
+knitr::kable(SCItable)
+```
+
+### SCI Statistics
+
+*Note: Replicate samples are included in total and seasonal averages.*
+
+```{r sci statistics, warning=FALSE, message=FALSE}
+# SCIstatisticsResults <- SCIstatistics(SCI)
+# DT::datatable(SCIstatisticsResults, rownames = F,  options= list(scrollX = TRUE, pageLength = nrow(SCIstatisticsResults), #scrollY = "150px", 
+#                                                  dom='t'), selection = 'none') 
+factLevels <- c('Window Average', 'Window Spring Average', 'Window Fall Average',
+                paste0(min(year(SCI$`Collection Date`)):max(year(SCI$`Collection Date`)),' Average'))
+
+suppressMessages(suppressWarnings(
+    SCI %>%
+      # IR window Average
+      group_by(StationID, SCI) %>%
+      summarise(`SCI Average` = format(mean(`SCI Score`, na.rm = T), digits = 3),
+                `n Samples` = n()) %>% 
+      mutate(Window = 'Window Average')  %>%
+      dplyr::select(SCI, Window, `SCI Average`, `n Samples`) %>%
+      # Add Yearly Averages
+      bind_rows(SCI %>%
+                mutate(Window = year(`Collection Date`)) %>%
+                group_by(StationID, SCI, Window) %>%
+                summarise(`SCI Average` = format(mean(`SCI Score`, na.rm = T), digits=3),
+                          `n Samples` = n()) %>% ungroup() %>%
+                mutate(Window = paste(as.character(Window), 'Average'))) %>%
+      # Add seasonal averages
+      bind_rows(SCI %>%
+                  group_by(StationID, SCI, Season) %>%
+                  mutate(Season = paste0('Window ', Season,' Average')) %>%
+                  summarise(`SCI Average` = format(mean(`SCI Score`, na.rm = T), digits = 3),
+                            `n Samples` = n()) %>%
+                  rename('Window' = 'Season') %>% ungroup()) %>%
+      mutate(Window = factor(Window, levels = factLevels )) %>%
+      arrange(StationID, SCI, Window)  %>% ungroup() ) ) %>%
+  knitr::kable()
+```
+
+
+### Habitat Results
+
+<div class="col2">
+
+```{r habitat plot, warning=FALSE, message=FALSE}
+if(nrow(habitat) > 0){
+    minDate <- as.Date(as.character(min(habitat$`Collection Date`) - months(6)) , origin ="%Y-%m-%d")
+    maxDate <- as.Date(as.character(max(habitat$`Collection Date`) + months(6)), origin ="%Y-%m-%d")# add min and max dates to make rectagle plotting easier, starting at 6 month buffer by can play with
+    
+    habitat %>%
+      mutate(`Collection Date` = as.Date(`Collection Date`)) %>% 
+      ggplot(aes(x = `Collection Date`, y = `Total Habitat Score`))+
+      #geom_bar(stat="identity")
+      annotate("rect", xmin=minDate, xmax=maxDate, ymin=150 ,  ymax=Inf, alpha=1, fill="#0072B2")+ 
+      annotate("rect",xmin=minDate, xmax=maxDate, ymin=130, ymax=150, alpha=1, fill="#009E73" ) +
+      annotate("rect",xmin=minDate, xmax=maxDate, ymin=100, ymax=130, alpha=1, fill="#F0E442") +
+      annotate("rect",xmin=minDate, xmax=maxDate, ymin=-Inf, ymax=100, alpha=1, fill="firebrick" ) +
+      geom_bar(stat="identity", width = 75)+
+      theme(axis.text=element_text(size=14, face="bold"),
+            axis.title=element_text(size=14, face="bold"),
+            legend.position = "none") +
+      scale_y_continuous(name="Total Habitat Score", breaks=seq(0, 200, 25),limits=c(0,200)) +
+      scale_x_date(date_breaks='1 year', date_labels =  "%Y")+
+      theme(axis.text.x=element_text(angle=45,hjust=1))  }
+```
+
+![Stressor Analysis Legend](images/riskCategories.PNG)
+
+</div>
+
+<br>
+
+
+
+**Are there any seasonal differences noted?**
+
+
+**Summary of any comments associated with assessments**
+
+
+
+**Any factors observed in watershed that may be affecting the benthic community?**
+
+
+
+**Have there been any recent changes in activity in the watershed that may have affected the more recent bioassessments.  Are these changes likely to affect the benthic community for a short or long term basis?**
+
+
+**Final Assessment Rating:**
+
+
+
+\newpage
+
+### SCI Metrics
+
+```{r sci metric table, warning=FALSE, message=FALSE}
+#SCImetricstable <- SCImetricsTable(SCI)
+#DT::datatable(SCImetricstable, rownames = F,  options= list(scrollX = TRUE, pageLength = nrow(SCImetricstable), #scrollY = "150px", 
+#                                                 dom='t'), selection = 'none') 
+
+SCI %>%
+    mutate(`Collection Date` = as.Date(`Collection Date`)) %>% 
+    group_by(StationID, `Collection Date`, SCI, RepNum) %>%
+    dplyr::select(StationID, `Collection Date`, `Replicate Number` = RepNum, Season, SCI, `SCI Score`,`Family Total Taxa`:`Fam %MFBI Score`, 
+                  `Family %5 Dominant`:PctIntol) %>%
+    #clean up empty columns with a quick pivot longer (with drop na) and then back to wide
+    pivot_longer(cols = `Family Total Taxa`:PctIntol, names_to = 'Metric', values_to = 'Metric Value', values_drop_na = TRUE) %>%
+    #pivot_wider(names_from = metric, values_from = metricVal) %>% ungroup() %>% 
+    arrange(`Collection Date`, `Replicate Number`) %>%
+  knitr::kable()
+```
+
+
+
+### Habitat Metrics
+
+
+```{r habitat table, warning=FALSE, message=FALSE}
+#habitatDTcoloredTable(habitat)
+
+if(nrow(habitat) > 0){
+    habitat %>%
+      mutate(`Collection Date` = as.Date(`Collection Date`)) %>% 
+      dplyr::select(-HabSampID) %>%
+      #clean up empty columns with a quick pivot longer (with drop na) and then back to wide
+      pivot_longer(cols = `Bank Stability`:`Velocity / Depth Regime`, names_to = 'metric', values_to = 'metricVal', values_drop_na = TRUE) %>%
+      #pivot_wider(names_from = metric, values_from = metricVal) %>% ungroup() %>% 
+      arrange(`Collection Date`) %>%
+    knitr::kable() }
+```
+
+*the image below is included in case you use the colored version of the habitat metrics table from the application*
+
+<center>
+![Habitat Color Legend](images/HabitatColor.jpg)
+</center>

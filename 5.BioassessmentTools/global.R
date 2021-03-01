@@ -40,37 +40,45 @@ board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_K
 #WQM_Stations <- pin_get("ejones/WQM-Sta-GIS-View", board = "rsconnect")
 
 # limit data to assessment window From the start
-benSamps <- pin_get("ejones/benSamps", board = "rsconnect") %>%
+benSampsAll <- pin_get("ejones/benSamps", board = "rsconnect")
+benSamps <- benSampsAll %>%
   filter(between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2])) %>%# limit data to assessment window
   filter(RepNum %in% c('1', '2')) %>% # drop QA and wonky rep numbers
   filter(`Target Count` == 110) # only assess rarified data
-habSamps <- pin_get("ejones/habSamps", board = "rsconnect") %>%
+habSampsAll <- pin_get("ejones/habSamps", board = "rsconnect")
+habSamps <- habSampsAll %>%
   filter(between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]))# limit data to assessment window
 Wqm_Stations_View <- pin_get("ejones/WQM-Stations-View", board = "rsconnect") %>%
-  filter(Sta_Id %in% benSamps$StationID)
+  filter(Sta_Id %in% benSampsAll$StationID)
 WQM_Stations <- pin_get("ejones/WQM-Sta-GIS-View", board = "rsconnect") %>%
-  filter(Station_Id %in% benSamps$StationID)
+  filter(Station_Id %in% benSampsAll$StationID)
 #WQM_Station_Full <- pin_get("ejones/WQM-Station-Full", board = "rsconnect") %>%
 #  filter(WQM_STA_ID %in% benSamps$StationID) %>%
 #  distinct(WQM_STA_ID, .keep_all = T) %>%
-benSampsStations <- st_as_sf(pin_get("ejones/benSampsStations", board = "rsconnect")) %>%
-  filter(StationID %in% benSamps$StationID)
+benSampsStations <- st_as_sf(pin_get("ejones/benSampsStations", board = "rsconnect")) #%>%
+  #filter(StationID %in% benSamps$StationID)
 benSamps <- left_join(benSamps, benSampsStations, by = 'StationID') %>% # update with spatial, assess reg, vahu6, basin/subbasin, & ecoregion info
   dplyr::select(StationID, Sta_Desc, everything()) %>% 
   arrange(StationID)
 
 
-VSCIresults <- pin_get("ejones/VSCIresults", board = "rsconnect") %>%
+VSCIresultsAll <- pin_get("ejones/VSCIresults", board = "rsconnect")
+VSCIresults <- VSCIresultsAll %>%
   filter(BenSampID %in% benSamps$BenSampID)
-VCPMI63results <- pin_get("ejones/VCPMI63results", board = "rsconnect") %>%
+VCPMI63resultsAll <- pin_get("ejones/VCPMI63results", board = "rsconnect") 
+VCPMI63results <- VCPMI63resultsAll %>%
   filter(BenSampID %in% benSamps$BenSampID)
-VCPMI65results <- pin_get("ejones/VCPMI65results", board = "rsconnect") %>%
+VCPMI65resultsAll <- pin_get("ejones/VCPMI65results", board = "rsconnect") 
+VCPMI65results <- VCPMI65resultsAll %>%
   filter(BenSampID %in% benSamps$BenSampID)
-benthics <- pin_get("ejones/benthics", board = "rsconnect") %>%
+benthicsAll <- pin_get("ejones/benthics", board = "rsconnect") 
+benthics <- benthicsAll %>%
   filter(BenSampID %in% benSamps$BenSampID)
-habValues <- pin_get("ejones/habValues", board = "rsconnect") %>%
+habValuesAll <- pin_get("ejones/habValues", board = "rsconnect") 
+habValues <- habValuesAll %>%
   filter(HabSampID %in% habSamps$HabSampID)
-habObs <- pin_get("ejones/habObs", board = "rsconnect") %>%
+habObsAll <- pin_get("ejones/habObs", board = "rsconnect") 
+habObs <- habObsAll %>%
   filter(HabSampID %in% habSamps$HabSampID)
 #masterTaxaGenus <- pin_get("ejones/masterTaxaGenus", board = "rsconnect")
 
@@ -82,7 +90,14 @@ habitatTemplate <- tibble(StationID = NA, HabSampID = NA, `Collection Date` = NA
                           `Epifaunal Substrate / Available Cover` = NA, `Pool Substrate Characterization` = NA, `Pool Variability` = NA, 
                           `Frequency of riffles (or bends)` = NA, `Riparian Vegetative Zone Width` = NA, `Sediment Deposition` = NA, 
                           `Vegetative Protection` = NA, `Velocity / Depth Regime` = NA)
-
+SCItemplate <- tibble(StationID = NA, Sta_Desc = NA, BenSampID = NA, `Collection Date` = NA, RepNum = NA, `Family Total Taxa` = NA, `Family EPT Taxa` = NA,      
+                      `%Ephem` = NA, `%PT - Hydropsychidae` = NA, `%FamilyScraper` = NA, `%Chiro` = NA, `Family %2 Dominant` = NA, `Family HBI` = NA, `%Ephem Score` = NA,         
+                      `%PT-H Score` = NA, `Fam Richness Score` = NA, `%Chironomidae Score` = NA, `Fam EPT Score` = NA, `Fam %Scraper Score` = NA, `Fam %2Dom Score` = NA, `Fam %MFBI Score` = NA,      
+                      `SCI Score` = NA, SCI = NA, `SCI Threshold` = NA, `Sample Comments` = NA, `Collected By` = NA, `Field Team` = NA, `Entered By` = NA,           
+                      Taxonomist = NA, `Entered Date` = NA, Gradient = NA, `Target Count` = NA, Season = NA, `Family %5 Dominant` = NA, `%ClngP-HS` = NA,            
+                      `Richness Score` = NA, `Richness Final` = NA, `HBI Score` = NA, `HBI Final` = NA, `EPT Score` = NA, `EPT Final` = NA, EPHEM = NA,                
+                      `PT-H` = NA, `Pct5DOM` = NA, `PctClng-HS` = NA, `%Scrap` = NA, `%Intoler` = NA, PctScrap = NA, PctIntol = NA,             
+                      US_L3CODE = NA, US_L3NAME = NA, HUC_12 = NA, VAHU6 = NA, Basin = NA, Basin_Code = NA)
 
 
 totalHabScore <- function(habValues){
@@ -227,12 +242,12 @@ habitatConsolidation <- function( userStationChoice, habSamps, habValues){
 
 # Raw Bug data results for Report
 rawBugData <- function(SCI){
-  bioResultsTableTemplate <- tibble(StationID = NA, `Collection Date` = NA, `Replicate Number` = NA, SCI = NA, 
+  bioResultsTableTemplate <- tibble(StationID = NA, `Collection Date` = NA, `Replicate Number` = NA, Gradient = NA, SCI = NA, 
                                     `Spring SCI Score` = NA, `Fall SCI Score` = NA)
   bind_rows(bioResultsTableTemplate, 
             SCI %>%
-              group_by(StationID, `Collection Date`, SCI, RepNum) %>%
-              dplyr::select(StationID, `Collection Date`, `Replicate Number` = RepNum, SCI, Season, `SCI Score`) %>%
+              group_by(StationID, `Collection Date`, SCI, RepNum, Gradient) %>%
+              dplyr::select(StationID, `Collection Date`, `Replicate Number` = RepNum, Gradient, SCI, Season, `SCI Score`) %>%
               mutate(`Collection Date` = as.Date(`Collection Date`),#, format = '%M-%D-%Y'),
                      Season = paste0(Season, ' SCI Score')) %>%
               pivot_wider(names_from = Season, values_from = `SCI Score`) ) %>%
@@ -288,8 +303,8 @@ SCIstatistics <- function(SCI1){
 
 
 # SCI plot for report
-SCIresultsPlot <- function(SCI, assessmentDecision){
-  if(unique(assessmentDecision$AssessmentMethod) == 'VSCI'){
+SCIresultsPlot <- function(SCI, assessmentMethod){
+  if(unique(assessmentMethod) == 'VSCI'){
     mutate(SCI, `Collection Date` = as.Date(`Collection Date`)) %>% 
       ggplot(aes(x = `Collection Date`, y = `SCI Score`, fill=Season)) +
       geom_col()+

@@ -1,7 +1,5 @@
 source('global.R')
 
-# assessmentRegions <- st_read( 'data/GIS/AssessmentRegions_simple.shp')
-# ecoregion <- st_read('data/GIS/vaECOREGIONlevel3__proj84.shp')
 
 shinyServer(function(input, output, session) {
   
@@ -17,25 +15,16 @@ shinyServer(function(input, output, session) {
   validInputData <- reactive({req(inputFile())
     stationValidation(inputFile()) })
     
-  #OGpinnedDecisions <- reactive({pin_get('IR2022bioassessmentDecisions_test', board = 'rsconnect') })
-
   output$userStations_ <- renderUI({ req(pinnedDecisions())
     selectInput('userStations', "Choose a station to generate report",
-                   choices = unique(pinnedDecisions()$StationID))  })#unique(OGpinnedDecisions()$StationID))  })
+                   choices = unique(pinnedDecisions()$StationID))  })
   
   observe({req(validInputData())
     updateSelectInput(session, "userStations", "Choose a station to generate report",
                       choices = bind_rows(filter(pinnedDecisions(), StationID %in% validInputData()$StationID),
                                           filter(pinnedDecisions(), ! StationID %in% validInputData()$StationID)) %>%
                         dplyr::select(StationID) %>% pull() )  })
-  
-  # output$userStations_ <- renderUI({ req(inputFile())
-  #   selectizeInput('userStations', "Choose a station to generate report",
-  #                  choices = #unique(inputFile()$StationID)) 
-  #                    bind_rows(filter(pinnedDecisions(), StationID %in% inputFile()$StationID),
-  #                              filter(pinnedDecisions(), ! StationID %in% inputFile()$StationID)) %>%
-  #                    dplyr::select(StationID) %>% pull() ) })
-  
+
   # Display user input data
   output$inputTable <- DT::renderDataTable({req(inputFile())
     # Identify any stations with issues
@@ -106,5 +95,96 @@ shinyServer(function(input, output, session) {
 
       rmarkdown::render(tempReport,output_file = file,
                         params=params,envir=new.env(parent = globalenv()))})
+  
+  
+  
+  ## General Purpose Report
+  
+  ## filter benSamps by user station
+  GPbenSamps <- reactive({req(input$GPuserStation)
+    filter(benSampsAll, StationID %in% input$GPuserStation)})
+  
+  ## Benthics Data Date Range 
+  output$GPuserWindow_ <- renderUI({req(GPbenSamps())
+    dateRangeInput('GPuserWindow', label = 'Filter Bethic Information By Date Range (YYYY-MM-DD)',
+                   start = as.Date(min(GPbenSamps()$`Collection Date`)), end = as.Date(max(GPbenSamps()$`Collection Date`))) }) 
+  
+  ## Update benSamps based on date range filter
+  GPbenSampsFilter <- reactive({req(input$GPuserWindow)
+    filter(GPbenSamps(), between(as.Date(`Collection Date`), input$GPuserWindow[1], input$GPuserWindow[2]) ) })
+
+  # pull SCI information based on user SCI choice
+  GPSCI <- reactive({req(GPbenSampsFilter())
+    if(input$GPuserSCIMethod == 'VSCI'){
+      GPSCI <- filter(VSCIresultsAll, BenSampID %in% GPbenSampsFilter()$BenSampID) }
+    if(input$GPuserSCIMethod == 'VCPMI + 63'){
+      GPSCI <- filter(VCPMI63resultsAll, BenSampID %in% GPbenSampsFilter()$BenSampID) }
+    if(input$GPuserSCIMethod == 'VCPMI - 65'){
+      GPSCI <- filter(VCPMI65resultsAll, BenSampID %in% GPbenSampsFilter()$BenSampID) }
+    # add back in description information
+    return(bind_rows(SCItemplate,
+                     filter(GPSCI, `Target Count` == 110) %>%
+                       left_join(filter(benSamps, BenSampID %in% GPbenSampsFilter()$BenSampID) %>%
+                                 dplyr::select(StationID, Sta_Desc, BenSampID, US_L3CODE, US_L3NAME, HUC_12, VAHU6, Basin, Basin_Code),
+                               by = c('StationID', 'BenSampID')) %>%
+                       dplyr::select(StationID, Sta_Desc, BenSampID, `Collection Date`, RepNum, everything())) %>%
+             drop_na(StationID) ) })
+  
+  #output$testtest <- renderPrint({glimpse(GPSCI())})               
+
+  habitatUserSelection <- reactive({req(GPbenSampsFilter())
+    habitatConsolidation( input$GPuserStation, habSampsAll, habValuesAll) %>%
+      filter(between(as.Date(`Collection Date`), input$GPuserWindow[1], input$GPuserWindow[2])) })
+
+  output$GPSCImetrics <- renderDataTable({req(GPSCI())
+    SCImetricstable <- SCImetricsTable(GPSCI())
+    DT::datatable(SCImetricstable, rownames = F,  extensions = 'Buttons',
+                  options= list(dom = 'Bit', scrollX = TRUE, pageLength = nrow(SCImetricstable), #scrollY = "150px",
+                                buttons=list('copy','colvis')), selection = 'none')  })
+  output$GPhabitatMetrics <- renderDataTable({req(habitatUserSelection())
+    if(nrow(habitatUserSelection()) > 0){
+      habitatTable <- habitatUserSelection() %>%
+        mutate(`Collection Date` = as.Date(`Collection Date`)) %>% 
+        dplyr::select(-HabSampID) %>%
+        #clean up empty columns with a quick pivot longer (with drop na) and then back to wide
+        pivot_longer(cols = `Bank Stability`:`Velocity / Depth Regime`, names_to = 'metric', values_to = 'metricVal', values_drop_na = TRUE) %>%
+        pivot_wider(names_from = metric, values_from = metricVal) %>% ungroup() %>% 
+        arrange(`Collection Date`)
+      
+      habBreaks<-seq(0,20, 1)
+      habClrs<-c('firebrick', 'firebrick','firebrick','firebrick','firebrick','firebrick', "#F0E442","#F0E442","#F0E442","#F0E442","#F0E442", 
+                 "#009E73","#009E73","#009E73","#009E73","#009E73", "#0072B2","#0072B2","#0072B2","#0072B2","#0072B2")
+      
+      DT::datatable(habitatTable, escape=F, rownames = F,  extensions = 'Buttons',
+                    options=list(pageLength=nrow(habitatTable),dom= 'Bit', scrollX=TRUE, buttons=list('copy','colvis'))) %>% 
+        formatStyle('Total Habitat Score', backgroundColor = "lightgray") %>%
+        formatStyle(names(habitatTable)[5:length(habitatTable)],  backgroundColor = styleEqual(habBreaks, habClrs), alpha=0.1,
+                    textAlign = 'center')  }                          })
+  
+  
+  # have to make separate reactive object in order to send appropriate station name to the download title
+  GPfileNameForReport <- reactive({paste(as.character(unique(GPSCI()$StationID))," Benthic Fact Sheet.docx", sep = "")})
+  
+  output$GPdownloadReport <- downloadHandler(
+    filename = GPfileNameForReport,
+    content= function(file){
+      tempReport <- normalizePath('GPbioassessmentFactSheet.Rmd')
+      imageToSend1 <- normalizePath('images/riskCategories.PNG') #NEW
+      imageToSend2 <- normalizePath('images/HabitatColor.jpg') #NEW
+      
+      owd <- setwd(tempdir())
+      on.exit(setwd(owd))
+      
+      file.copy(tempReport, 'GPbioassessmentFactSheet.Rmd')
+      file.copy(imageToSend1, 'images/riskCategories.PNG') #NEW
+      file.copy(imageToSend2, 'images/HabitatColor.jpg') #NEW
+      
+      params <- list(SCI = GPSCI(),
+                     habitat = habitatUserSelection())
+      
+      rmarkdown::render(tempReport,output_file = file,
+                        params=params,envir=new.env(parent = globalenv()))})
+
+  
 
 })

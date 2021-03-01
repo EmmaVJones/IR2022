@@ -37,6 +37,8 @@ habitat <- params$habitat
 
 **River Basin:** &nbsp;&nbsp; `r unique(SCI$Basin)`
 
+**US Level 3 Ecoregion:** &nbsp;&nbsp; `r unique(assessmentDecision$EcoRegion)`
+
 **Stream Name:** &nbsp;&nbsp;`r unique(assessmentDecision$StreamName)`
 
 **Station ID:** &nbsp;&nbsp;`r unique(assessmentDecision$StationID)`
@@ -54,7 +56,7 @@ habitat <- params$habitat
 ### SCI Results
 
 ```{r sci plot, warning=FALSE, message=FALSE}
-SCIresultsPlot(SCI, assessmentDecision)
+SCIresultsPlot(SCI, unique(assessmentDecision$AssessmentMethod))
 ```
 
 

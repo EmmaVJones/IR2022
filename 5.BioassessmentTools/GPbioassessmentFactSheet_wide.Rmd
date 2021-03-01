@@ -1,0 +1,71 @@
+---
+title: "Virginia Department of Environmental Quality Assessment Factsheet"
+output: word_document
+params:
+  SCI: 'NULL'
+  habitat: 'NULL'
+always_allow_html: yes
+
+---
+
+<style>
+  .col2 {
+    columns: 2 200px;         /* number of columns and width in pixels*/
+    -webkit-columns: 2 200px; /* chrome, safari */
+    -moz-columns: 2 200px;    /* firefox */
+  }
+</style>
+
+```{r setup, include=FALSE, message= FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(webshot)
+# # for testing
+# SCI <- dat1$SCI
+# habitat <- dat1$habitat
+
+SCI <- params$SCI
+habitat <- params$habitat
+```
+
+
+
+### SCI Metrics
+
+```{r sci metric table, warning=FALSE, message=FALSE}
+#SCImetricstable <- SCImetricsTable(SCI)
+#DT::datatable(SCImetricstable, rownames = F,  options= list(scrollX = TRUE, pageLength = nrow(SCImetricstable), #scrollY = "150px", 
+#                                                 dom='t'), selection = 'none') 
+
+SCI %>%
+    mutate(`Collection Date` = as.Date(`Collection Date`)) %>% 
+    group_by(StationID, `Collection Date`, SCI, RepNum) %>%
+    dplyr::select(StationID, `Collection Date`, `Replicate Number` = RepNum, Season, SCI, `SCI Score`,`Family Total Taxa`:`Fam %MFBI Score`, 
+                  `Family %5 Dominant`:PctIntol) %>%
+    #clean up empty columns with a quick pivot longer (with drop na) and then back to wide
+    pivot_longer(cols = `Family Total Taxa`:PctIntol, names_to = 'metric', values_to = 'metricVal', values_drop_na = TRUE) %>%
+    pivot_wider(names_from = metric, values_from = metricVal) %>% ungroup() %>% 
+    arrange(`Collection Date`, `Replicate Number`) %>%
+  knitr::kable()
+```
+
+
+
+
+
+```{r habitat table, warning=FALSE, message=FALSE}
+#habitatDTcoloredTable(habitat)
+
+if(nrow(habitat) > 0){
+    habitat %>%
+      mutate(`Collection Date` = as.Date(`Collection Date`)) %>% 
+      dplyr::select(-HabSampID) %>%
+      #clean up empty columns with a quick pivot longer (with drop na) and then back to wide
+      pivot_longer(cols = `Bank Stability`:`Velocity / Depth Regime`, names_to = 'metric', values_to = 'metricVal', values_drop_na = TRUE) %>%
+      pivot_wider(names_from = metric, values_from = metricVal) %>% ungroup() %>% 
+      arrange(`Collection Date`) %>%
+    knitr::kable() }
+```
+
+
+
+
