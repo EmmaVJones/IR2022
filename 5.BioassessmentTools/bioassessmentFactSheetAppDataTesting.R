@@ -4,8 +4,8 @@ source('global.R')
 IR2020 <- read_excel('data/BioassessmentRegionalResultsIR2020.xlsx') %>%
   filter(!is.na(FinalAssessmentRating))
 
+###########IR2022 <- read_excel('data/BioassessmentRegionalResultsIR2022test.xlsx')
 #IR2022 <- read_excel('data/BioassessmentRegionalResultsIR2022test.xlsx')
-#IR2022 <- read_excel('data/BioassessmentRegionalResultsIR2022test_nobasinCounty.xlsx')
 
 # check against pinned data, overwrite if necessary
 # this is the original pin in case it needs to be reset during testing
@@ -34,7 +34,7 @@ pinCheck('IR2022bioassessmentDecisions_test', userUploadValid) # can change to r
 
 # pull new pin
 #pinnedDecisions <- pin_get('IR2022bioassessmentDecisions_test', board = 'rsconnect') # new list of what's available to make a report
-if(exists('userUpload') ){#is.null(inputFile())){
+if(!exists('userUpload') ){#is.null(inputFile())){
   pinnedDecisions <- pin_get('IR2022bioassessmentDecisions_test', board = 'rsconnect')
 } else {
   pinCheck('IR2022bioassessmentDecisions_test', userUploadValid) # can change to real deal pin in time

@@ -39,6 +39,22 @@ fishMetalsScreeningValues <- read_csv('data/FishMetalsScreeningValues.csv') %>%
   group_by(`Screening Method`) %>% 
   pivot_longer(cols = -`Screening Method`, names_to = 'Metal', values_to = 'Screening Value') %>%
   arrange(Metal)
+benSampsStations <- st_as_sf(pin_get("ejones/benSampsStations", board = "rsconnect")) #%>%
+benSamps <- pin_get("ejones/benSamps", board = "rsconnect") %>%
+  filter(between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2])) %>%# limit data to assessment window
+  filter(RepNum %in% c('1', '2')) %>% # drop QA and wonky rep numbers
+  filter(`Target Count` == 110) %>% # only assess rarified data
+  left_join(benSampsStations, by = 'StationID') %>% # update with spatial, assess reg, vahu6, basin/subbasin, & ecoregion info
+  dplyr::select(StationID, Sta_Desc, everything()) %>% 
+  arrange(StationID)
+habSamps <- pin_get("ejones/habSamps", board = "rsconnect") %>% 
+  filter(between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]))# limit data to assessment window
+habValues <- pin_get("ejones/habValues", board = "rsconnect")  %>%
+  filter(HabSampID %in% habSamps$HabSampID)
+habObs <- pin_get("ejones/habObs", board = "rsconnect") %>%
+  filter(HabSampID %in% habSamps$HabSampID)
+pinnedDecisions <- pin_get('IR2022bioassessmentDecisions_test', board = 'rsconnect') ####################change to real when available
+
 
 
 
@@ -656,30 +672,50 @@ plot_ly(data=fourDayWindowData) %>%
 
 
 ## Fish Metals work
+# 
+# 
+# Fmetals <- filter(fishMetals, Station_ID %in% '2-JKS023.61') 
+# if(nrow(Fmetals) > 0){
+#   FmetalsSV <- dplyr::select(Fmetals, Station_ID, Collection_Date_Time, Sample_ID,  `# of Fish`, Species_Name, length, weight, Beryllium:Lead) %>%
+#     dplyr::select(-contains('RMK_')) %>%
+#     group_by( Station_ID, Collection_Date_Time, Sample_ID, `# of Fish`, Species_Name, length, weight) %>%
+#     pivot_longer(cols= Beryllium:Lead, names_to = "Metal", values_to = 'Measure') %>%
+#     left_join(fishMetalsScreeningValues, by = 'Metal') %>%
+#     filter(Measure > `Screening Value`) %>%
+#     arrange(Metal)
+# } else { FmetalsSV <- dplyr::select(Fmetals, Station_ID, Collection_Date_Time, Sample_ID,  `# of Fish`, Species_Name, length, weight) %>%
+#   mutate(Metal = NA, Measure = NA, `Screening Method` = NA, `Screening Value` = NA)}
+#   
+# 
+# # Fish PCB work
+# fPCB <- filter(fishPCB, `DEQ rivermile` %in% '2-JKS023.61')
+# 
+# datatable(fishPCB %>% dplyr::select(`Total PCBs`, everything()), rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(fishPCB), scrollY = "250px", dom='t'), selection = 'none') %>%
+#   formatStyle('Total PCBs', backgroundColor = styleInterval(c( 18, 20, 100, 500), c(NA, '#f2a972', '#c34eed', '#4a57e8', '#ed4242' )))
+# 
+# tibble(Description = c('DEQ screening value of 18 ppb', 'DEQ screening value of 20 ppb', 'VDH lower level of concern of 100 ppb', 'VDH upper level of concern of 500 ppb'),
+#        `Screening Value` = c(18.001, 20.001, 100.001, 500.001)) %>% # extra digits to force colors to come in correctly
+#   datatable(rownames = FALSE, options= list(scrollX = TRUE, pageLength = 4, dom='t')) %>%
+#   formatRound('Screening Value',digits = 0) %>%
+#   formatStyle(c('Description', 'Screening Value'), backgroundColor = styleInterval(c( 18, 20, 100, 500), c(NA, '#f2a972', '#c34eed', '#4a57e8', '#ed4242' )))
+# 
 
 
-Fmetals <- filter(fishMetals, Station_ID %in% '2-JKS023.61') 
-if(nrow(Fmetals) > 0){
-  FmetalsSV <- dplyr::select(Fmetals, Station_ID, Collection_Date_Time, Sample_ID,  `# of Fish`, Species_Name, length, weight, Beryllium:Lead) %>%
-    dplyr::select(-contains('RMK_')) %>%
-    group_by( Station_ID, Collection_Date_Time, Sample_ID, `# of Fish`, Species_Name, length, weight) %>%
-    pivot_longer(cols= Beryllium:Lead, names_to = "Metal", values_to = 'Measure') %>%
-    left_join(fishMetalsScreeningValues, by = 'Metal') %>%
-    filter(Measure > `Screening Value`) %>%
-    arrange(Metal)
-} else { FmetalsSV <- dplyr::select(Fmetals, Station_ID, Collection_Date_Time, Sample_ID,  `# of Fish`, Species_Name, length, weight) %>%
-  mutate(Metal = NA, Measure = NA, `Screening Method` = NA, `Screening Value` = NA)}
-  
 
-# Fish PCB work
-fPCB <- filter(fishPCB, `DEQ rivermile` %in% '2-JKS023.61')
 
-datatable(fishPCB %>% dplyr::select(`Total PCBs`, everything()), rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(fishPCB), scrollY = "250px", dom='t'), selection = 'none') %>%
-  formatStyle('Total PCBs', backgroundColor = styleInterval(c( 18, 20, 100, 500), c(NA, '#f2a972', '#c34eed', '#4a57e8', '#ed4242' )))
+### Benthic Bioassessment decision addition
+userStationChoice <- '2-CAT026.29'
+assessmentDecision_UserSelection <- filter(bioassessmentDecisions, StationID %in% userStationChoice)
 
-tibble(Description = c('DEQ screening value of 18 ppb', 'DEQ screening value of 20 ppb', 'VDH lower level of concern of 100 ppb', 'VDH upper level of concern of 500 ppb'),
-       `Screening Value` = c(18.001, 20.001, 100.001, 500.001)) %>% # extra digits to force colors to come in correctly
-  datatable(rownames = FALSE, options= list(scrollX = TRUE, pageLength = 4, dom='t')) %>%
-  formatRound('Screening Value',digits = 0) %>%
-  formatStyle(c('Description', 'Screening Value'), backgroundColor = styleInterval(c( 18, 20, 100, 500), c(NA, '#f2a972', '#c34eed', '#4a57e8', '#ed4242' )))
+SCI_UserSelection <- filter(VSCIresults, StationID %in% filter(assessmentDecision_UserSelection, AssessmentMethod == 'VSCI')$StationID) %>%
+  bind_rows(
+    filter(VCPMI63results, StationID %in% filter(assessmentDecision_UserSelection, AssessmentMethod == 'VCPMI + 63')$StationID)  ) %>%
+  bind_rows(
+    filter(VCPMI65results, StationID %in% filter(assessmentDecision_UserSelection, AssessmentMethod == 'VCPMI - 65')$StationID)  ) %>%
+  # add back in description information
+  left_join(filter(benSamps, StationID %in% userStationChoice) %>%
+              dplyr::select(StationID, Sta_Desc, BenSampID,US_L3CODE, US_L3NAME, HUC_12, VAHU6, Basin, Basin_Code),
+            by = c('StationID', 'BenSampID')) %>%
+  dplyr::select(StationID, Sta_Desc, BenSampID, `Collection Date`, RepNum, everything())
 
+habitatUserSelection <- habitatConsolidation( userStationChoice, habSamps, habValues)

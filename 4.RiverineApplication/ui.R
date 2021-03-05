@@ -260,10 +260,24 @@ shinyUI(fluidPage(theme="yeti.css",
                                                                 helpText('Review each site using the single site visualization section. Total Sulfate criteria only apply to stations with PWS designation.'),
                                                                 DSulfatePlotlySingleStationUI('DSulfate'))
                                                      )),
-                                            tabPanel('EDAS Data',
+                                            tabPanel('Benthic Data',
                                                      helpText('Review each site using the single site visualization section. If no benthic information is presented, then there is no macroinvertebrate data for
                                                              the station. Always review biologist fact sheets to assist assessment decisions.'),
-                                                     BenthicsPlotlySingleStationUI('Benthics')),
+                                                     tabsetPanel(
+                                                       tabPanel('Default Biological Information',
+                                                                BenthicsPlotlySingleStationUI('Benthics')),
+                                                       tabPanel("Bioassessment Additional Information",
+                                                                wellPanel(
+                                                                  h4(strong('Information From Your Regional Biologist(s)')),
+                                                                  # fluidRow(column(4, DT::dataTableOutput('biologistEcoregionInfo')),
+                                                                  #          column(4, DT::dataTableOutput('biologistSCiInfo'))),
+                                                                  helpText('All data presented in this module was submitted by the Regional Biologist
+                                                                            referenced below into the Bioassessment Fact Sheet Generator Tool and saved on the R 
+                                                                            server. Please follow up with that biologist to answer any questions 
+                                                                            about this station.'),
+                                                                  DT::dataTableOutput('bioassessmentInfo'),
+                                                                  br(),
+                                                                  uiOutput('downloadReport_'))))),   
                                             tabPanel('Metals Data',
                                                      helpText('Review each site using the single site visualization section. All analyses were performed outside of the
                                                                           automated assessment scripts, so please direct questions to Roger Stewart (roger.stewart@deq.virginia.gov).'),
