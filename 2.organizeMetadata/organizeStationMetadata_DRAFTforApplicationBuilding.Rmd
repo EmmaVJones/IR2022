@@ -36,13 +36,22 @@ The following sections will detail bringing in these necessary data sources and 
 
 #### Conventionals (draft)
 
-This dataset was pulled by Roger Stewart in November 2019 and serves as the best replacement for actual conventionals data. I smashed this new pull from Roger with the 2020 final IR data pull to get a dataset from 2013-2019 for use in various data products.
+This dataset is the draft data sent out by Roger in Februrary 2021 prior to the official start of the assessment.
 
 New method, matching Roland's citmon/nonagency database.
 
 ```{r}
 source('updateConventionalsSchema.R')
 ```
+
+##### Citmon/NonAgency Data
+
+This is a tough one. The 2022IR is the first time DEQ is kinda getting things together and suggesting that non agency data comes to the assessement group with some sort of format, but that only works for 2019-2020 data. The BRRO assessors worked for weeks in 2020IR to reorganize their citmon/nonagency data and stations, so we are putting our best effort towards including that organized data into this assessment cycle. However, the way stations are organized with AU and WQS information will continue to be a problem until a more permanent solution with an official citmon database is developed.
+
+```{r}
+source('addInBRRO2020IRcitmonData.R')
+```
+
 
 
 Old method.
@@ -408,11 +417,11 @@ conn <- config::get("connectionSettings")
 board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_KEY"),
                           server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
 
-conventionals2022IRdraftWithSecchi <- conventionals
+conventionals2022IRdraftWithSecchi_Feb2021 <- conventionals
 
-conventionals2022IRdraft <- conventionals
-stations2020IR_sf_draft <- lastCycleStation_sf
-conventionals_distinct_draft <- conventionals_distinct 
+conventionals2022IRdraft_Feb2021 <- conventionals
+stations2020IR_sf_draft_Feb2021 <- lastCycleStation_sf
+conventionals_distinct_draft_Feb2021 <- conventionals_distinct 
 
 #2020 final metals data (pre manipulated by me) to act as a placeholder
 WCmetals_2020IRfinal <- read_csv('data/final2020data/CEDSWQM_2020_IR_DATA-WATER_METALS_VALUES_20190207_EVJ.csv')
@@ -421,12 +430,12 @@ Smetals_2020IRfinal <- read_excel('data/final2020data/CEDSWQM_2020_IR_DATA-CEDSW
 names(Smetals_2020IRfinal) <- gsub( "[..].*", "", names(Smetals_2020IRfinal)) # remove anything after .. in name
 
 # Pin data
-pin(conventionals2022IRdraftWithSecchi, description = "DRAFT 2022IR conventionals dataset from Roger Stewart", board = "rsconnect")
+pin(conventionals2022IRdraftWithSecchi_Feb2021, description = "DRAFT 2022IR conventionals dataset from Roger Stewart Feb 2021 update", board = "rsconnect")
 
-pin(conventionals2022IRdraft, description = "DRAFT 2022IR conventionals dataset from Roger Stewart", board = "rsconnect")
-pin(conventionals_distinct_draft, description = "DRAFT 2022IR conventionals distinct stations from Roger Stewart", board = "rsconnect")
+pin(conventionals2022IRdraft_Feb2021, description = "DRAFT 2022IR conventionals dataset from Roger Stewart Feb 2021 update", board = "rsconnect")
+pin(conventionals_distinct_draft_Feb2021, description = "DRAFT 2022IR conventionals distinct stations from Roger Stewart Feb 2021 update", board = "rsconnect")
 pin(vahu6, description = "DEQ Assessment Region Data at VAHU6 level", board = "rsconnect")
-pin(stations2020IR_sf_draft, description = "DRAFT 2020IR stations from Cleo Baker", board = "rsconnect")
+pin(stations2020IR_sf_draft_Feb2021, description = "DRAFT 2020IR stations from Cleo Baker Feb 2021 update", board = "rsconnect")
 pin(WCmetals_2020IRfinal, description = "FINAL 2020IR water column metals data from Roger Stewart", board = "rsconnect")
 pin(Smetals_2020IRfinal, description = "FINAL 2020IR sediment metals data from Roger Stewart", board = "rsconnect")
 

@@ -20,7 +20,7 @@ source('appModulesAndFunctions/multipleDependentSelectizeArguments.R')
 source('appModulesAndFunctions/automatedAssessmentFunctions.R')
 
 modulesToReadIn <- c('thermocline','temperature','DO','pH', 'Ecoli', 'Ecoli_AU','chlA','TP', 'TSI', 'Ammonia',
-                     'Nitrate', 'Chloride', 'sulfate')
+                     'Nitrate', 'Chloride', 'sulfate', 'metals', 'toxics')
 for (i in 1:length(modulesToReadIn)){
   source(paste('appModulesAndFunctions/',modulesToReadIn[i],'Module.R',sep=''))
 }

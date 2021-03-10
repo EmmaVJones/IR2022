@@ -47,9 +47,9 @@ Scripts to organize and pin data are in ../2.organizeMetadata/organizeStationMet
 Much faster method and makes sure data used by assessors is same for testing.
 
 ```{r pull pins}
-conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect")
-conventionals_distinct <- pin_get("conventionals-distinct-draft", board = "rsconnect")
-stations2020IR <- pin_get("stations2020IR-sf-draft", board = "rsconnect")
+conventionals <- pin_get("conventionals2022IRdraft-Feb2021", board = "rsconnect")#pin_get("conventionals2022IRdraft", board = "rsconnect")
+conventionals_distinct <- pin_get("conventionals-distinct-draft-Feb2021", board = "rsconnect")#pin_get("conventionals-distinct-draft", board = "rsconnect")
+stations2020IR <- pin_get("stations2020IR-sf-draft-Feb2021", board = "rsconnect")#pin_get("stations2020IR-sf-draft", board = "rsconnect")
 WQMstationFull <- pin_get("WQM-Station-Full", board = "rsconnect")
 VSCIresults <- pin_get("VSCIresults", board = "rsconnect") %>%
   filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) )
@@ -199,6 +199,9 @@ ammoniaAnalysis <- tibble()
 # For testing citmon level info
 #conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect")
 #conventionals$FDT_STA_ID[1:53] <- '1AACO018.48'
+
+stationTable1 <- stationTable
+stationTable <- filter(stationTable, str_detect(STATION_ID, '4ABWR'))
 
 # time it:
 startTime <- Sys.time()

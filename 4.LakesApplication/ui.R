@@ -228,7 +228,13 @@ shinyUI(fluidPage(theme="yeti.css",
                                                                 ClPlotlySingleStationUI('Cl')),
                                                        tabPanel('Sulfate',
                                                                 helpText('Review each site using the single site visualization section. Sulfate PWS criteria only apply at intakes.'),
-                                                                DSulfatePlotlySingleStationUI('DSulfate'))
-                                                       )))#,
+                                                                DSulfatePlotlySingleStationUI('DSulfate')))),
+                                            tabPanel('Metals Data',
+                                                     helpText('Review each site using the single site visualization section. All analyses were performed outside of the
+                                                                          automated assessment scripts, so please direct questions to Roger Stewart (roger.stewart@deq.virginia.gov).'),
+                                                     metalsTableSingleStationUI('metals')),
+                                            tabPanel('Toxics Data', 
+                                                     toxicsSingleStationUI('PBC')))#,
+                                                              
                                  )
                       )))))

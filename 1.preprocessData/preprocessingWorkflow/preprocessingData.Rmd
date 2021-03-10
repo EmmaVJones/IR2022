@@ -65,7 +65,7 @@ First bring in Roger's conventionals data pull for the 2022IR window. The data s
 
 ```{r conventionals}
 # run in console
-conventionalsRaw <- read_excel('./data/final2020data/draftFinal/CEDSWQM/CONVENTIONALS_2022_20210201.xlsx') 
+conventionalsRaw <- read_excel('./data/draft2022data/CEDSWQM/CONVENTIONALS_2022_20210201.xlsx') 
 
 conventionals <-  mutate(conventionalsRaw, Source_Sta_Id = as.character(NA),
                          Data_Source = 'DEQ') %>%
@@ -95,8 +95,20 @@ Working with Roland's first data reorganization attempt using just CMC data.
 
 
 
+This is a special work around for BRRO to add their IR2020 citmon data in
+
+```{r BRRO citmon}
+source('addBRROIR2020citmondata.R')
+```
+
+This would be a logical point to continue through the rest of the method- assigning AU information and WQS, but assessors don't want to go through that with citmon data right now since the sites can be so ephemeral. Going to save the reorganized and filtered data to a csv for inclusion in 2.organizeMetadata and deal with other citmon data at another point.
 
 
+```{r save BRRO citmon nonagency things }
+write.csv(BRRO, 'C:/HardDriveBackup/R/GitHub/IR2022/2.organizeMetadata/data/final2020data/BRROcitmonNonagencyIR2020Stations.csv', row.names=FALSE)
+write.csv(ir2020, 'C:/HardDriveBackup/R/GitHub/IR2022/2.organizeMetadata/data/final2020data/BRROcitmonNonagencyIR2020conventionals.csv', row.names=FALSE)
+
+```
 
 
 

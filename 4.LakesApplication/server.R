@@ -19,6 +19,16 @@ Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
 
 # Bring in local data (for now)
 ammoniaAnalysis <- readRDS('userDataToUpload/processedStationData/ammoniaAnalysis.RDS')
+markPCB <- read_excel('data/2022 IR PCBDatapull_EVJ.xlsx', sheet = '2022IR Datapull EVJ') %>%
+  mutate(SampleDate = as.Date(SampleDate))
+fishPCB <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'PCBs')
+fishMetals <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'Metals') %>%
+  rename("# of Fish" = "# of fish...4", "Species_Name"  = "Species_Name...5", 
+         "species_name" = "Species_Name...47", "number of fish" = "# of fish...48")
+fishMetalsScreeningValues <- read_csv('data/FishMetalsScreeningValues.csv') %>%
+  group_by(`Screening Method`) %>% 
+  pivot_longer(cols = -`Screening Method`, names_to = 'Metal', values_to = 'Screening Value') %>%
+  arrange(Metal)
 lakeNutStandards <- read_csv('data/9VAC25-260-187lakeNutrientStandards.csv')
 
 
@@ -299,6 +309,7 @@ shinyServer(function(input, output, session) {
                                          PCBmetalsDataExists(filter(fishMetals, Station_ID %in% stationData()$FDT_STA_ID), 'FISH_MET'),
                                          # Gabe's fish PCB results, flagged
                                          PCBmetalsDataExists(filter(fishPCB, `DEQ rivermile` %in%  stationData()$FDT_STA_ID), 'FISH_TOX'),
+                                         # add in benthic placeholders
                                          tibble(BENTHIC_STAT = NA, BENTHIC_WOE_CAT= NA, BIBI_SCORE = NA),
                                          TP_Assessment(stationData()),
                                          chlA_Assessment(stationData()) ) %>%
@@ -418,5 +429,15 @@ shinyServer(function(input, output, session) {
   
   ## Sulfate Sub Tab ##-----------------------------------------------------------------------------------------------------
   callModule(DSulfatePlotlySingleStation,'DSulfate', AUData, stationSelected)
+  
+  
+  
+  
+  #### Metals Sub Tab ####---------------------------------------------------------------------------------------------------
+  callModule(metalsTableSingleStation,'metals', AUData, WCmetals ,Smetals, fishMetals, fishMetalsScreeningValues, stationSelected)
+  
+  #### Toxics Sub Tab ####---------------------------------------------------------------------------------------------------
+  callModule(toxicsSingleStation,'PBC', AUData, markPCB, fishPCB, stationSelected)
+  
   
 })
