@@ -370,7 +370,7 @@ countNutrients <- function(x, fieldName, commentName, nutrientLimit){
 chlA_analysis <- function(x){
   if(!is.na(unique(x$Lakes_187B))){
     if(unique(x$Lakes_187B) == 'y'){
-      x <- filter(x, LACUSTRINE == 'YES')  } }
+      x <- filter(x, LACUSTRINE == 'Y')  } }
   
   chla <- filter(x, !is.na(CHLOROPHYLL_A_ug_L)) %>%
     filter(FDT_DEPTH <= 1) %>% # Guidance calls for top meter only
@@ -443,7 +443,7 @@ chlA_Assessment <- function(x){
 TP_analysis <- function(x){
   if(!is.na(unique(x$Lakes_187B))){
     if(unique(x$Lakes_187B) == 'y'){
-      x <- filter(x, LACUSTRINE == 'YES')  }
+      x <- filter(x, LACUSTRINE == 'Y')  }
   }
   
   
@@ -1003,3 +1003,11 @@ ammoniaDecision <- function(freshwaterAssessments # list of freshwater assessmen
 
 
 
+## Identify if metals data exists
+metalsData <- function(stationData, metalType){
+  if(nrow(stationData) > 0){
+    dataOut <- tibble(`_EXC` = NA, `_STAT` = 'Review')
+  } else {
+    dataOut <- tibble(`_EXC` = NA, `_STAT` = NA)}
+  names(dataOut) <- paste0(metalType, names(dataOut))
+  return(dataOut)}

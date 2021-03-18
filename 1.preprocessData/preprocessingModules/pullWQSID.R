@@ -21,6 +21,13 @@ loadData <- function(outputDir) {
   data
 }
 
+# function to find sites with +1 segment
+snapCheck <- function(successDataFrame){
+  successDataFrame %>%
+    group_by(StationID) %>%
+    filter(n()>1)
+}
+
 WQStableExisting <- loadData("./WQSlookupTable") # run in console
 
 

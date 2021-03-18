@@ -6,8 +6,9 @@ basinSelection <- 'James-Upper'#"James-Middle"##"Roanoke"#"Roanoke"#'James-Upper
 HUC6Selection <- "JU11"#"JM01"#'JM16'#'RU09'#'RL12'#
 
 
-conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
-  filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 EDT" )
+conventionals <- pin_get("conventionals2022IRfinalWithSecchi", board = "rsconnect") 
+#pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
+#filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 UTC" )
 vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
 WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 # placeholder for now, shouldn't be a spatial file

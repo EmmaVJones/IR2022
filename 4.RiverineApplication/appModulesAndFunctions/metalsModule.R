@@ -6,20 +6,33 @@ metalsTableSingleStationUI <- function(id){
                wellPanel(
                  h4(strong('Single Station Data Visualization')),
                  uiOutput(ns('WCmetals_oneStationSelectionUI')),
-                 h5('All water column metals data available for the ',span(strong('selected site')),' are available below. 
-         If no data is presented, then the station does not have any water column metals data available.'),
-                 DT::dataTableOutput(ns('WCmetalsRangeTableSingleSite')),br(), br(), br(),
-                 h5('Metals assessments for the ',span(strong('selected site')),' are highlighted below.'),
-                 DT::dataTableOutput(ns("WCstationmetalsExceedanceRate")))),
+                 tabsetPanel(
+                   tabPanel('2022 Raw Data',
+                            h5('All water column metals data available for the ',span(strong('selected site')),' are available below. 
+                               If no data is presented, then the station does not have any water column metals data available.'),
+                            DT::dataTableOutput(ns('WCmetalsRangeTableSingleSite'))),
+                   tabPanel('2020 IR Assessment',
+                            h4('The 2020 IR data pulls included pre-analyzed metals data. The results of those analyses are presented below.'),
+                            h5('All water column metals data available for the ',span(strong('selected site')),' are available below. 
+                               If no data is presented, then the station does not have any water column metals data available.'),
+                            DT::dataTableOutput(ns('IR2020WCmetalsRangeTableSingleSite')),br(), br(), br(),
+                            h5('Metals assessments for the ',span(strong('selected site')),' are highlighted below.'),
+                            DT::dataTableOutput(ns("IR2020WCstationmetalsExceedanceRate")))))),
       tabPanel('Sediment Metals',
                wellPanel(
                  h4(strong('Single Station Data Visualization')),
                  uiOutput(ns('Smetals_oneStationSelectionUI')),
-                 h5('All sediment metals data available for the ',span(strong('selected site')),' are available below. 
-                    If no data is presented, then the station does not have any sediment metals data available.'),
-                 DT::dataTableOutput(ns('SmetalsRangeTableSingleSite')),br(), br(), br(),
-                 h5('Metals assessments for the ',span(strong('selected site')),' are highlighted below.'),
-                 DT::dataTableOutput(ns("SstationmetalsExceedanceRate")))),
+                 tabsetPanel(
+                   tabPanel('2022 Raw Data',
+                            h5('All sediment metals data available for the ',span(strong('selected site')),' are available below. 
+                               If no data is presented, then the station does not have any sediment metals data available.'),
+                            DT::dataTableOutput(ns('SmetalsRangeTableSingleSite'))),
+                   tabPanel('2020 IR Assessment',
+                            h5('All sediment metals data available for the ',span(strong('selected site')),' are available below. 
+                               If no data is presented, then the station does not have any sediment metals data available.'),
+                            DT::dataTableOutput(ns('IR2020SmetalsRangeTableSingleSite')),br(), br(), br(),
+                            h5('Metals assessments for the ',span(strong('selected site')),' are highlighted below.'),
+                            DT::dataTableOutput(ns("IR2020SstationmetalsExceedanceRate")))))),
       tabPanel('Fish Tissue Metals',
                wellPanel(
                  h4(strong('Single Station Data Visualization')),
@@ -37,7 +50,7 @@ metalsTableSingleStationUI <- function(id){
 }
 
 
-metalsTableSingleStation <- function(input,output,session, AUdata, WCmetals ,Smetals, Fmetals, metalsSV, stationSelectedAbove){
+metalsTableSingleStation <- function(input,output,session, AUdata, WCmetals , IR2020WCmetals, Smetals, IR2020Smetals, Fmetals, metalsSV, stationSelectedAbove){
   ns <- session$ns
   
   ## Water Column Metals
@@ -49,21 +62,29 @@ metalsTableSingleStation <- function(input,output,session, AUdata, WCmetals ,Sme
                 width='300px', selected = stationSelectedAbove())})# "2-JMS279.41" )})
   
   
-  WCmetals_oneStation <- reactive({
-    req(ns(input$WCmetals_oneStationSelection))
+  WCmetals_oneStation <- reactive({req(ns(input$WCmetals_oneStationSelection))
     filter(WCmetals, FDT_STA_ID %in% input$WCmetals_oneStationSelection)})
   
+  output$WCmetalsRangeTableSingleSite <- DT::renderDataTable({req(WCmetals_oneStation())
+    z <- WCmetals_oneStation()
+    z$FDT_DATE_TIME <- as.character(as.POSIXct(z$FDT_DATE_TIME, format="%m/%d/%Y %H:%M"))
+    DT::datatable(z, rownames = FALSE,extensions = 'Buttons',
+                  options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='Bt',
+                                buttons=list('copy',
+                                             list(extend='csv',filename=paste('WCmetalsRaw_',paste(assessmentCycle,input$WCmetals_oneStationSelection, collapse = "_"),Sys.Date(),sep='')),
+                                             list(extend='excel',filename=paste('WCmetalsRaw_',paste(assessmentCycle,input$WCmetals_oneStationSelection, collapse = "_"),Sys.Date(),sep='')))),
+                  selection = 'none')     })
   
-  output$WCmetalsRangeTableSingleSite <- DT::renderDataTable({
-    req(WCmetals_oneStation())
-    z <- dplyr::select(WCmetals_oneStation(), FDT_STA_ID:HARDNESS)
+  output$IR2020WCmetalsRangeTableSingleSite <- DT::renderDataTable({req(input$WCmetals_oneStationSelection)
+    z <- filter(IR2020WCmetals, FDT_STA_ID %in% input$WCmetals_oneStationSelection) %>% 
+      dplyr::select( FDT_STA_ID:HARDNESS)
     z$FDT_DATE_TIME <- as.character(as.POSIXct(z$FDT_DATE_TIME, format="%m/%d/%Y %H:%M"))
     DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'),
                   selection = 'none')     })
   
-  output$WCstationmetalsExceedanceRate <- DT::renderDataTable({
-    req(input$WCmetals_oneStationSelection, WCmetals_oneStation())
-    z <- dplyr::select(WCmetals_oneStation(), FDT_STA_ID, `FDT_DATE_TIME`,`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`)
+  output$IR2020WCstationmetalsExceedanceRate <- DT::renderDataTable({ req(input$WCmetals_oneStationSelection)
+    z <-  filter(IR2020WCmetals, FDT_STA_ID %in% input$WCmetals_oneStationSelection) %>%
+      dplyr::select(FDT_STA_ID, `FDT_DATE_TIME`,`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`)
     z$FDT_DATE_TIME <- as.character(as.POSIXct(z$FDT_DATE_TIME, format="%m/%d/%Y %H:%M"))
     DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'),
                   selection = 'none') %>%
@@ -81,19 +102,36 @@ metalsTableSingleStation <- function(input,output,session, AUdata, WCmetals ,Sme
   
   Smetals_oneStation <- reactive({
     req(ns(input$Smetals_oneStationSelection))
-    filter(Smetals, FDT_STA_ID %in% input$Smetals_oneStationSelection)})
+    filter(Smetals, Station_Id %in% input$Smetals_oneStationSelection)})
   
-  
-  output$SmetalsRangeTableSingleSite <- DT::renderDataTable({
-    req(Smetals_oneStation())
-    z <- dplyr::select(Smetals_oneStation(), FDT_STA_ID, FDT_DATE_TIME:ENDRINT)
+  output$SmetalsRangeTableSingleSite <- DT::renderDataTable({req(Smetals_oneStation())
+    z <- Smetals_oneStation()
     z$FDT_DATE_TIME <- as.character(as.POSIXct(z$FDT_DATE_TIME, format="%m/%d/%Y %H:%M"))
     DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'),
                   selection = 'none')     })
   
-  output$SstationmetalsExceedanceRate <- DT::renderDataTable({
+  
+  
+  
+  output$IR2020SmetalsRangeTableSingleSite <- DT::renderDataTable({req(input$Smetals_oneStationSelection)
+    z <- filter(IR2020Smetals, FDT_STA_ID %in% input$Smetals_oneStationSelection) %>% 
+      dplyr::select(FDT_STA_ID, FDT_DATE_TIME:ENDRINT)
+    z$FDT_DATE_TIME <- as.character(as.POSIXct(z$FDT_DATE_TIME, format="%m/%d/%Y %H:%M"))
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'),
+                  selection = 'none')     })
+  
+  
+  output$IR2020SmetalsRangeTableSingleSite <- DT::renderDataTable({req(input$Smetals_oneStationSelection)
+    z <- filter(IR2020Smetals, FDT_STA_ID %in% input$Smetals_oneStationSelection) %>% 
+      dplyr::select( FDT_STA_ID, FDT_DATE_TIME:ENDRINT)
+    z$FDT_DATE_TIME <- as.character(as.POSIXct(z$FDT_DATE_TIME, format="%m/%d/%Y %H:%M"))
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'),
+                  selection = 'none')     })
+  
+  output$IR2020SstationmetalsExceedanceRate <- DT::renderDataTable({
     req(input$Smetals_oneStationSelection, Smetals_oneStation())
-    z <- dplyr::select(Smetals_oneStation(), FDT_STA_ID, `FDT_DATE_TIME`,ARSENIC:COMMENT)
+    z <- filter(IR2020Smetals, FDT_STA_ID %in% input$Smetals_oneStationSelection) %>% 
+      dplyr::select(FDT_STA_ID, `FDT_DATE_TIME`,ARSENIC:COMMENT)
     z$FDT_DATE_TIME <- as.character(as.POSIXct(z$FDT_DATE_TIME, format="%m/%d/%Y %H:%M"))
     DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'),
                   selection = 'none') %>%
@@ -132,5 +170,3 @@ metalsTableSingleStation <- function(input,output,session, AUdata, WCmetals ,Sme
     #formatStyle(names(z), backgroundColor = styleEqual(c('OE'), c('red'))) # highlight cells red if not supporting
   }) 
 }
-
-

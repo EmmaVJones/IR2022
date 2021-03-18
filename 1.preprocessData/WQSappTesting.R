@@ -14,14 +14,14 @@ subbasins <- st_read('data/GIS/DEQ_VAHUSB_subbasins_EVJ.shp') %>%
 
 
 
-WQSwaterbodyType1 <-'Riverine' #  'Estuarine'#
+WQSwaterbodyType1 <-'Estuarine'#'Riverine' #  'Estuarine'#
 
-WQSDEQregionSelection1 <- "SWRO"#"TRO"#'BRRO'#
+WQSDEQregionSelection1 <- "CO"#"SWRO"#"TRO"#'BRRO'#
   #filter(subbasinOptionsByWQStype, waterbodyType %in% WQSwaterbodyType1) %>%
   #distinct(AssessmentRegion) %>% 
   #pull()
 
-WQSsubbasinSelection1 <- "New"#'Chowan-Albermarle'# "Small Coastal"#"James-Middle"#
+WQSsubbasinSelection1 <-  "Small Coastal"#"New"#'Chowan-Albermarle'# "Small Coastal"#"James-Middle"#
   #filter(subbasinOptionsByWQStype, waterbodyType %in% WQSwaterbodyType1) %>%
   #filter(AssessmentRegion %in% WQSDEQregionSelection1) %>%
   #distinct(Basin_Code) %>% 

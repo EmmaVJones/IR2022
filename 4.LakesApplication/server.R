@@ -1,12 +1,9 @@
 #source('global.R')
 
 # Pull data from server
-conventionals <- pin_get('conventionals2022IRdraftWithSecchi', board = "rsconnect") %>%
-  
-  
-  
+conventionals <- pin_get('conventionals2022IRfinalWithSecchi', board = "rsconnect") 
   #pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
-  filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 UTC" )
+  #filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 UTC" )
 ####vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
 WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 # placeholder for now, shouldn't be a spatial file
@@ -20,8 +17,12 @@ Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
 # Bring in local data (for now)
 ammoniaAnalysis <- readRDS('userDataToUpload/processedStationData/ammoniaAnalysis.RDS')
 markPCB <- read_excel('data/2022 IR PCBDatapull_EVJ.xlsx', sheet = '2022IR Datapull EVJ') %>%
-  mutate(SampleDate = as.Date(SampleDate))
-fishPCB <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'PCBs')
+  mutate(SampleDate = as.Date(SampleDate),
+         `Parameter Rounded to WQS Format` = as.numeric(signif(`Total Of Concentration`, digits = 2))) %>% # round to even for comparison to chronic criteria)
+  dplyr::select(StationID: `Total Of Concentration`,`Parameter Rounded to WQS Format`, StationID_join)
+fishPCB <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'PCBs') %>% 
+  mutate(`Parameter Rounded to WQS Format` = as.numeric(signif(`Total PCBs`, digits = 2))) %>% # round to even for comparison to chronic criteria)
+  dplyr::select(WBID:`Weight (g)`, `Water %`:`Total PCBs`, `Parameter Rounded to WQS Format`, uncorrected, `recovery corrected`, comment3, Latitude, Longitude) 
 fishMetals <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'Metals') %>%
   rename("# of Fish" = "# of fish...4", "Species_Name"  = "Species_Name...5", 
          "species_name" = "Species_Name...47", "number of fish" = "# of fish...48")

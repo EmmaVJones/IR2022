@@ -84,6 +84,7 @@ vignettes/*.pdf
 5.BioassessmentTools/images/
 5.BioassessmentTools/GPreports/
 
+bookdown/
 WQSlookupTable/
 
 rsconnect/

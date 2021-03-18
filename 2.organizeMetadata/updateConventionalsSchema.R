@@ -45,12 +45,14 @@ schemaFin <- read_csv('data/citmonnonagencydummydata_EVJ.csv') %>%# email 1/8/21
 
 
 # map new names
-conventionalsRaw <- read_excel('./data/draft2022data/CEDSWQM/CONVENTIONALS_2022_20210201.xlsx') # takes forever to read in so just do it once and manipulate from there
+conventionalsRaw <- conventionalsRaw <- read_excel('./data/final2022data/CEDSWQM/CONVENTIONALS_20210316.xlsx') # takes forever to read in so just do it once and manipulate from there
+#read_excel('./data/draft2022data/CEDSWQM/CONVENTIONALS_2022_20210201.xlsx') # takes forever to read in so just do it once and manipulate from there
 conventionals <- conventionalsRaw %>% 
-  #mutate(GROUP_STA_ID = as.character(NA), Data_Source = 'DEQ') %>%
-  #dplyr::select(FDT_STA_ID, GROUP_STA_ID, STA_DESC, everything()) %>% 
-  # remove duplicate ecoli
-  dplyr::select(-c(`E.COLI_ECOLI_CFU/100mL`,	RMK_ECOLI)) %>%
+  # Important for working with draft datasets
+  # #mutate(GROUP_STA_ID = as.character(NA), Data_Source = 'DEQ') %>%
+  # #dplyr::select(FDT_STA_ID, GROUP_STA_ID, STA_DESC, everything()) %>% 
+  # # remove duplicate ecoli
+  # dplyr::select(-c(`E.COLI_ECOLI_CFU/100mL`,	RMK_ECOLI)) %>%
   # change to naming system 
   mutate(FDT_TEMP_CELCIUS  = `TEMPERATURE_00010_DEGREES CENTIGRADE`,
          RMK_FDT_TEMP_CELCIUS = FDT_TEMP_CELCIUS_RMK,  
@@ -148,13 +150,13 @@ conventionals <- conventionalsRaw %>%
          SULFATE_DISS_mg_L = `SULFATE_DISSOLVED_00946_mg/L`,
          RMK_SULFATE_DISS = RMK_00946,
          LEVEL_SULFATE_DISS = as.factor(NA),
-         ECOLI = `ECOLI_CFU/100mL`,  
-         RMK_ECOLI = ECOLI_RMK,
+         # ECOLI = `ECOLI_CFU/100mL`,  # final conventionals have this calculated now
+         # RMK_ECOLI = ECOLI_RMK,
          LEVEL_ECOLI = as.factor(NA),
          ECOLI_31648_NO_100mL = as.numeric(NA), #`E._COLI_31648_NO/100mL`,
          LEVEL_31648 = as.factor(NA),
          RMK_31648 = as.character(NA),
-         ENTEROCOCCI = `ENTEROCOCCI_31649_NO/100mL`,
+         # ENTEROCOCCI = `ENTEROCOCCI_31649_NO/100mL`,  # final conventionals have this calculated now
          RMK_ENTEROCOCCI =  RMK_31649,
          LEVEL_ENTEROCOCCI = as.factor(NA), 
          FECAL_COLI = `FECAL_COLIFORM_31616_NO/100mL` ,
@@ -186,7 +188,7 @@ names(conventionals) == names(schemaFin)
 
 
 
-conventionals <- bind_rows(schemaFin, conventionals)
+#conventionals <- bind_rows(schemaFin, conventionals)
 
 
 rm(schemaFin); rm(conventionalsRaw)

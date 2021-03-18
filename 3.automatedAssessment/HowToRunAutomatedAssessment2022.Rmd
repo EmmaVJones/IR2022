@@ -47,9 +47,13 @@ Scripts to organize and pin data are in ../2.organizeMetadata/organizeStationMet
 Much faster method and makes sure data used by assessors is same for testing.
 
 ```{r pull pins}
-conventionals <- pin_get("conventionals2022IRdraft-Feb2021", board = "rsconnect")#pin_get("conventionals2022IRdraft", board = "rsconnect")
-conventionals_distinct <- pin_get("conventionals-distinct-draft-Feb2021", board = "rsconnect")#pin_get("conventionals-distinct-draft", board = "rsconnect")
-stations2020IR <- pin_get("stations2020IR-sf-draft-Feb2021", board = "rsconnect")#pin_get("stations2020IR-sf-draft", board = "rsconnect")
+conventionals <- pin_get("conventionals2022IRfinalWithSecchi", board = "rsconnect")
+conventionals_distinct <- pin_get("conventionals-distinct-final", board = "rsconnect")
+stations2020IR <- pin_get("stations2020IR-sf-final", board = "rsconnect")
+
+#conventionals <- pin_get("conventionals2022IRdraft-Feb2021", board = "rsconnect")#pin_get("conventionals2022IRdraft", board = "rsconnect")
+#conventionals_distinct <- pin_get("conventionals-distinct-draft-Feb2021", board = "rsconnect")#pin_get("conventionals-distinct-draft", board = "rsconnect")
+#stations2020IR <- pin_get("stations2020IR-sf-draft-Feb2021", board = "rsconnect")#pin_get("stations2020IR-sf-draft", board = "rsconnect")
 WQMstationFull <- pin_get("WQM-Station-Full", board = "rsconnect")
 VSCIresults <- pin_get("VSCIresults", board = "rsconnect") %>%
   filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) )
@@ -57,8 +61,8 @@ VCPMI63results <- pin_get("VCPMI63results", board = "rsconnect") %>%
   filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) )
 VCPMI65results <- pin_get("VCPMI65results", board = "rsconnect") %>%
   filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) ) 
-WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
-Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
+WCmetals <- pin_get("WCmetals-2022IRfinal",  board = "rsconnect")
+Smetals <- pin_get("Smetals-2022IRfinal",  board = "rsconnect")
 ```
 
 ## Bring in additional Data
@@ -73,8 +77,14 @@ fishMetals <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'Metals')
 ## Bring in Station Table Bulk Upload Template
 
 ```{r bulk upload template}
-stationsTemplate <- read_excel('WQA_CEDS_templates/WQA_Bulk_Station_Upload (3).xlsx', 
-                               sheet = 'Stations')[0,]#, col_types = "text")[0,] %>%  # just want structure and not the draft data, force everything to character for now
+stationsTemplate <- read_excel('WQA_CEDS_templates/WQA_Bulk_Station_Upload_Final.xlsx',#'WQA_CEDS_templates/WQA_Bulk_Station_Upload (3).xlsx', 
+                               sheet = 'Stations', col_types = "text")[0,] %>% 
+  mutate(LATITUDE = as.numeric(LATITUDE), LONGITUDE = as.numeric(LONGITUDE)) %>% 
+  mutate_at(vars(contains('_EXC')), as.integer) %>% 
+  mutate_at(vars(contains('_SAMP')), as.integer)
+
+  #read_excel('WQA_CEDS_templates/WQA_Bulk_Station_Upload (3).xlsx', 
+      #sheet = 'Stations')[0,]#, col_types = "text")[0,] %>%  # just want structure and not the draft data, force everything to character for now
 #  mutate(LATITUDE= as.numeric(LATITUDE), LONGITUDE = as.numeric(LONGITUDE))
 
 ```
@@ -200,8 +210,8 @@ ammoniaAnalysis <- tibble()
 #conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect")
 #conventionals$FDT_STA_ID[1:53] <- '1AACO018.48'
 
-stationTable1 <- stationTable
-stationTable <- filter(stationTable, str_detect(STATION_ID, '4ABWR'))
+##### stationTable1 <- stationTable
+##### stationTable <- filter(stationTable, str_detect(STATION_ID, '4ABWR'))
 
 # time it:
 startTime <- Sys.time()
@@ -307,17 +317,21 @@ for(i in 1:nrow(stationTable)){
                            fourDay = freshwaterNH3Assessment(ammoniaAnalysisStation, 'four-day'))), 
     
       # Roger's water column metals analysis, transcribed
-      metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData$FDT_STA_ID) %>% 
-                                       dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
+      metalsData(filter(WCmetals, Station_Id %in% stationData$FDT_STA_ID), 'WAT_MET'),
+      # old method when Roger made the assessment for group
+      #metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData$FDT_STA_ID) %>% 
+      #                                 dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
       # Mark's water column PCB results, flagged
       WCtoxics, # from above, adds in PWS and water column PCB information
       # PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Water')) %>%
       #                                 filter(StationID %in% stationData$FDT_STA_ID), 'WAT_TOX'), 
       # 
       # Roger's sediment metals analysis, transcribed
-      metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData$FDT_STA_ID) %>% 
-                                      dplyr::select(ARSENIC:ZINC), 'SED_MET'), 
-      
+      metalsData(filter(Smetals, Station_Id %in% stationData$FDT_STA_ID), 'SED_MET'),
+      # old method when Roger made the assessment for group
+      # metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData$FDT_STA_ID) %>% 
+      #                                 dplyr::select(ARSENIC:ZINC), 'SED_MET'), 
+      # 
       # Mark's sediment PCB results, flagged
       PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Sediment')) %>%
                       filter(StationID %in% stationData$FDT_STA_ID), 'SED_TOX'),

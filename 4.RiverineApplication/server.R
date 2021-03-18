@@ -8,15 +8,18 @@ source('global.R')
 
 
 # Pull data from server
-conventionals <- pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
-  filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 UTC" )
+conventionals <- pin_get("conventionals2022IRfinalWithSecchi", board = "rsconnect") 
+#pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
+  #filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 UTC" )
 vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
 WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 # placeholder for now, shouldn't be a spatial file
 historicalStationsTable <- st_read('data/GIS/va20ir_wqms.shp') %>%
   st_drop_geometry()#read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
-WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
-Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
+WCmetals <- pin_get("WCmetals-2022IRfinal",  board = "rsconnect")
+Smetals <- pin_get("Smetals-2022IRfinal",  board = "rsconnect")
+IR2020WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
+IR2020Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
 WQMstationFull <- pin_get("WQM-Station-Full", board = "rsconnect")
 VSCIresults <- pin_get("VSCIresults", board = "rsconnect") %>%
   filter( between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]) )
@@ -45,8 +48,12 @@ pinnedDecisions <- pin_get('IR2022bioassessmentDecisions_test', board = 'rsconne
 # Bring in local data (for now)
 ammoniaAnalysis <- readRDS('userDataToUpload/processedStationData/ammoniaAnalysis.RDS')
 markPCB <- read_excel('data/2022 IR PCBDatapull_EVJ.xlsx', sheet = '2022IR Datapull EVJ') %>%
-  mutate(SampleDate = as.Date(SampleDate))
-fishPCB <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'PCBs')
+  mutate(SampleDate = as.Date(SampleDate),
+         `Parameter Rounded to WQS Format` = as.numeric(signif(`Total Of Concentration`, digits = 2))) %>% # round to even for comparison to chronic criteria)
+  dplyr::select(StationID: `Total Of Concentration`,`Parameter Rounded to WQS Format`, StationID_join)
+fishPCB <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'PCBs') %>% 
+  mutate(`Parameter Rounded to WQS Format` = as.numeric(signif(`Total PCBs`, digits = 2))) %>% # round to even for comparison to chronic criteria)
+  dplyr::select(WBID:`Weight (g)`, `Water %`:`Total PCBs`, `Parameter Rounded to WQS Format`, uncorrected, `recovery corrected`, comment3, Latitude, Longitude) 
 fishMetals <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'Metals') %>%
   rename("# of Fish" = "# of fish...4", "Species_Name"  = "Species_Name...5", 
          "species_name" = "Species_Name...47", "number of fish" = "# of fish...48")
@@ -392,14 +399,16 @@ shinyServer(function(input, output, session) {
                                                               chronic = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'chronic'),
                                                               fourDay = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'four-day'))), 
                                          # Roger's water column metals analysis, transcribed
-                                         metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
-                                                             dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
+                                         metalsData(filter(WCmetals, Station_Id %in% stationData()$FDT_STA_ID), 'WAT_MET'),
+                                         # metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
+                                         #                     dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
                                          # Mark's water column PCB results, flagged
                                          PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Water')) %>%
                                                                filter(StationID %in%  stationData()$FDT_STA_ID), 'WAT_TOX'),
                                          # Roger's sediment metals analysis, transcribed
-                                         metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
-                                                             dplyr::select(ARSENIC:ZINC), 'SED_MET'),
+                                         metalsData(filter(Smetals, Station_Id %in% stationData()$FDT_STA_ID), 'SED_MET'),
+                                         # metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
+                                         #                     dplyr::select(ARSENIC:ZINC), 'SED_MET'),
                                          # Mark's sediment PCB results, flagged
                                          PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Sediment')) %>%
                                                                filter(StationID %in%  stationData()$FDT_STA_ID), 'SED_TOX'),
@@ -617,7 +626,7 @@ shinyServer(function(input, output, session) {
   
   
   #### Metals Sub Tab ####---------------------------------------------------------------------------------------------------
-  callModule(metalsTableSingleStation,'metals', AUData, WCmetals ,Smetals, fishMetals, fishMetalsScreeningValues, stationSelected)
+  callModule(metalsTableSingleStation,'metals', AUData, WCmetals, IR2020WCmetals, Smetals, IR2020Smetals, fishMetals, fishMetalsScreeningValues, stationSelected)
   
   #### Toxics Sub Tab ####---------------------------------------------------------------------------------------------------
   callModule(toxicsSingleStation,'PBC', AUData, markPCB, fishPCB, stationSelected)

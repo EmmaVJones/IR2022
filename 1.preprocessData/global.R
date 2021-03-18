@@ -35,7 +35,14 @@ basinCodesConversion <- read_csv('data/basinCodeConversion.csv') %>%
 
 subbasinOptionsByWQStype <- read_csv('data/subbasinOptionsByWQStype&Region.csv') %>%
 #  left_join(WQSlayerConversion, by = c('WQS_ID_Prefix' = 'WQS_ID', 'waterbodyType')) %>%
-  left_join(basinCodesConversion, by = c('SubbasinOptions' = 'BASIN'))
+  left_join(basinCodesConversion, by = c('SubbasinOptions' = 'BASIN')) #%>%
+# 7- is left out now but need more help from estuarine folks to sort this out properly
+  # bind_rows(tibble(waterbodyType = c('Estuarine', 'Estuarine','Estuarine', 'Estuarine', 'Estuarine', 'Estuarine'), 
+  #                  SubbasinOptions = c('7-', '7-', '7-', '7-', '7-', '7-'), 
+  #                  AssessmentRegion = c('CO', 'CO', 'TRO', 'TRO','PRO','PRO'), 
+  #                  WQS_ID_Prefix = c('EP', "EL", 'EP', "EL", 'EP', "EL"), 
+  #                  Basin_Code = c('Small Coastal', 'Small Coastal', 'Small Coastal', 'Small Coastal', 'Small Coastal', 'Small Coastal'))) %>%
+  # arrange(SubbasinOptions)
 
 
 

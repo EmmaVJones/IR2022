@@ -1,7 +1,7 @@
 ---
 title: "Statewide Data Preprocessing"
 author: "Emma Jones"
-date: "5/6/2020"
+date: "3/18/2021"
 output: html_document
 ---
 
@@ -65,7 +65,7 @@ First bring in Roger's conventionals data pull for the 2022IR window. The data s
 
 ```{r conventionals}
 # run in console
-conventionalsRaw <- read_excel('./data/draft2022data/CEDSWQM/CONVENTIONALS_2022_20210201.xlsx') 
+conventionalsRaw <- read_excel('./data/final2022data/CEDSWQM/CONVENTIONALS_20210316.xlsx') #read_excel('./data/draft2022data/CEDSWQM/CONVENTIONALS_2022_20210201.xlsx') 
 
 conventionals <-  mutate(conventionalsRaw, Source_Sta_Id = as.character(NA),
                          Data_Source = 'DEQ') %>%
@@ -98,15 +98,15 @@ Working with Roland's first data reorganization attempt using just CMC data.
 This is a special work around for BRRO to add their IR2020 citmon data in
 
 ```{r BRRO citmon}
-source('addBRROIR2020citmondata.R')
+#source('addBRROIR2020citmondata.R')
 ```
 
 This would be a logical point to continue through the rest of the method- assigning AU information and WQS, but assessors don't want to go through that with citmon data right now since the sites can be so ephemeral. Going to save the reorganized and filtered data to a csv for inclusion in 2.organizeMetadata and deal with other citmon data at another point.
 
 
 ```{r save BRRO citmon nonagency things }
-write.csv(BRRO, 'C:/HardDriveBackup/R/GitHub/IR2022/2.organizeMetadata/data/final2020data/BRROcitmonNonagencyIR2020Stations.csv', row.names=FALSE)
-write.csv(ir2020, 'C:/HardDriveBackup/R/GitHub/IR2022/2.organizeMetadata/data/final2020data/BRROcitmonNonagencyIR2020conventionals.csv', row.names=FALSE)
+#write.csv(BRRO, 'C:/HardDriveBackup/R/GitHub/IR2022/2.organizeMetadata/data/final2020data/BRROcitmonNonagencyIR2020Stations.csv', row.names=FALSE)
+#write.csv(ir2020, 'C:/HardDriveBackup/R/GitHub/IR2022/2.organizeMetadata/data/final2020data/BRROcitmonNonagencyIR2020conventionals.csv', row.names=FALSE)
 
 ```
 
@@ -118,9 +118,9 @@ No matter where you are pulling data in from, you need to limit these computatio
 
 ```{r distinct sites}
 # conventionals_D <- distinct(conventionals, FDT_STA_ID, .keep_all = TRUE) %>%
-#   dplyr::select(FDT_STA_ID:FDT_SPG_CODE, Latitude:Data_Source, -FDT_DATE_TIME) # drop data to avoid any confusion 
+#   dplyr::select(FDT_STA_ID:FDT_SPG_CODE, Latitude:Data_Source, -FDT_DATE_TIME) # drop data to avoid any confusion
 # conventionals_D <- filter(conventionals_D, ! is.na(Latitude) | ! is.na(Longitude)) # get rid of 1 weird blank entry
-# saveRDS(conventionals_D, './data/conventionals_D.RDS')
+# # saveRDS(conventionals_D, './data/conventionals_D.RDS')
 # rm(conventionals); rm(conventionalsRaw) # remove full conventionals dataset to save memory
 
 distinctSites <- readRDS('./data/conventionals_D.RDS') # for some reason doesn't work in chunk but does in console
@@ -162,12 +162,29 @@ WQStableExisting <- read_csv('C:/HardDriveBackup/R/GitHub/IR2022/2.organizeMetad
 
 ```
 
+
+#### Aside, how to get WQS data from the server
+
+To pull WQS information QAed in the metadata app and saved on the server, first go in to Connect and identify the app number of the current metadata application (under Regional Assessment Metadata Validation Tool- source versions). This information is critical to locating the area where info saved on the server. 
+
+Next, in putty, see what info is available in that directory sudo  ls -l /app/rstudio-connect/apps/43/[sourceVersion]/WQSlookupTable where [sourceVersion] = the current build number from Connect.
+
+Next, in filezilla, make sure the last version of this data pulled down is safely renamed by date to make sure grabbing new data doesnt overwrite old data. To do that, /home/aaejones/temp/ rename WQSlookupTable to WQSlookupTableFILEDATE (e.g. WQSlookupTable12152020).
+
+Then in putty, copy whole directory and change all file permissions for download
+sudo cp -arv /app/rstudio-connect/apps/43/[sourceVersion]/WQSlookupTable /home/aaejones/temp
+sudo chmod -R 755 /home/aaejones/temp/WQSlookupTable
+
+Then in filezilla, download the new WQSlookupTable directory to local system.
+
+
+
 These are pulled directly from WQSLookupTable directories and can contain issues
 ```{r}
 #source('./preprocessingModules/pullWQSID.R') # this pulls all stations in WQSLookupTable directory, which could include duplicates
 ```
 
-
+#### End WQS data from server aside
 
 
 Identify real number of sites that need spatial joining.

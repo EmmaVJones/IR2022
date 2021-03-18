@@ -16,14 +16,14 @@ This project picks up after regional assessment staff attribute WQS and AU infor
 
 This script combines the WQS and AU information archived by those applications (from the R Connect server) and attaches that information to all data associated with an assessment window.
 
-This script combines draft data, as opposed to final data, to assist application rebuilding processes prior to final data release.
+This script combines final data, as opposed to draft data. Previous iterations used draft data to assist application rebuilding processes prior to final data release. Relics of that information may be seen in the script comments.
 
 ### Data Organization
 
 In order to link all data in the IR window to the appropriate station information, we need to bring in a few preliminary datasets.
 
-* Conventionals (draft)
-* Last cycle AU information (draft)
+* Conventionals (final)
+* Last cycle AU information (still draft)
 * Station Attributes (from 1.preprocessingData steps)
     + WQS information
     + AU information (specifically for stations that did not exist in last cycle)
@@ -49,7 +49,7 @@ source('updateConventionalsSchema.R')
 This is a tough one. The 2022IR is the first time DEQ is kinda getting things together and suggesting that non agency data comes to the assessement group with some sort of format, but that only works for 2019-2020 data. The BRRO assessors worked for weeks in 2020IR to reorganize their citmon/nonagency data and stations, so we are putting our best effort towards including that organized data into this assessment cycle. However, the way stations are organized with AU and WQS information will continue to be a problem until a more permanent solution with an official citmon database is developed.
 
 ```{r}
-source('addInBRRO2020IRcitmonData.R')
+#source('addInBRRO2020IRcitmonData.R')
 ```
 
 
@@ -187,14 +187,14 @@ dcr11 <- st_read('data/GIS/dcr11_dd.shp') %>%
 The biggest changes from the old stations table format to this new template is the addition of the 10 ID305B and station type columns as well as the lacustrine designation. 
 
 ```{r bulk upload template}
-stationsTemplate <- read_excel('WQA_CEDS_templates/WQA_Bulk_Station_Upload (3).xlsx', 
+stationsTemplate <- read_excel('WQA_CEDS_templates/WQA_Bulk_Station_Upload_Final.xlsx',#'WQA_CEDS_templates/WQA_Bulk_Station_Upload (3).xlsx', 
                                sheet = 'Stations', col_types = "text")[0,] # just want structure and not the draft data, force everything to character for now
 ```
 
 
 #### Last cycle AU information (draft)
 
-Let's start by populating this template with draft 2020 stations table information.
+Let's start by populating this template with draft 2020 stations table information. This is basically the best we can do for now given that 2020 spatial data is still not final as of late March 2021. This is just to get the assessors started, and Cleo has assured that most of this is final final information.
 
 ```{r last cycle stations}
 lastCycleStation_sf <- st_read('data/GIS/2020_wqms.shp') %>%
@@ -269,7 +269,7 @@ Before we do much more work, let's reorganize the old stations table format to m
 ```{r match stationsTemplate}
 newIRStations <- mutate(newIRStations, ID305B_4 = NA, ID305B_5 = NA, ID305B_6 = NA, ID305B_7 = NA, ID305B_8 = NA, 
                ID305B_9 = NA, ID305B_10 = NA, WATER_TYPE = NA, SALINITY = NA, 
-               LACUSTRINE = ifelse(DEPTH == "LZ", 'YES', NA),
+               LACUSTRINE = ifelse(DEPTH == "LZ", 'Y', NA), # changed from "YES" to "Y" to comply with final bulk data upload data structure
                TYPE_1 = STA_TYPE1, TYPE_2 = STA_TYPE2, TYPE_3 = STA_TYPE3,
                TYPE_4 = NA, TYPE_5 = NA, TYPE_6 = NA, TYPE_7 = NA, TYPE_8 = NA, TYPE_9 = NA, TYPE_10 = NA, 
                LATITUDE = DD_LAT, LONGITUDE = DD_LONG, BENTHIC_STAT = BENTHIC_ST,
@@ -335,11 +335,11 @@ LZ <- readRDS('data/LacustrineZoneData/lakeStationsFinal.RDS') %>%
   bind_rows(
     read_excel('data/LacustrineZoneData/VROLacustrineStations2022RTool.xlsx') %>%
       dplyr::select(STATION_ID = `Station ID`)  ) %>% # select and rename in 1 step
-  mutate(Assess_TYPE = 'YES')
+  mutate(Assess_TYPE = 'Y')
 
 # Fix Stations table
 stationsTable2022begin <- left_join(stationsTable2022begin, LZ) %>%
-  mutate(LACUSTRINE = case_when(LACUSTRINE == 'YES' | Assess_TYPE == 'YES' ~ "YES",
+  mutate(LACUSTRINE = case_when(LACUSTRINE == 'Y' | Assess_TYPE == 'Y' ~ "Y",
                                  TRUE ~ as.character(NA))) %>%
   dplyr::select(-Assess_TYPE)
 ```
@@ -417,11 +417,14 @@ conn <- config::get("connectionSettings")
 board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_KEY"),
                           server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
 
-conventionals2022IRdraftWithSecchi_Feb2021 <- conventionals
+#conventionals2022IRdraftWithSecchi_Feb2021 <- conventionals
+conventionals2022IRfinalWithSecchi <- conventionals
 
-conventionals2022IRdraft_Feb2021 <- conventionals
-stations2020IR_sf_draft_Feb2021 <- lastCycleStation_sf
-conventionals_distinct_draft_Feb2021 <- conventionals_distinct 
+#conventionals2022IRdraft_Feb2021 <- conventionals
+stations2020IR_sf_final <- lastCycleStation_sf
+#stations2020IR_sf_draft_Feb2021 <- lastCycleStation_sf
+conventionals_distinct_final <- conventionals_distinct 
+#conventionals_distinct_draft_Feb2021 <- conventionals_distinct 
 
 #2020 final metals data (pre manipulated by me) to act as a placeholder
 WCmetals_2020IRfinal <- read_csv('data/final2020data/CEDSWQM_2020_IR_DATA-WATER_METALS_VALUES_20190207_EVJ.csv')
@@ -429,15 +432,24 @@ Smetals_2020IRfinal <- read_excel('data/final2020data/CEDSWQM_2020_IR_DATA-CEDSW
   dplyr::select(FDT_STA_ID:ZINC...70, COMMENT...89)
 names(Smetals_2020IRfinal) <- gsub( "[..].*", "", names(Smetals_2020IRfinal)) # remove anything after .. in name
 
-# Pin data
-pin(conventionals2022IRdraftWithSecchi_Feb2021, description = "DRAFT 2022IR conventionals dataset from Roger Stewart Feb 2021 update", board = "rsconnect")
+# 2022 final metals data from Roger (not assessed)
+WCmetals_2022IRfinal <- read_excel('data/final2022data/CEDSWQM/WATER_METALS_2022_20210201.xlsx')
+Smetals_2022IRfinal <- read_excel('data/final2022data/CEDSWQM/SEDIMENT_2022_20210201.xlsx')
 
-pin(conventionals2022IRdraft_Feb2021, description = "DRAFT 2022IR conventionals dataset from Roger Stewart Feb 2021 update", board = "rsconnect")
-pin(conventionals_distinct_draft_Feb2021, description = "DRAFT 2022IR conventionals distinct stations from Roger Stewart Feb 2021 update", board = "rsconnect")
+# Pin data
+pin(conventionals2022IRfinalWithSecchi, description = "Final 2022IR conventionals dataset from Roger Stewart", board = "rsconnect")
+#pin(conventionals2022IRdraftWithSecchi_Feb2021, description = "DRAFT 2022IR conventionals dataset from Roger Stewart Feb 2021 update", board = "rsconnect")
+
+#pin(conventionals2022IRdraft_Feb2021, description = "DRAFT 2022IR conventionals dataset from Roger Stewart Feb 2021 update", board = "rsconnect")
+pin(conventionals_distinct_final, description = "Final 2022IR conventionals distinct stations from Roger Stewart", board = "rsconnect")
+#pin(conventionals_distinct_draft_Feb2021, description = "DRAFT 2022IR conventionals distinct stations from Roger Stewart Feb 2021 update", board = "rsconnect")
 pin(vahu6, description = "DEQ Assessment Region Data at VAHU6 level", board = "rsconnect")
-pin(stations2020IR_sf_draft_Feb2021, description = "DRAFT 2020IR stations from Cleo Baker Feb 2021 update", board = "rsconnect")
-pin(WCmetals_2020IRfinal, description = "FINAL 2020IR water column metals data from Roger Stewart", board = "rsconnect")
-pin(Smetals_2020IRfinal, description = "FINAL 2020IR sediment metals data from Roger Stewart", board = "rsconnect")
+pin(stations2020IR_sf_final, description = "Final 2020IR stations from Cleo Baker", board = "rsconnect")
+#pin(stations2020IR_sf_draft_Feb2021, description = "DRAFT 2020IR stations from Cleo Baker Feb 2021 update", board = "rsconnect")
+#pin(WCmetals_2020IRfinal, description = "FINAL 2020IR water column metals data from Roger Stewart", board = "rsconnect")
+#pin(Smetals_2020IRfinal, description = "FINAL 2020IR sediment metals data from Roger Stewart", board = "rsconnect")
+pin(WCmetals_2022IRfinal, description = "FINAL 2022IR water column metals data from Roger Stewart", board = "rsconnect")
+pin(Smetals_2022IRfinal, description = "FINAL 2022IR sediment metals data from Roger Stewart", board = "rsconnect")
 
 ```
 ### WQS addition

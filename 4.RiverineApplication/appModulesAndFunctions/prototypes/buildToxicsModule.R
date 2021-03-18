@@ -52,8 +52,7 @@ toxicsSingleStation <- function(input,output,session, AUdata, markPCB, fishPCB, 
   
   WCPBC_oneStation <- reactive({req(ns(input$WCPBC_oneStationSelection))
     filter(markPCB, SampleMedia %in% c( "Water (whole)", "Water (dissolved)")) %>%
-      filter(StationID %in% input$WCPBC_oneStationSelection)})
-  
+      filter(StationID %in% input$WCPBC_oneStationSelection) })
   
   output$WCPBCRangeTableSingleSite <- DT::renderDataTable({req(WCPBC_oneStation())
     DT::datatable(WCPBC_oneStation(), rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(WCPBC_oneStation()), scrollY = "250px", dom='t'),
@@ -78,7 +77,8 @@ toxicsSingleStation <- function(input,output,session, AUdata, markPCB, fishPCB, 
   
   SPBC_oneStation <- reactive({req(ns(input$SPBC_oneStationSelection))
     filter(markPCB, SampleMedia == 'Sediment') %>%
-      filter(StationID %in% input$SPBC_oneStationSelection)})
+      filter(StationID %in% input$SPBC_oneStationSelection) })
+  
   
   
   output$SPBCRangeTableSingleSite <- DT::renderDataTable({req(SPBC_oneStation())
@@ -102,8 +102,7 @@ toxicsSingleStation <- function(input,output,session, AUdata, markPCB, fishPCB, 
   
   
   FPBC_oneStation <- reactive({req(ns(input$FPBC_oneStationSelection))
-    filter(fishPCB, `DEQ rivermile` %in% input$FPBC_oneStationSelection) %>% 
-      dplyr::select(WBID:`Weight (g)`, `Water %`:`Total PCBs`, uncorrected, `recovery corrected`, comment3, Latitude, Longitude)})
+    filter(fishPCB, `DEQ rivermile` %in% input$FPBC_oneStationSelection) })
   
   output$FPBCscreeningValues <- DT::renderDataTable({
     tibble(Description = c('DEQ screening value of 18 ppb', 'DEQ screening value of 20 ppb', 'VDH lower level of concern of 100 ppb', 'VDH upper level of concern of 500 ppb'),
@@ -117,7 +116,8 @@ toxicsSingleStation <- function(input,output,session, AUdata, markPCB, fishPCB, 
     DT::datatable(FPBC_oneStation(), rownames = FALSE, 
                   options= list(scrollX = TRUE, pageLength = nrow(FPBC_oneStation()), scrollY = "250px", dom='Bti', buttons=list('copy')),
                   selection = 'none')  %>%
-      formatStyle('Total PCBs', backgroundColor = styleInterval(c( 18, 20, 100, 500), c(NA, '#f2a972', '#c34eed', '#4a57e8', '#ed4242' )))   }) 
+      formatStyle('Parameter Rounded to WQS Format', backgroundColor = styleInterval(c( 18, 20, 100, 500), c(NA, '#f2a972', '#c34eed', '#4a57e8', '#ed4242' ))) }) 
+      #formatStyle('Total PCBs', backgroundColor = styleInterval(c( 18, 20, 100, 500), c(NA, '#f2a972', '#c34eed', '#4a57e8', '#ed4242' )))   }) 
   
   
 }
