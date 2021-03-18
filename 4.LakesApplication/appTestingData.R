@@ -10,8 +10,10 @@ WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 historicalStationsTable <-  st_read('data/GIS/va20ir_wqms.shp') %>%
   st_drop_geometry()#read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
 WQMstationFull <- pin_get("WQM-Station-Full", board = "rsconnect")
-WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
-Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
+WCmetals <- pin_get("WCmetals-2022IRfinal",  board = "rsconnect")
+Smetals <- pin_get("Smetals-2022IRfinal",  board = "rsconnect")
+IR2020WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
+IR2020Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
 
 
 # Bring in local data (for now)
@@ -66,7 +68,7 @@ regionalAUs1 <- st_zm(st_as_sf(pin_get('AUreservoir_EVJ', board = 'rsconnect')))
 
 
 DEQregionSelection1 <- 'BRRO'
-lakeSelection1 <- "Smith Mountain Lake"#"Townes Reservoir" #"Falling Creek Reservoir"#"Hogan Lake"#"Smith Mountain Lake"
+lakeSelection1 <- "Lake Moomaw"#"Townes Reservoir" #"Falling Creek Reservoir"#"Hogan Lake"#"Smith Mountain Lake"
  # filter(regionalAUs, ASSESS_REG %in% DEQregionSelection) %>% 
 #  distinct(Lake_Name) %>% arrange(Lake_Name) %>% pull()
 
@@ -285,3 +287,13 @@ plot_ly(data=box1)%>%
   layout(showlegend=FALSE,
          yaxis=list(title="TSI Secchi Depth (unitless)"),
          xaxis=list(title="Sample Date",tickfont = list(size = 10)))
+
+
+
+FmetalsSV <- dplyr::select(fishMetals, Station_ID, Collection_Date_Time, Sample_ID,  `# of Fish`, Species_Name, length, weight, Beryllium:Lead) %>%
+  dplyr::select(-contains('RMK_')) %>%
+  group_by( Station_ID, Collection_Date_Time, Sample_ID, `# of Fish`, Species_Name, length, weight) %>%
+  pivot_longer(cols= Beryllium:Lead, names_to = "Metal", values_to = 'Measure') %>%
+  left_join(metalsSV, by = 'Metal') %>%
+  filter(Measure > `Screening Value`) %>%
+  arrange(Metal)

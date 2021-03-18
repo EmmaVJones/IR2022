@@ -11,8 +11,10 @@ historicalStationsTable <-  st_read('data/GIS/va20ir_wqms.shp') %>%
   st_drop_geometry()#read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
 WQMstationFull <- pin_get("WQM-Station-Full", board = "rsconnect")
 regions <- st_read('data/GIS/AssessmentRegions_simple.shp')
-WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
-Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
+WCmetals <- pin_get("WCmetals-2022IRfinal",  board = "rsconnect")
+Smetals <- pin_get("Smetals-2022IRfinal",  board = "rsconnect")
+IR2020WCmetals <- pin_get("WCmetals-2020IRfinal",  board = "rsconnect")
+IR2020Smetals <- pin_get("Smetals-2020IRfinal",  board = "rsconnect")
 
 # Bring in local data (for now)
 ammoniaAnalysis <- readRDS('userDataToUpload/processedStationData/ammoniaAnalysis.RDS')
@@ -25,7 +27,11 @@ fishPCB <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'PCBs') %>%
   dplyr::select(WBID:`Weight (g)`, `Water %`:`Total PCBs`, `Parameter Rounded to WQS Format`, uncorrected, `recovery corrected`, comment3, Latitude, Longitude) 
 fishMetals <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'Metals') %>%
   rename("# of Fish" = "# of fish...4", "Species_Name"  = "Species_Name...5", 
-         "species_name" = "Species_Name...47", "number of fish" = "# of fish...48")
+         "species_name" = "Species_Name...47", "number of fish" = "# of fish...48",
+         "Beryllium"= "Be",  "Aluminum" = "Al",  "Vanadium" = "V", "Chromium"= "Cr",
+         "Manganese" = "Mn", "Nickel" = "Ni", "Copper" = "Cu" ,"Zinc"=  "Zn",  "Arsenic" = "As" , "Selenium" = "Se" , 
+         "Silver" = "Ag" , "Cadmium" = "Cd",
+         "Antimony" = "Sb", "Barium"=  "Ba" , "Mercury" =  "Hg", "Thallium"  = "Tl", "Lead" = "Pb"  )
 fishMetalsScreeningValues <- read_csv('data/FishMetalsScreeningValues.csv') %>%
   group_by(`Screening Method`) %>% 
   pivot_longer(cols = -`Screening Method`, names_to = 'Metal', values_to = 'Screening Value') %>%
@@ -295,14 +301,16 @@ shinyServer(function(input, output, session) {
                                                               chronic = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'chronic'),
                                                               fourDay = freshwaterNH3Assessment(ammoniaAnalysisStation(), 'four-day'))),
                                          # Roger's water column metals analysis, transcribed
-                                         metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
-                                                             dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
+                                         metalsData(filter(WCmetals, Station_Id %in% stationData()$FDT_STA_ID), 'WAT_MET'),
+                                         # metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
+                                         #                     dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
                                          # Mark's water column PCB results, flagged
                                          PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Water')) %>%
                                                                filter(StationID %in%  stationData()$FDT_STA_ID), 'WAT_TOX'),
                                          # Roger's sediment metals analysis, transcribed
-                                         metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
-                                                             dplyr::select(ARSENIC:ZINC), 'SED_MET'),
+                                         metalsData(filter(Smetals, Station_Id %in% stationData()$FDT_STA_ID), 'SED_MET'),
+                                         # metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
+                                         #                     dplyr::select(ARSENIC:ZINC), 'SED_MET'),
                                          # Mark's sediment PCB results, flagged
                                          PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Sediment')) %>%
                                                                filter(StationID %in%  stationData()$FDT_STA_ID), 'SED_TOX'),
@@ -435,7 +443,8 @@ shinyServer(function(input, output, session) {
   
   
   #### Metals Sub Tab ####---------------------------------------------------------------------------------------------------
-  callModule(metalsTableSingleStation,'metals', AUData, WCmetals ,Smetals, fishMetals, fishMetalsScreeningValues, stationSelected)
+  callModule(metalsTableSingleStation,'metals', AUData, WCmetals, IR2020WCmetals, Smetals, IR2020Smetals, fishMetals, 
+             fishMetalsScreeningValues, stationSelected)
   
   #### Toxics Sub Tab ####---------------------------------------------------------------------------------------------------
   callModule(toxicsSingleStation,'PBC', AUData, markPCB, fishPCB, stationSelected)
