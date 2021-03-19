@@ -1,10 +1,6 @@
 # app testing data
 source('global.R')
 
-DEQregionSelection <- 'BRRO'
-basinSelection <- 'James-Upper'#"James-Middle"##"Roanoke"#"Roanoke"#'James-Upper'#
-HUC6Selection <- "JU11"#"JM01"#'JM16'#'RU09'#'RL12'#
-
 
 conventionals <- pin_get("conventionals2022IRfinalWithSecchi", board = "rsconnect") 
 #pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
@@ -58,6 +54,10 @@ pinnedDecisions <- pin_get('IR2022bioassessmentDecisions_test', board = 'rsconne
 
 
 
+
+DEQregionSelection <- 'BRRO'
+basinSelection <- 'James-Upper'#"James-Middle"##"Roanoke"#"Roanoke"#'James-Upper'#
+HUC6Selection <- "JU11"#"JM01"#'JM16'#'RU09'#'RL12'#
 
 
 

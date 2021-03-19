@@ -68,7 +68,7 @@ regionalAUs1 <- st_zm(st_as_sf(pin_get('AUreservoir_EVJ', board = 'rsconnect')))
 
 
 DEQregionSelection1 <- 'BRRO'
-lakeSelection1 <- "Lake Moomaw"#"Townes Reservoir" #"Falling Creek Reservoir"#"Hogan Lake"#"Smith Mountain Lake"
+lakeSelection1 <- "Claytor Lake"#"Townes Reservoir" #"Falling Creek Reservoir"#"Hogan Lake"#"Smith Mountain Lake"
  # filter(regionalAUs, ASSESS_REG %in% DEQregionSelection) %>% 
 #  distinct(Lake_Name) %>% arrange(Lake_Name) %>% pull()
 
@@ -77,6 +77,10 @@ AUs1 <- filter(regionalAUs1, Lake_Name %in% lakeSelection1 & ASSESS_REG %in% DEQ
 #the_data <- filter(regionalAUs, ASSESS_REG %in% DEQregionSelection) 
 #lake_AUs <- filter(the_data, Lake_Name %in% lakeSelection)
 lake_filter1 <- filter_at(stationTable1, vars(starts_with('ID305B')), any_vars(. %in% AUs1$ID305B)) 
+
+
+# Stations carried over
+carryoverStations <- filter(lake_filter1, str_detect(COMMENTS, "This station has no data"))  
 
 
 
