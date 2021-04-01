@@ -468,11 +468,17 @@ pin(Smetals_2022IRfinal, description = "FINAL 2022IR sediment metals data from R
 
 Now we need to make sure we have WQS information for each station we need to assess so that assessors only need to upload station information to the assessment applications and not bother with WQS information.
 
-First, take the most recent WQSlookup table and upload to server. This should be repeated once all WQS attribution is fully completed with full assessment cycle data.
+First, pull and organize any WQS information from the server. 
+
+```{r organize WQS information}
+#source('organizeWQSmetadataFromServer.R')
+```
+
+Then, take the most recent WQSlookup table and upload to server. This should be repeated once all WQS attribution is fully completed with full assessment cycle data.
 
 ```{r wqs information}
 # most recent version taken from ..\1.preprocessData\WQSlookupTable
-WQSlookup <- read_csv('data/WQSlookupTable/20201207_092616_WQSlookup.csv')
+WQSlookup <- read_csv('data/WQSlookupTable/20210401_0001_WQSlookup.csv')#read_csv('data/WQSlookupTable/20201207_092616_WQSlookup.csv')
 
 # find number of WQS_ID linked to each station
 WQSlookup1 <- WQSlookup %>% 
