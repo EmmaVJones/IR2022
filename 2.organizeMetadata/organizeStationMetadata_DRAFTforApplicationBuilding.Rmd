@@ -246,11 +246,19 @@ Now time to add in stations that did not get assessed in last cycle.
 
 ##### AU information (specifically for stations that did not exist in last cycle)
 
+# Aside: organize AU information after it is pulled from the server
+
+```{r organize AU metadata from server}
+#source('organizeAUmetadataFromServer.R')
+```
+
+
+
 Bring in AU information assessors have chosen as a starting point for assessing new stations.
 
 ```{r newAU information}
 # most recent version taken from ..\1.preprocessData\AUlookupTable
-AUlookup <- read_csv('data/AUlookupTable/20201013_130553_AUlookup.csv')
+AUlookup <- read_csv('data/AUlookupTable/20210401_0000_AUlookup.csv')#'data/AUlookupTable/20201013_130553_AUlookup.csv')
 ```
 
 
@@ -259,7 +267,7 @@ newIRStations <- bind_rows(lastCycleStation_keepers,
                          filter(conventionals_distinct, ! (FDT_STA_ID %in% lastCycleStation_keepers$STATION_ID)) %>%
                            dplyr::select(FDT_STA_ID, Latitude, Longitude) %>%
                            rename('STATION_ID'='FDT_STA_ID', 'DD_LAT' = 'Latitude', 'DD_LONG' = 'Longitude') %>%
-                           left_join(dplyr::select(AUlookup, FDT_STA_ID, ID305B_1), by=c('STATION_ID' = 'FDT_STA_ID')))
+                           left_join(dplyr::select(AUlookup, FDT_STA_ID, ID305B_1, ID305B_2), by=c('STATION_ID' = 'FDT_STA_ID')))
   
   
 ```
@@ -347,6 +355,7 @@ Make sure no stations are missing AU information. Try to build tools to handle n
 
 ```{r}
 nrow(filter(stationsTable2022begin, is.na(ID305B_1)))
+#View(filter(stationsTable2022begin, is.na(ID305B_1)))
 ```
 
 for now, maybe this is my starting point for rebuilding assessment scripts???????
@@ -452,6 +461,9 @@ pin(WCmetals_2022IRfinal, description = "FINAL 2022IR water column metals data f
 pin(Smetals_2022IRfinal, description = "FINAL 2022IR sediment metals data from Roger Stewart", board = "rsconnect")
 
 ```
+
+
+
 ### WQS addition
 
 Now we need to make sure we have WQS information for each station we need to assess so that assessors only need to upload station information to the assessment applications and not bother with WQS information.
