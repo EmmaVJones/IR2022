@@ -68,6 +68,7 @@ vignettes/*.pdf
 3.automatedAssessment/processedStationData/
 3.automatedAssessment/calculationExamples/
 3.automatedAssessment/WQA_CEDS_templates/
+3.automatedAssessment/dataForAssessors/
 
 4.LakesApplication/data/
 4.LakesApplication/userDataToUpload/

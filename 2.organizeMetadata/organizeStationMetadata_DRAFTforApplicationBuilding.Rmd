@@ -343,7 +343,11 @@ LZ <- readRDS('data/LacustrineZoneData/lakeStationsFinal.RDS') %>%
   bind_rows(
     read_excel('data/LacustrineZoneData/VROLacustrineStations2022RTool.xlsx') %>%
       dplyr::select(STATION_ID = `Station ID`)  ) %>% # select and rename in 1 step
-  mutate(Assess_TYPE = 'Y')
+  mutate(Assess_TYPE = 'Y') %>% 
+  group_by(STATION_ID) %>% 
+  mutate(n = n()) %>% 
+  filter(n ==1) %>% 
+  dplyr::select(-n)
 
 # Fix Stations table
 stationsTable2022begin <- left_join(stationsTable2022begin, LZ) %>%

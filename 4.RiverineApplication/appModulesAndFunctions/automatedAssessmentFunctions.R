@@ -100,7 +100,7 @@ quickStats <- function(parameterDataset, parameter){
     results <- data.frame(EXC = nrow(filter(parameterDataset, exceeds == TRUE)),
                           SAMP = nrow(parameterDataset)) %>%
       # Implement Round to Even on Exceedance Frequency
-      mutate(exceedanceRate = as.numeric(round((EXC/SAMP)*100,digits=0))) # round to nearest whole number per Memo to Standardize Rounding for Assessment Guidance
+      mutate(exceedanceRate = as.numeric(round::roundAll((EXC/SAMP)*100,digits=0, "r0.C"))) # round to nearest whole number per Memo to Standardize Rounding for Assessment Guidance
     
     if(results$EXC >= 1){outcome <- 'Review'} # for Mary
     if(results$EXC >= 1 & results$exceedanceRate < 10.5){outcome <- 'Review'}

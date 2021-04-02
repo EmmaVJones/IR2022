@@ -509,7 +509,7 @@ shinyServer(function(input, output, session) {
                               st_drop_geometry() %>%
                               dplyr::select(FDT_STA_ID, ID305B_1, everything()) %>%
                               datatable(rownames = F,  editable = 'cell', 
-                                        options = list(dom = 't', scrollX= TRUE, scrollY = '125px'))  }),
+                                        options = list(dom = 't', scrollX= TRUE, scrollY = '125px'),selection = 'none')  }),
                           br(), br(),
                           textInput('acceptCommentAU', 'Additional Comments and Documentation'),
                           actionButton('accept_okAU', 'Accept', 
@@ -575,7 +575,7 @@ shinyServer(function(input, output, session) {
                               st_drop_geometry() %>%
                               dplyr::select(FDT_STA_ID, ID305B_1, everything()) %>%
                               datatable(rownames = F,  editable = 'cell',
-                                        options = list(dom = 't', scrollX= TRUE, scrollY = '125px'))  }),
+                                        options = list(dom = 't', scrollX= TRUE, scrollY = '125px'),selection = 'none')  }),
                           br(), br(),
                           textInput('mergeAUID', "Manually input the ID305B you want connected to the selected station."),
                           helpText("Hint: Copy/Paste is your friend."),
@@ -739,7 +739,7 @@ shinyServer(function(input, output, session) {
     filter(reactive_objects$sitesUnique, FDT_STA_ID %in% reactive_objects$namesToSmash) %>%
       st_drop_geometry() %>%
       dplyr::select(FDT_STA_ID, ID305B_1, `DEQ GIS Web App Link`, `Buffer Distance`, n, everything()) %>%
-      datatable(rownames = F, escape= F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'))  })
+      datatable(rownames = F, escape= F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'),selection = 'none')  })
   
   output$associatedAUTable <- DT::renderDataTable({
     req(reactive_objects$namesToSmash)
@@ -747,7 +747,7 @@ shinyServer(function(input, output, session) {
       st_drop_geometry() %>%
       dplyr::select(ID305B, everything()) %>%
       dplyr::select(-OBJECTID) %>%
-      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'))  })
+      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'),selection = 'none')  })
   
   ### Updated Stations Data and Manually QAed AU Tab
   output$adjustedStationsTableAU <- DT::renderDataTable({
@@ -755,7 +755,7 @@ shinyServer(function(input, output, session) {
     filter(reactive_objects$sitesAdjusted, FDT_STA_ID %in% reactive_objects$namesToSmash) %>%
       st_drop_geometry() %>%
       dplyr::select(FDT_STA_ID, ID305B_1, Comments, everything()) %>%
-      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'))  })
+      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'),selection = 'none')  })
   
   ## User adjusted AU table, AU details
   output$associatedAUTableAUQA <- DT::renderDataTable({
@@ -763,7 +763,7 @@ shinyServer(function(input, output, session) {
     filter(AUs() %>% st_drop_geometry(), ID305B %in% filter(reactive_objects$sitesAdjusted, FDT_STA_ID %in% reactive_objects$namesToSmash)$ID305B_1) %>%
       dplyr::select(ID305B, everything()) %>%
       dplyr::select(-OBJECTID) %>%
-      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'))  })
+      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'),selection = 'none')  })
   
   
   
@@ -1373,7 +1373,7 @@ shinyServer(function(input, output, session) {
                               dplyr::select(-`DEQ GIS Web App Link`) %>%
                               st_drop_geometry() %>%
                               datatable(rownames = F,  editable = 'cell',
-                                        options = list(dom = 't', scrollX= TRUE, scrollY = '125px'))  }),
+                                        options = list(dom = 't', scrollX= TRUE, scrollY = '125px'),selection = 'none')  }),
                           br(), br(),
                           textInput('acceptCommentWQS', 'Additional Comments and Documentation'),
                           actionButton('accept_okWQS', 'Accept', 
@@ -1442,7 +1442,7 @@ shinyServer(function(input, output, session) {
                               st_drop_geometry() %>%
                               dplyr::select(-`DEQ GIS Web App Link`) %>%
                               datatable(rownames = F,  editable = 'cell',
-                                        options = list(dom = 't', scrollX= TRUE, scrollY = '125px'))  }),
+                                        options = list(dom = 't', scrollX= TRUE, scrollY = '125px'),selection = 'none')  }),
                           br(), br(),
                           textInput('mergeWQSID', "Manually input the WQS_ID you want connected to the selected station."),
                           helpText("Hint: Copy/Paste is your friend."),
@@ -1630,7 +1630,7 @@ shinyServer(function(input, output, session) {
     req(WQSreactive_objects$namesToSmash)
     filter(WQSreactive_objects$sitesUnique, FDT_STA_ID %in% WQSreactive_objects$namesToSmash) %>%
       st_drop_geometry() %>%
-      datatable(rownames = F, escape= F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'))  })
+      datatable(rownames = F, escape= F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'),selection = 'none')  })
   
   output$associatedWQSTableWQS <- DT::renderDataTable({
     req(WQSreactive_objects$namesToSmash)
@@ -1643,14 +1643,14 @@ shinyServer(function(input, output, session) {
       st_drop_geometry() %>%
       dplyr::select(WQS_ID, everything()) %>%
       distinct(WQS_ID, .keep_all = T) %>% # for some reason this is duplicated in the app but cannot recreate on local testing
-      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'))  })
+      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'),selection = 'none')  })
   
   ### Updated Stations Data and Manually QAed WQS Tab
   output$adjustedStationsTableWQS <- DT::renderDataTable({
     req(WQSreactive_objects$namesToSmash, WQSreactive_objects$sitesAdjusted)
     filter(WQSreactive_objects$sitesAdjusted, StationID %in% WQSreactive_objects$namesToSmash) %>%
       st_drop_geometry() %>%
-      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'))  })
+      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '100px'),selection = 'none')  })
   
   ## User adjusted WQS table, WQS details
   output$associatedWQSTableWQSQA <- DT::renderDataTable({
@@ -1664,7 +1664,7 @@ shinyServer(function(input, output, session) {
       #   st_drop_geometry() %>%
       dplyr::select(WQS_ID, everything()) %>%
       distinct(WQS_ID, .keep_all = T) %>% # for some reason this is duplicated in the app but cannot recreate on local testing
-      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'))  })
+      datatable(rownames = F, options = list(dom = 't', scrollX= TRUE, scrollY = '200px'),selection = 'none')  })
   
   #  ## Download WQS Information
   #  export_file=reactive(paste0('WQSlookupTable.csv'))#, region(), '_', basin(),'_',input$assessmentType, '_', Sys.Date(),'.csv'))
