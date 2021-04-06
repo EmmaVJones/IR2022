@@ -70,7 +70,7 @@ chlAPlotlySingleStation <- function(input,output,session, AUdata, stationSelecte
   output$changeLacustrineUI <- renderUI({
     req(oneStation_original())
     selectInput(ns('changeLacustrine'),strong('Lacustrine Zone Designation For Analysis'),
-                choices= c('NA', 'YES'),
+                choices= c('NA', 'Y'),
                 width='400px', selected = unique(oneStation_original()$LACUSTRINE)) })
   
   # change WQS for rest of module if user chooses to do so
