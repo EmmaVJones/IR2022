@@ -113,7 +113,7 @@ The following steps complete the automated assessment.
 
 This information communicates to the scripts which stations should be assessed and where they should be organized (AUs). It also has data from the last cycle to populate the historical station information table in the application
 
-```{r stationTable}
+```{r stationTable, echo = FALSE}
 stationTable <- read_csv('processedStationData/stationsTable2022begin.csv') 
 ```
 
@@ -125,6 +125,7 @@ Pull pinned WQS info saved on server and join to station table. Identify if any 
 
 ```{r pull WQS info}
 WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
+
 
 stationTable <- left_join(stationTable, WQSlookup, by = c('STATION_ID'='StationID')) %>%
   mutate(CLASS_BASIN = paste(CLASS,substr(BASIN, 1,1), sep="_")) %>%
