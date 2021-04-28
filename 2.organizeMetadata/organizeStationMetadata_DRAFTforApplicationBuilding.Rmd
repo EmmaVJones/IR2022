@@ -360,7 +360,7 @@ Make sure no stations are missing AU information. Try to build tools to handle n
 ```{r}
 nrow(filter(stationsTable2022begin, is.na(ID305B_1)))
 #View(filter(stationsTable2022begin, is.na(ID305B_1)))
-write.csv(filter(stationsTable2022begin, is.na(ID305B_1) & REGION %in% c('CO', "TRO")), 'forKristieAU.csv', row.names = F)
+#write.csv(filter(stationsTable2022begin, is.na(ID305B_1) & REGION %in% c('CO', "TRO")), 'forKristieAU.csv', row.names = F)
 ```
 
 for now, maybe this is my starting point for rebuilding assessment scripts???????
@@ -483,7 +483,7 @@ Then, take the most recent WQSlookup table and upload to server. This should be 
 
 ```{r wqs information}
 # most recent version taken from ..\1.preprocessData\WQSlookupTable
-WQSlookup <- read_csv('data/WQSlookupTable/20210401_0001_WQSlookup.csv')#read_csv('data/WQSlookupTable/20201207_092616_WQSlookup.csv')
+WQSlookup <- read_csv('data/WQSlookupTable/20210428_0000_WQSlookup.csv')#'data/WQSlookupTable/20210401_0001_WQSlookup.csv')#read_csv('data/WQSlookupTable/20201207_092616_WQSlookup.csv')
 
 # find number of WQS_ID linked to each station
 WQSlookup1 <- WQSlookup %>% 
@@ -583,13 +583,15 @@ WQSlookup_withStandards_issues <- WQSlookup_withStandards_pin %>%
   group_by(StationID) %>% 
   mutate(totCount = n()) %>% 
   filter(totCount > 1)
-# write out and fix
-write_csv(WQSlookup_withStandards_issues %>% arrange(StationID), 'data/fixMe.csv')
-fixed <- read_csv('data/fixMe.csv') %>%
-  mutate(GNIS_ID = as.factor(as.character(GNIS_ID)))
 
-WQSlookup_withStandards <- filter(WQSlookup_withStandards_pin, ! StationID %in% fixed$StationID) %>%
-  bind_rows(fixed)
+if(nrow(WQSlookup_withStandards_issues)>0){
+  # write out and fix
+  write_csv(WQSlookup_withStandards_issues %>% arrange(StationID), 'data/fixMe.csv')
+  fixed <- read_csv('data/fixMe.csv') %>%
+    mutate(GNIS_ID = as.factor(as.character(GNIS_ID)))
+
+  WQSlookup_withStandards <- filter(WQSlookup_withStandards_pin, ! StationID %in% fixed$StationID) %>%
+    bind_rows(fixed)
 
 # What stations still need WQS?
 #z <- filter(WQSlookup, ! StationID %in% WQSlookupFull$StationID) %>%
@@ -603,7 +605,7 @@ WQSlookup_withStandards <- filter(WQSlookup_withStandards_pin, ! StationID %in% 
 #         "Buffer Distance" = "Buffer Distance.y") %>%
 #  dplyr::select(StationID, `Buffer Distance`, `WQS_ID Saved on the server`, `WQS_ID Suggested To User`, Comments)
 #write.csv(y,'missingWQSforReview.csv')
-
+  } else{WQSlookup_withStandards <- WQSlookup_withStandards_pin}
 ```
 
 
