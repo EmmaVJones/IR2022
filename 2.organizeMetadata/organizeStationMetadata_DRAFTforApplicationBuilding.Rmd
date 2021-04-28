@@ -258,7 +258,7 @@ Bring in AU information assessors have chosen as a starting point for assessing 
 
 ```{r newAU information}
 # most recent version taken from ..\1.preprocessData\AUlookupTable
-AUlookup <- read_csv('data/AUlookupTable/20210401_0000_AUlookup.csv')#'data/AUlookupTable/20201013_130553_AUlookup.csv')
+AUlookup <- read_csv('data/AUlookupTable/20210428_0000_AUlookup.csv')#'data/AUlookupTable/20201013_130553_AUlookup.csv')
 ```
 
 
@@ -360,6 +360,7 @@ Make sure no stations are missing AU information. Try to build tools to handle n
 ```{r}
 nrow(filter(stationsTable2022begin, is.na(ID305B_1)))
 #View(filter(stationsTable2022begin, is.na(ID305B_1)))
+write.csv(filter(stationsTable2022begin, is.na(ID305B_1) & REGION %in% c('CO', "TRO")), 'forKristieAU.csv', row.names = F)
 ```
 
 for now, maybe this is my starting point for rebuilding assessment scripts???????

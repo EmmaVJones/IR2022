@@ -28,13 +28,27 @@ snapCheck <- function(successDataFrame){
 }
 
 # Bring in data from server
-AUtableExisting <- read_csv('data/AUlookupTable/20201013_130553_AUlookup.csv') %>% 
+AUtableExisting <- read_csv('data/AUlookupTable/20210401_0000_AUlookup.csv') %>% #read_csv('data/AUlookupTable/20201013_130553_AUlookup.csv') %>% 
   dplyr::select(FDT_STA_ID, ID305B_1, ID305B_2, n:Comments)
 AUtableNew <- loadData("C:/HardDriveBackup/R/GitHub/IR2022/1.preprocessData/AUlookupTable") %>%  # run in console
-  dplyr::select(FDT_STA_ID, ID305B_1, ID305B_2, n:Comments)
-AUtableCombined <- bind_rows(AUtableExisting, AUtableNew)
+  dplyr::select(FDT_STA_ID, ID305B_1, ID305B_2, n:Comments) %>% 
+  # this is only necessary if you allow assessors to continue to work with application after a cleanup phase
+  filter(! FDT_STA_ID %in% AUtableExisting$FDT_STA_ID)
+AUtableCombined <- bind_rows(AUtableExisting, AUtableNew) #%>% 
+  #group_by(FDT_STA_ID) %>%  mutate(n())
 # write it out to do edits manually
-write.csv(AUtableCombined, 'data/AUlookupTable/20210401_0000_AUlookup.csv', row.names = F)
+write.csv(AUtableCombined, 'data/AUlookupTable/20210428_0000_AUlookup.csv', row.names = F)
+# 
+# 
+# # what stations still need AU data?
+# suggestedAUs <- read.csv('C:/HardDriveBackup/R/GitHub/IR2022/1.preprocessData/data/preAnalyzedAUdata.csv') 
+# 
+# # make a dataset for last assessor to review
+# stillMissingAU <- filter(suggestedAUs, ! FDT_STA_ID %in% AUtableCombined$FDT_STA_ID) 
+#   
+
+
+
 
 # use this info below and comment field to make edits to spreadsheet saved above
 # QA time
