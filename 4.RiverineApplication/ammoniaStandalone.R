@@ -1,3 +1,5 @@
+httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
+
 library(tidyverse)
 library(shiny)
 library(shinyjs)

@@ -26,17 +26,43 @@ snapCheck <- function(successDataFrame){
 }
 
 # Bring in data from server
-WQStableExisting <- read_csv('data/WQSlookupTable/20201207_092616_WQSlookup.csv') 
-WQStableNew <- loadData("C:/HardDriveBackup/R/GitHub/IR2022/1.preprocessData/WQSlookupTable")   
-WQStableCombined <- bind_rows(WQStableExisting, WQStableNew)
+WQStableExisting <- read_csv('data/WQSlookupTable/20210401_0001_WQSlookup.csv') #read_csv('data/WQSlookupTable/20201207_092616_WQSlookup.csv') 
+WQStableNew <- loadData("C:/HardDriveBackup/R/GitHub/IR2022/1.preprocessData/WQSlookupTable") %>% 
+  # this is only necessary if you are allow assessors to continue to work with application after a cleanup phase
+  filter(!StationID %in% WQStableExisting$StationID)
+WQStableCombined <- bind_rows(WQStableExisting, WQStableNew) #%>% 
+  # make sure no duplicates
+  #group_by(StationID) %>% #mutate(n())
 # write it out to do edits manually
-write.csv(WQStableCombined, 'data/WQSlookupTable/20210401_0000_WQSlookup.csv', row.names = F)
+write.csv(WQStableCombined, 'data/WQSlookupTable/20210428_0000_WQSlookup.csv', row.names = F)
 
 # use this info below and comment field to make edits to spreadsheet saved above
 
 # don't waste time on stations that don't need to be assessed
 hitList <- read_csv('data/stationHitList.csv')
 
+
+# what sites still need data
+snap_input <- readRDS('C:/HardDriveBackup/R/GitHub/IR2022/1.preprocessData/data/WQStable02032021.RDS')
+# Weblink to internal DEQ app constants
+# slightly different format so it will work in excel, dropped href
+webLinkpart1 <- "https://gis.deq.virginia.gov/GISStaffApplication/?query=WQM%20Stations%20(All%20stations%20with%20full%20attributes),STATION_ID,"
+webLinkpart2 <- "&showLayers=DEQInternalDataViewer_1723;WATER%20LAYERS;WQM%20Stations%20(All%20stations%20with%20full%20attributes);"
+webLinkpart3 <- "&level=14" 
+
+# make a dataset for last assessor to review
+stillMissing <- filter(snap_input, ! StationID %in% WQStableCombined$StationID) %>% 
+  mutate('Final WQS_ID' = NA,
+         GISlink = case_when(str_extract(WQS_ID, "^.{2}") == 'EP' ~ "Estuaries%20WQS;Estuarine%20waters;Tidal%20flow%20paths",
+                             str_extract(WQS_ID, "^.{2}") == 'EL' ~ "Estuaries%20WQS;Estuarine%20waters;Tidal%20flow%20paths",
+                             str_extract(WQS_ID, "^.{2}") == 'RL' ~ "Streams/Rivers%20WQS;Public%20water%20supply;Trout;All%20other%20streams/rivers",
+                             str_extract(WQS_ID, "^.{2}") == 'LP' ~ "Lakes/Reservoirs%20WQS;Public%20Water%20Supply;Trout;All%20other%20lakes/reservoirs",
+                             TRUE ~ as.character(NA))) %>% 
+  rename('Suggested WQS_ID' = 'WQS_ID') %>% 
+  mutate('Comments' = NA,
+         `DEQ GIS Web App Link` =  paste0(webLinkpart1, StationID, webLinkpart2, GISlink, webLinkpart3)) %>% 
+  dplyr::select(StationID, `Suggested WQS_ID`, `Buffer Distance`, `Final WQS_ID`, Comments, `DEQ GIS Web App Link`)
+write.csv(stillMissing, 'WQSforKristieReview.csv', row.names = F)
 
 # QA time
 # Find any stations missing WQS information
