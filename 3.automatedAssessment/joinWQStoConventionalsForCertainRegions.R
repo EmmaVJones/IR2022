@@ -1,7 +1,7 @@
 # This script joins available WQS information to conventionals dataset for regions that are interested
 
 # Starting with PRO
-region <- "PRO"
+region <- 'TRO'
 
 library(tidyverse)
 library(pins)
@@ -49,7 +49,7 @@ View( filter(stationTable, REGION == region) %>% group_by(STATION_ID) %>% mutate
 
 # filter conventionals to just stations in region of interest and join WQS and other spatial info
 conventionals_region <- filter(conventionals, FDT_STA_ID %in% regionalStationTable$STATION_ID) %>% 
-  left_join(dplyr::select(regionalStationTable, STATION_ID, WQS_ID:`Total Phosphorus (ug/L)`),
+  left_join(dplyr::select(regionalStationTable, STATION_ID, ID305B_1:ID305B_3, WQS_ID:`Total Phosphorus (ug/L)`),
             by = c('FDT_STA_ID' = 'STATION_ID'))
 
 
