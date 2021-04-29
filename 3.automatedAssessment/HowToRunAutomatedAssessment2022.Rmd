@@ -114,7 +114,8 @@ The following steps complete the automated assessment.
 This information communicates to the scripts which stations should be assessed and where they should be organized (AUs). It also has data from the last cycle to populate the historical station information table in the application
 
 ```{r stationTable, echo = FALSE}
-stationTable <- read_csv('processedStationData/stationsTable2022begin.csv') 
+stationTable <- read_csv('processedStationData/stationsTable2022begin.csv')# %>% 
+  #filter(STATION_ID %in% kristie$StationID)
 ```
 
 ## Attach WQS information
@@ -177,13 +178,14 @@ We only want to run riverine methods on riverine stations right now, so drop all
 And drop estuarine stations as well.
 
 ```{r}
-estuarineStations <- filter(stationTable, str_detect(ID305B_1, 'E_') | str_detect(ID305B_2, 'E_') | str_detect(ID305B_3, 'E_') | str_detect(ID305B_4, 'E_') |
-                          str_detect(ID305B_5, 'E_') | str_detect(ID305B_6, 'E_') | str_detect(ID305B_7, 'E_') | str_detect(ID305B_8, 'E_') | 
-                          str_detect(ID305B_9, 'E_') | str_detect(ID305B_10, 'E_') ) 
+estuarineStations <- filter(stationTable, str_detect(ID305B_1, 'E_') | str_detect(ID305B_2, 'E_') | 
+                              str_detect(ID305B_3, 'E_') | str_detect(ID305B_4, 'E_') |
+                          str_detect(ID305B_5, 'E_') | str_detect(ID305B_6, 'E_') | str_detect(ID305B_7, 'E_') | str_detect(ID305B_8, 'E_') |
+                          str_detect(ID305B_9, 'E_') | str_detect(ID305B_10, 'E_') )
 bothTypesE <- filter(estuarineStations, str_detect(ID305B_1, 'R_') | str_detect(ID305B_2, 'R_') | str_detect(ID305B_3, 'R_') | str_detect(ID305B_4, 'R_') |
                           str_detect(ID305B_5, 'R_') | str_detect(ID305B_6, 'R_') | str_detect(ID305B_7, 'R_') | str_detect(ID305B_8, 'R_') | 
                           str_detect(ID305B_9, 'R_') | str_detect(ID305B_10, 'R_') ) 
-
+#View(dplyr::select(stationTable, STATION_ID, ID305B_1, WQS_ID, everything()))
 stationTable <- filter(stationTable, ! STATION_ID %in% estuarineStations$STATION_ID) %>%
   bind_rows(bothTypesE) # add northern station back in to be safe
 
@@ -410,6 +412,11 @@ estuarineStationData <- dplyr::select(estuarineStations, STATION_ID:VAHU6, COMME
   
   
 stationTableResults <- bind_rows(stationTableResults, estuarineStationData)
+
+# stationTableResults1 <- stationTableResults1 %>% group_by(STATION_ID) %>% mutate(n()) %>% 
+#   dplyr::select(`n()`, everything())
+# 
+# View(filter(stationTableResults1, STATION_ID == '7ACHE004.29'))
 ```
 
 Fix station comments if not already fixed

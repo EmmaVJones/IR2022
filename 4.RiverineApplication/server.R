@@ -2,16 +2,19 @@ source('global.R')
 
 # Pinned to server, done for each region in C:\HardDriveBackup\R\GitHub\IR2022\1.preprocessData\preprocessingWorkflow\ReworkingDataPreprocessingMethod.Rmd
 #regionalAUs <- st_read('userDataToUpload/AU_working/va_2020_aus_riverine_DRAFT_BRRO.shp') %>%
-#  st_transform(4326)   # transform to WQS84 for spatial intersection 
+#  st_transform(4326)   # transform to WQS84 for spatial intersection
 #pin(regionalAUs, name = 'BRROworkingAUriverine', description = "BRRO working AU riverine", board = "rsconnect")
 
 
 
 # Pull data from server
-conventionals <- pin_get("conventionals2022IRfinalWithSecchi", board = "rsconnect") 
+conventionals <- pin_get("conventionals2022IRfinalWithSecchi", board = "rsconnect")
 #pin_get("conventionals2022IRdraft", board = "rsconnect") %>%
   #filter(FDT_DATE_TIME >= "2015-01-01 00:00:00 UTC" )
-vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) # bring in as sf object
+vahu6 <- st_as_sf(pin_get("vahu6", board = "rsconnect")) #%>%  # bring in as sf object
+#  # change all CO to TRO for riverine app
+#  mutate(ASSESS_REG = ifelse(ASSESS_REG == as.character('CO'), as.character('TRO'), as.character(ASSESS_REG))) %>%
+#  mutate(ASSESS_REG = as.factor(ASSESS_REG))
 WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 # placeholder for now, shouldn't be a spatial file
 historicalStationsTable <- st_read('data/GIS/va20ir_wqms.shp') %>%
@@ -33,9 +36,9 @@ benSamps <- pin_get("ejones/benSamps", board = "rsconnect") %>%
   filter(RepNum %in% c('1', '2')) %>% # drop QA and wonky rep numbers
   filter(`Target Count` == 110) %>% # only assess rarified data
   left_join(benSampsStations, by = 'StationID') %>% # update with spatial, assess reg, vahu6, basin/subbasin, & ecoregion info
-  dplyr::select(StationID, Sta_Desc, everything()) %>% 
+  dplyr::select(StationID, Sta_Desc, everything()) %>%
   arrange(StationID)
-habSamps <- pin_get("ejones/habSamps", board = "rsconnect") %>% 
+habSamps <- pin_get("ejones/habSamps", board = "rsconnect") %>%
   filter(between(`Collection Date`, assessmentPeriod[1], assessmentPeriod[2]))# limit data to assessment window
 habValues <- pin_get("ejones/habValues", board = "rsconnect")  %>%
   filter(HabSampID %in% habSamps$HabSampID)
@@ -51,18 +54,18 @@ markPCB <- read_excel('data/2022 IR PCBDatapull_EVJ.xlsx', sheet = '2022IR Datap
   mutate(SampleDate = as.Date(SampleDate),
          `Parameter Rounded to WQS Format` = as.numeric(signif(`Total Of Concentration`, digits = 2))) %>% # round to even for comparison to chronic criteria)
   dplyr::select(StationID: `Total Of Concentration`,`Parameter Rounded to WQS Format`, StationID_join)
-fishPCB <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'PCBs') %>% 
+fishPCB <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'PCBs') %>%
   mutate(`Parameter Rounded to WQS Format` = as.numeric(signif(`Total PCBs`, digits = 2))) %>% # round to even for comparison to chronic criteria)
-  dplyr::select(WBID:`Weight (g)`, `Water %`:`Total PCBs`, `Parameter Rounded to WQS Format`, uncorrected, `recovery corrected`, comment3, Latitude, Longitude) 
+  dplyr::select(WBID:`Weight (g)`, `Water %`:`Total PCBs`, `Parameter Rounded to WQS Format`, uncorrected, `recovery corrected`, comment3, Latitude, Longitude)
 fishMetals <- read_excel('data/FishTissuePCBsMetals_EVJ.xlsx', sheet= 'Metals') %>%
-  rename("# of Fish" = "# of fish...4", "Species_Name"  = "Species_Name...5", 
+  rename("# of Fish" = "# of fish...4", "Species_Name"  = "Species_Name...5",
          "species_name" = "Species_Name...47", "number of fish" = "# of fish...48")#,
 #         "Beryllium"= "Be",  "Aluminum" = "Al",  "Vanadium" = "V", "Chromium"= "Cr",
-#         "Manganese" = "Mn", "Nickel" = "Ni", "Copper" = "Cu" ,"Zinc"=  "Zn",  "Arsenic" = "As" , "Selenium" = "Se" , 
+#         "Manganese" = "Mn", "Nickel" = "Ni", "Copper" = "Cu" ,"Zinc"=  "Zn",  "Arsenic" = "As" , "Selenium" = "Se" ,
 #         "Silver" = "Ag" , "Cadmium" = "Cd",
 #         "Antimony" = "Sb", "Barium"=  "Ba" , "Mercury" =  "Hg", "Thallium"  = "Tl", "Lead" = "Pb"  )
 fishMetalsScreeningValues <- read_csv('data/FishMetalsScreeningValues.csv') %>%
-  group_by(`Screening Method`) %>% 
+  group_by(`Screening Method`) %>%
   pivot_longer(cols = -`Screening Method`, names_to = 'Metal', values_to = 'Screening Value') %>%
   arrange(Metal)
 
@@ -132,8 +135,9 @@ shinyServer(function(input, output, session) {
   
   
   # Query VAHUC6's By Selectize arguments
-  the_data <- reactive({
-    req(regionalAUs(), input$DEQregionSelection)
+  the_data <- reactive({req(regionalAUs(), input$DEQregionSelection)
+    
+    
     filter(vahu6, ASSESS_REG %in% input$DEQregionSelection) %>%
       left_join(dplyr::select(subbasinToVAHU6, VAHU6, Basin, BASIN_CODE, Basin_Code))})
   basin_filter <- shiny::callModule(dynamicSelect, "basinSelection", the_data, "Basin_Code" )
