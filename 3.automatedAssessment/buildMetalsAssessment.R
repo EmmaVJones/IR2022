@@ -49,6 +49,44 @@ metalsCriteriaFunction <- function(Hardness, WER){
   return(metalsCriteria)
 }
 
+# Bring in pinned metals data and reorganize to make further analysis easier
+WCmetals <- pin_get("WCmetals-2022IRfinal",  board = "rsconnect")
+# Separate object for analysis, tack on METALS and RMK designation to make the filtering of certain lab comment codes easier
+WCmetalsForAnalysis <- WCmetals %>% 
+  dplyr::select(Station_Id, FDT_DATE_TIME, FDT_DEPTH, # include depth bc a few samples taken same datetime but different depths
+                METAL_Antimony = `STORET_01095_ANTIMONY, DISSOLVED (UG/L AS SB)`, RMK_Antimony = RMK_01097, 
+                METAL_Arsenic = `STORET_01000_ARSENIC, DISSOLVED  (UG/L AS AS)`, RMK_Arsenic = RMK_01002, 
+                METAL_Barium = `STORET_01005_BARIUM, DISSOLVED (UG/L AS BA)`, RMK_Barium = RMK_01005, 
+                METAL_Cadmium = `STORET_01025_CADMIUM, DISSOLVED (UG/L AS CD)`, RMK_Cadmium = RMK_01025,
+                METAL_ChromiumIII = `STORET_01030_CHROMIUM, DISSOLVED (UG/L AS CR)`, RMK_ChromiumIII = RMK_01030, 
+                #ChromiumVI = 
+                METAL_Lead = `STORET_01049_LEAD, DISSOLVED (UG/L AS PB)`, RMK_Lead = RMK_01049, 
+                METAL_Mercury = `STORET_50091_MERCURY-TL,FILTERED WATER,ULTRATRACE METHOD UG/L`, RMK_Mercury = RMK_50091,
+                METAL_Nickel = `STORET_01065_NICKEL, DISSOLVED (UG/L AS NI)`, RMK_Nickel = RMK_01067, 
+                METAL_Uranium = `URANIUM_TOT`, RMK_Uranium = `RMK_7440-61-1T`, 
+                METAL_Selenium = `STORET_01145_SELENIUM, DISSOLVED (UG/L AS SE)`, RMK_Selenium = RMK_01145, 
+                METAL_Silver = `STORET_01075_SILVER, DISSOLVED (UG/L AS AG)`, RMK_Silver = RMK_01075, 
+                METAL_Thallium = `STORET_01057_THALLIUM, DISSOLVED (UG/L AS TL)`, RMK_Thallium = RMK_01057,
+                METAL_Zinc = `STORET_01090_ZINC, DISSOLVED (UG/L AS ZN)`, RMK_Zinc = RMK_01092,
+                METAL_Hardness = `STORET_DHARD_HARDNESS, CA MG CALCULATED (MG/L AS CACO3) AS DISSOLVED`, RMK_Hardness = RMK_DHARD) %>% 
+  group_by(Station_Id, FDT_DATE_TIME, FDT_DEPTH) %>% 
+  mutate_if(is.numeric, as.character) %>% 
+  pivot_longer(cols = METAL_Antimony:RMK_Hardness, #RMK_Antimony:RMK_Hardness, 
+               names_to = c('Type', 'Metal'),
+               names_sep = "_",
+               values_to = 'Value') %>% 
+  ungroup() %>% group_by(Station_Id, FDT_DATE_TIME, FDT_DEPTH, Metal) %>% 
+  pivot_wider(id_cols = c(Station_Id, FDT_DATE_TIME, FDT_DEPTH, Metal), names_from = Type, values_from = Value) %>% # pivot remark wider so the appropriate metal value is dropped when filtering on lab comment codes
+  filter(! RMK %in% c('IF', 'J', 'O', 'QF', 'V')) %>% # lab codes dropped from further analysis
+  pivot_longer(cols= METAL:RMK, names_to = 'Type', values_to = 'Value') %>% # get in appropriate format to flip wide again
+  pivot_wider(id_cols = c(Station_Id, FDT_DATE_TIME, FDT_DEPTH), names_from = c(Type, Metal), names_sep = "_", values_from = Value) %>% 
+  rename_with(~str_remove(., 'METAL_')) # drop METAL_ prefix for easier analyses
+
+glimpse(WCmetalsForAnalysis)
+  
+
+#2-BGC008.10 no hardness after lab codes removed so good tester
+# 6BCLN279.43 no data 6/24/2015 after lab codes removed and tons of data
 
 # get one station metals data for assessment
 station <- '2-JKS028.69'
@@ -62,8 +100,14 @@ stationData <- filter(conventionals, FDT_STA_ID %in% station) %>% #stationTable$
       mutate(., lakeStation = TRUE) %>%
         thermoclineDepth())) # adds thermocline information and SampleDate
     else mutate(., lakeStation = FALSE) }
-stationMetalsData <- filter(WCmetals, Station_Id %in% station)
+stationMetalsData <- filter(WCmetalsForAnalysis, Station_Id %in% station)
 
+criteria <- metalsCriteriaFunction(stationMetalsData[1,]$Hardness, WER = 1)
+
+
+glimpse(criteria)
+
+  
 
 
 metalsAssessment <- function(stationMetalsData, stationData, WER){
@@ -72,7 +116,8 @@ metalsAssessment <- function(stationMetalsData, stationData, WER){
   
   # Get WQS from stationData so correct criteria can be applied
   stationMetalsData <- left_join(stationMetalsData, 
-                                 dplyr::select(stationData, FDT_STA_ID, CLASS, PWS, ZONE), by = 'FDT_STA_ID') %>% 
+                                 dplyr::select(stationData, FDT_STA_ID, CLASS, PWS, ZONE) %>% 
+                                   distinct(FDT_STA_ID, .keep_all = TRUE), by = c('Station_Id' = 'FDT_STA_ID')) %>% 
     mutate(`Assess As` = case_when(CLASS == "I" ~ 'Saltwater',
                                    CLASS == "II" & ZONE == 'Estuarine' ~ 'Saltwater',
                                    CLASS == "II" & ZONE == 'Transition' ~ 'More Stringent',
@@ -81,12 +126,12 @@ metalsAssessment <- function(stationMetalsData, stationData, WER){
                                    TRUE ~ as.character(NA)))
   
   
-  # make a place to store raw chronic data if needed
-  fourDayResults <- tibble(`fourDayMetalAvg` = as.numeric(NA),
-                           WindowStart = as.POSIXct(NA),
-                           `fourDayAvglimit` = as.numeric(NA),
-                           fourDayExceedance = as.logical(NA),
-                           fourDayWindowData = list())
+  # # make a place to store raw chronic data if needed
+  # fourDayResults <- tibble(`fourDayMetalAvg` = as.numeric(NA),
+  #                          WindowStart = as.POSIXct(NA),
+  #                          `fourDayAvglimit` = as.numeric(NA),
+  #                          fourDayExceedance = as.logical(NA),
+  #                          fourDayWindowData = list())
   
   # loop through each row of data to correctly calculate criteria and find any chronic scenarios
   i <- stationMetalsData$FDT_DATE_TIME[3] # 1 is good test for averaging over acute and chronic windows
@@ -96,6 +141,38 @@ metalsAssessment <- function(stationMetalsData, stationData, WER){
     # Run acute analysis if data exists
     if(nrow(acuteDataWindow) > 0){
       
+      # Replace any lab failure codes with NA's to prevent use in analysis
+      View(
+       acuteDataWindow %>%
+        group_by(Station_Id, FDT_DATE_TIME) %>% 
+        mutate_if(is.numeric, as.character) %>% 
+        #dplyr::select(Antimony:RMK_Hardness) %>% 
+        #dplyr::select(contains('RMK')) %>% 
+        pivot_longer(cols = contains('RMK'), #METAL_Antimony:RMK_Hardness, #RMK_Antimony:RMK_Hardness, 
+                     names_to ="RMK", # c('Type', 'Metal'),
+                     #names_sep = "_",
+                     values_to = 'Value')
+      )
+      
+      
+      
+      
+      acuteDataWindow %>%
+        group_by(Station_Id, FDT_DATE_TIME) %>% 
+        mutate_if(is.numeric, as.character) %>% 
+        #dplyr::select(Antimony:RMK_Hardness) %>% 
+        #dplyr::select(contains('RMK')) %>% 
+        pivot_longer(cols = METAL_Antimony:RMK_Hardness, #RMK_Antimony:RMK_Hardness, 
+          names_to = c('Type', 'Metal'),
+          names_sep = "_",
+          values_to = 'Value')
+      
+      
+      # first rename metals so dont need to do it each time
+      # average desired metals across window
+      # PWS and all waters compare against each data point
+      # pivot longer to join appropriate standards (freshwater, saltwater, or more stringent)
+      #
     }
     
     # Run chronic analysis if data exists
