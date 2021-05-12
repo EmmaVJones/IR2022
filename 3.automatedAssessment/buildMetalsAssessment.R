@@ -20,9 +20,11 @@ metalsCriteriaFunction <- function(Hardness, WER){
            `Cadmium Chronic Freshwater` = signif(WER * exp(0.7977 * log(criteriaHardness) - 3.909) * (1.101672 - (log(criteriaHardness) * (0.041838))), digits = 2),
            `Cadmium Acute Saltwater` = signif(33 * WER, digits = 2), `Cadmium Chronic Saltwater` = signif(7.9 * WER, digits = 2), `Cadmium PWS` = 5,
            `ChromiumIII Acute Freshwater` = signif(WER *  (exp(0.8190 * (log(criteriaHardness)) + 3.7256)) * 0.316, digits = 2), 
-           `ChromiumIII Chronic Freshwater` = signif(WER *  (exp(0.8190 * (log(criteriaHardness))+0.6848)) * 0.860, digits = 2), `ChromiumIII PWS` = 100,
-           `ChromiumVI Acute Freshwater` = 16, `ChromiumVI Chromium Freshwater` = 11, `ChromiumVI Acute Saltwater` = 1100, `ChromiumVI Chronic Saltwater` = 50, 
-           # Copper assessment Dropped per Tish email 5/3/21
+           `ChromiumIII Chronic Freshwater` = signif(WER *  (exp(0.8190 * (log(criteriaHardness))  +0.6848)) * 0.860, digits = 2), `ChromiumIII PWS` = 100,
+           `ChromiumVI Acute Freshwater` = 16, `ChromiumVI Chronic Freshwater` = 11, `ChromiumVI Acute Saltwater` = 1100, `ChromiumVI Chronic Saltwater` = 50, 
+           `Copper Acute Freshwater` =  signif(WER * (exp(0.9422 * log(criteriaHardness) - 1.700)) * 0.960, digits = 2),
+           `Copper Chronic Freshwater` = signif(WER * (exp(0.8545 * log(criteriaHardness) - 1.702)) * 0.960, digits = 2),
+           `Copper Acute Saltwater` =  signif(9.3 * WER, digits = 2), `Copper Chronic Saltwater` =  signif(6.0 * WER, digits = 2), `Copper PWS` = 1300,
            `Lead Acute Freshwater` = signif(WER * (exp(1.273 * log(criteriaHardness) - 1.084)) * (1.46203 - (log(criteriaHardness) * 0.145712)), digits = 2),
            `Lead Chronic Freshwater` = signif(WER * (exp(1.273 * log(criteriaHardness) - 3.259)) * (1.46203 - (log(criteriaHardness) * 0.145712)), digits = 2),
            `Lead Acute Saltwater` = signif(230 * WER, digits = 2), `Lead Chronic Saltwater` = signif(8.8 * WER, digits = 2), `Lead PWS` = 15,
@@ -48,6 +50,8 @@ metalsCriteriaFunction <- function(Hardness, WER){
       dplyr::select(Metal, Criteria, `Criteria Type`, Waterbody, Measure))
   return(metalsCriteria)
 }
+#criteria <- metalsCriteriaFunction(stationMetalsData[1,]$Hardness, WER = 1)
+
 
 # Bring in pinned metals data and reorganize to make further analysis easier
 WCmetals <- pin_get("WCmetals-2022IRfinal",  board = "rsconnect")
@@ -60,6 +64,7 @@ WCmetalsForAnalysis <- WCmetals %>%
                 METAL_Cadmium = `STORET_01025_CADMIUM, DISSOLVED (UG/L AS CD)`, RMK_Cadmium = RMK_01025,
                 METAL_ChromiumIII = `STORET_01030_CHROMIUM, DISSOLVED (UG/L AS CR)`, RMK_ChromiumIII = RMK_01030, 
                 #ChromiumVI = 
+                METAL_Copper = `STORET_01040_COPPER, DISSOLVED (UG/L AS CU)`, RMK_Copper = RMK_01040, 
                 METAL_Lead = `STORET_01049_LEAD, DISSOLVED (UG/L AS PB)`, RMK_Lead = RMK_01049, 
                 METAL_Mercury = `STORET_50091_MERCURY-TL,FILTERED WATER,ULTRATRACE METHOD UG/L`, RMK_Mercury = RMK_50091,
                 METAL_Nickel = `STORET_01065_NICKEL, DISSOLVED (UG/L AS NI)`, RMK_Nickel = RMK_01067, 
@@ -80,6 +85,7 @@ WCmetalsForAnalysis <- WCmetals %>%
   filter(! RMK %in% c('IF', 'J', 'O', 'QF', 'V')) %>% # lab codes dropped from further analysis
   pivot_longer(cols= METAL:RMK, names_to = 'Type', values_to = 'Value') %>% # get in appropriate format to flip wide again
   pivot_wider(id_cols = c(Station_Id, FDT_DATE_TIME, FDT_DEPTH), names_from = c(Type, Metal), names_sep = "_", values_from = Value) %>% 
+  mutate_at(vars(contains('METAL')), as.numeric) %>%# change metals values back to numeric
   rename_with(~str_remove(., 'METAL_')) # drop METAL_ prefix for easier analyses
 
 glimpse(WCmetalsForAnalysis)
@@ -102,12 +108,6 @@ stationData <- filter(conventionals, FDT_STA_ID %in% station) %>% #stationTable$
     else mutate(., lakeStation = FALSE) }
 stationMetalsData <- filter(WCmetalsForAnalysis, Station_Id %in% station)
 
-criteria <- metalsCriteriaFunction(stationMetalsData[1,]$Hardness, WER = 1)
-
-
-glimpse(criteria)
-
-  
 
 
 metalsAssessment <- function(stationMetalsData, stationData, WER){
@@ -125,93 +125,114 @@ metalsAssessment <- function(stationMetalsData, stationData, WER){
                                    CLASS %in% c('III', "IV","V","VI","VII") ~ 'Freshwater',
                                    TRUE ~ as.character(NA)))
   
+  # make a place to store raw analysis results
+  rawCriteriaResults <- tibble(Station_Id = as.character(NA), WindowDateTimeStart = as.POSIXct(NA), FDT_DEPTH = as.numeric(NA),
+                                 CLASS = as.factor(NA), PWS = as.factor(NA), ZONE = as.factor(NA), `Assess As` = as.character(NA),
+                                 Metal = as.character(NA), ValueType = as.character(NA), Value = as.numeric(NA), Criteria = as.character(NA), 
+                                 `Criteria Type` = as.character(NA), Waterbody = as.character(NA), Measure = as.numeric(NA),
+                                 parameterRound = as.numeric(NA), Exceedance = as.numeric(NA))
+  acuteCriteriaResults <- rawCriteriaResults 
+  chronicCriteriaResults <- acuteCriteriaResults 
   
-  # # make a place to store raw chronic data if needed
-  # fourDayResults <- tibble(`fourDayMetalAvg` = as.numeric(NA),
-  #                          WindowStart = as.POSIXct(NA),
-  #                          `fourDayAvglimit` = as.numeric(NA),
-  #                          fourDayExceedance = as.logical(NA),
-  #                          fourDayWindowData = list())
+#acuteDataWindow <- bind_rows(acuteDataWindow, acuteDataWindow)  
+#acuteDataWindow[2,]$FDT_DATE_TIME <- acuteDataWindow[2,]$FDT_DATE_TIME + minutes(10)
+  
+  # chronicDataWindow <- bind_rows(chronicDataWindow, chronicDataWindow, chronicDataWindow,chronicDataWindow)
+  # chronicDataWindow[2,]$FDT_DATE_TIME <- chronicDataWindow[1,]$FDT_DATE_TIME + days(1)
+  # chronicDataWindow[3,]$FDT_DATE_TIME <- chronicDataWindow[1,]$FDT_DATE_TIME + days(2)
+  # chronicDataWindow[4,]$FDT_DATE_TIME <- chronicDataWindow[1,]$FDT_DATE_TIME + days(3)
   
   # loop through each row of data to correctly calculate criteria and find any chronic scenarios
-  i <- stationMetalsData$FDT_DATE_TIME[3] # 1 is good test for averaging over acute and chronic windows
+  #i <- stationMetalsData$FDT_DATE_TIME[3] # 1 is good test for averaging over acute and chronic windows
   for(i in stationMetalsData$FDT_DATE_TIME){
+    rawDataWindow <- filter(stationMetalsData, FDT_DATE_TIME == i)
     acuteDataWindow <- filter(stationMetalsData,  between(FDT_DATE_TIME, i, i + hours(1)))
     chronicDataWindow <- filter(stationMetalsData,  between(FDT_DATE_TIME, i, i + days(4)))
+    # Run any analyses requiring raw data if data exists
+    if(nrow(rawDataWindow) > 0){
+      rawData <- rawDataWindow %>% 
+        group_by(Station_Id, FDT_DATE_TIME, FDT_DEPTH, CLASS, PWS, ZONE, `Assess As`) %>% 
+        dplyr::select(-c(contains('RMK_'))) %>% 
+        pivot_longer(cols = Antimony:Hardness, names_to = "Metal", values_to = "Value") %>% 
+        mutate(ValueType = 'Raw Result') %>% ungroup()
+      # Calculate criteria based on hourly averaged data
+      rawDataCriteria <- metalsCriteriaFunction(filter(rawData, Metal == "Hardness")$Value, WER = 1) %>% 
+        # Keep only the criteria needed 
+        {if(unique(rawData$`Assess As`) %in% c('Freshwater', 'Saltwater'))
+          filter(., Waterbody %in% c(NA, !!unique(rawData$`Assess As`)))
+          else .} %>% 
+        filter(`Criteria Type` %in% c('All Other Waters', 'PWS')) %>% # don't need other criteria for acute window
+        {if(unique(rawData$PWS) != 'Yes')
+          filter(., `Criteria Type` != 'PWS')
+          else .}
+      # Join appropriate criteria to rawData for comparison to averaged data
+      rawDataCriteriaAnalysis <- left_join(rawData, rawDataCriteria, by = 'Metal') %>% 
+        mutate(parameterRound = signif(Value, digits = 2), # two significant figures based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
+               Exceedance = ifelse(parameterRound > parameterRound, 1, 0 ),
+               WindowDateTimeStart = min(rawDataWindow$FDT_DATE_TIME)) %>%  # use 1/0 to easily summarize multiple results later
+        filter(!is.na(Criteria)) %>%  # filter out metals that don't have chronic criteria
+        dplyr::select(Station_Id, WindowDateTimeStart, everything()) %>% 
+        dplyr::select(-FDT_DATE_TIME)
+      # Save the results for viewing later
+      rawCriteriaResults <- bind_rows(rawCriteriaResults, rawDataCriteriaAnalysis) 
+    } else {rawCriteriaResults <- rawCriteriaResults }
     # Run acute analysis if data exists
     if(nrow(acuteDataWindow) > 0){
-      
-      # Replace any lab failure codes with NA's to prevent use in analysis
-      View(
-       acuteDataWindow %>%
-        group_by(Station_Id, FDT_DATE_TIME) %>% 
-        mutate_if(is.numeric, as.character) %>% 
-        #dplyr::select(Antimony:RMK_Hardness) %>% 
-        #dplyr::select(contains('RMK')) %>% 
-        pivot_longer(cols = contains('RMK'), #METAL_Antimony:RMK_Hardness, #RMK_Antimony:RMK_Hardness, 
-                     names_to ="RMK", # c('Type', 'Metal'),
-                     #names_sep = "_",
-                     values_to = 'Value')
-      )
-      
-      
-      
-      
-      acuteDataWindow %>%
-        group_by(Station_Id, FDT_DATE_TIME) %>% 
-        mutate_if(is.numeric, as.character) %>% 
-        #dplyr::select(Antimony:RMK_Hardness) %>% 
-        #dplyr::select(contains('RMK')) %>% 
-        pivot_longer(cols = METAL_Antimony:RMK_Hardness, #RMK_Antimony:RMK_Hardness, 
-          names_to = c('Type', 'Metal'),
-          names_sep = "_",
-          values_to = 'Value')
-      
-      
-      # first rename metals so dont need to do it each time
-      # average desired metals across window
-      # PWS and all waters compare against each data point
-      # pivot longer to join appropriate standards (freshwater, saltwater, or more stringent)
-      #
-    }
-    
+      acuteData <- acuteDataWindow %>% 
+        group_by(Station_Id, FDT_DEPTH, CLASS, PWS, ZONE, `Assess As`) %>% # can't group by datetime or summary can't happen
+        dplyr::select(-c(contains('RMK_'))) %>% 
+        pivot_longer(cols = Antimony:Hardness, names_to = "Metal", values_to = "Measure") %>% 
+        ungroup() %>% group_by(Station_Id, FDT_DEPTH, CLASS, PWS, ZONE, `Assess As`, Metal) %>% 
+        summarise(Value = mean(Measure, na.rm=T)) %>%  # get hourly average
+        mutate(ValueType = 'Hourly Average')
+      # Calculate criteria based on hourly averaged data
+      acuteDataCriteria <- metalsCriteriaFunction(filter(acuteData, Metal == "Hardness")$Value, WER = 1) %>% 
+        # Keep only the criteria needed 
+        {if(unique(acuteData$`Assess As`) %in% c('Freshwater', 'Saltwater'))
+          filter(., Waterbody %in% c(NA, !!unique(acuteData$`Assess As`)))
+          else .} %>% 
+        filter(`Criteria Type` == 'Acute') # don't need other criteria for acute window
+      # Join appropriate criteria to acuteData for comparison to averaged data
+      acuteDataCriteriaAnalysis <- left_join(acuteData, acuteDataCriteria, by = 'Metal') %>% 
+        mutate(parameterRound = signif(Value, digits = 2), # two significant figures based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
+          Exceedance = ifelse(parameterRound > Measure, 1, 0 ), # use 1/0 to easily summarize multiple results later
+          WindowDateTimeStart = min(acuteDataWindow$FDT_DATE_TIME)) %>% 
+        filter(!is.na(Criteria)) %>% # filter out metals that don't have chronic criteria
+        dplyr::select(Station_Id, WindowDateTimeStart, everything())
+      # Save the results for viewing later
+      acuteCriteriaResults <- bind_rows(acuteCriteriaResults, acuteDataCriteriaAnalysis) 
+    } else {acuteCriteriaResults <- acuteCriteriaResults }
     # Run chronic analysis if data exists
-    if(nrow(chronicDataWindow) > 1){
-      
+    if(nrow(chronicDataWindow) > 0){
+      chronicData <- chronicDataWindow %>% 
+        group_by(Station_Id, FDT_DEPTH, CLASS, PWS, ZONE, `Assess As`) %>% # can't group by datetime or summary can't happen
+        dplyr::select(-c(contains('RMK_'))) %>% 
+        pivot_longer(cols = Antimony:Hardness, names_to = "Metal", values_to = "Measure") %>% 
+        ungroup() %>% group_by(Station_Id, FDT_DEPTH, CLASS, PWS, ZONE, `Assess As`, Metal) %>% 
+        summarise(Value = mean(Measure, na.rm=T)) %>% # get four day average
+        mutate(ValueType = 'Four Day Average')
+      # Calculate criteria based on hourly averaged data
+      chronicDataCriteria <- metalsCriteriaFunction(filter(chronicData, Metal == "Hardness")$Value, WER = 1) %>% 
+        # Keep only the criteria needed 
+        {if(unique(chronicData$`Assess As`) %in% c('Freshwater', 'Saltwater'))
+          filter(., Waterbody %in% c(NA, !!unique(chronicData$`Assess As`)))
+          else .} %>% 
+        filter(`Criteria Type` == 'Chronic') # don't need other criteria for chronic window analysis
+      # Join appropriate criteria to chronicData for comparison to averaged data
+      chronicDataCriteriaAnalysis <- left_join(chronicData, chronicDataCriteria, by = 'Metal') %>% 
+        mutate(parameterRound = signif(Value, digits = 2), # two significant figures based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
+               Exceedance = ifelse(parameterRound > Measure, 1, 0 ), # use 1/0 to easily summarize multiple results later
+               WindowDateTimeStart = min(chronicDataWindow$FDT_DATE_TIME)) %>% 
+        filter(!is.na(Criteria)) %>% # filter out metals that don't have chronic criteria
+        dplyr::select(Station_Id, WindowDateTimeStart, everything())
+      # Save the results for viewing later
+      chronicCriteriaResults <- bind_rows(chronicCriteriaResults, chronicDataCriteriaAnalysis) 
+    } else {chronicCriteriaResults <- chronicCriteriaResults }
     }
+    stationCriteriaResults <- bind_rows(rawCriteriaResults, acuteCriteriaResults, chronicCriteriaResults) %>% 
+      filter(!is.na(Station_Id)) %>% # drop placeholder rows
+      arrange(Station_Id, WindowDateTimeStart, FDT_DEPTH, Metal)
+    return(stationCriteriaResults)
   }
   
-  # calculate criteria
-  criteria <- metalsCriteriaFunction(Hardness, WER)
-}
 
-
-
-fourDayAverageAnalysis <- function(chronicWindowData, chronicWindowResults){
-  fourDayResults <- tibble(`fourDayAmmoniaAvg` = as.numeric(NA),
-                           WindowStart = as.POSIXct(NA),
-                           `fourDayAvglimit` = as.numeric(NA),
-                           fourDayExceedance = as.logical(NA),
-                           fourDayWindowData = list())
-  for(k in 1:nrow(chronicWindowData)){
-    fourDayWindow <- filter(chronicWindowData, between(FDT_DATE_TIME, chronicWindowData$FDT_DATE_TIME[k], chronicWindowData$FDT_DATE_TIME[k] + days(4) ) )
-    if(nrow(fourDayWindow) > 1){
-      fourDayResultsi <- fourDayWindow %>%
-        summarize(WindowStart = min(FDT_DATE_TIME),
-                  `fourDayAmmoniaAvg` = as.numeric(signif(mean(AMMONIA_mg_L, na.rm = T), digits = 2))) %>% # two sigfigs for comparison to chronic criteria
-        bind_cols(dplyr::select(chronicWindowResults,`fourDayAvglimit`)) %>%
-        mutate(fourDayExceedance = `fourDayAmmoniaAvg` > `fourDayAvglimit`)
-      fourDayResults <- bind_rows(fourDayResults, 
-                                  fourDayResultsi %>% bind_cols(tibble(fourDayWindowData = list(fourDayWindow))) )
-    } else {
-      fourDayResults <- bind_rows(fourDayResults, 
-                                  tibble(`fourDayAmmoniaAvg` = as.numeric(NA),
-                                         WindowStart = fourDayWindow$FDT_DATE_TIME,
-                                         `fourDayAvglimit` = as.numeric(NA),
-                                         fourDayExceedance = as.logical(NA),
-                                         fourDayWindowData = list(NA)) )    }
-  }
-  fourDayResults <- filter(fourDayResults, !is.na(fourDayAmmoniaAvg))
-  return(fourDayResults)
-}
-#fourDayAverageAnalysis(chronicWindowData, chronicWindowResultsi)
