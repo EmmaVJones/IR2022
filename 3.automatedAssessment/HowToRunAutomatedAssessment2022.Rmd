@@ -320,7 +320,7 @@ for(i in 1:nrow(stationTable)){
                            chronic = freshwaterNH3Assessment(ammoniaAnalysisStation, 'chronic'),
                            fourDay = freshwaterNH3Assessment(ammoniaAnalysisStation, 'four-day'))), 
     
-      # Roger's water column metals analysis, transcribed
+      # Flag for whether or not metals data exists
       metalsData(filter(WCmetals, Station_Id %in% stationData$FDT_STA_ID), 'WAT_MET'),
       # old method when Roger made the assessment for group
       #metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData$FDT_STA_ID) %>% 
