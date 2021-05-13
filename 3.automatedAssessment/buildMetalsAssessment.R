@@ -299,3 +299,46 @@ metalsAssessment <- metalsAssessmentFunction(metalsAnalysisResults)
   
 metJKS28 <- metalsAnalysis(stationMetalsData, stationData, WER=1)
 View(metalsAssessmentFunction(metJKS28))
+
+
+
+
+
+# Build Assessment Visualization
+library(plotly)
+
+
+staticLimit <- c("Antimony PWS", "Antimony All Other Surface Waters", "Arsenic Acute Freshwater", "Arsenic Chronic Freshwater", "Arsenic PWS",
+                 "Arsenic Acute Saltwater", "Arsenic Chronic Saltwater", "Barium PWS","Cadmium PWS","ChromiumIII PWS",
+                 "ChromiumVI Acute Freshwater", "ChromiumVI Chronic Freshwater", "ChromiumVI Acute Saltwater", "ChromiumVI Chronic Saltwater", 
+                 "Lead PWS", "Mercury Acute Freshwater", "Mercury Chronic Freshwater", "Mercury Acute Saltwater", "Mercury Chronic Saltwater",
+                 "Nickel PWS",  "Nickel All Other Surface Waters", "Uranium PWS","Selenium Acute Freshwater", "Selenium Chronic Freshwater", 
+                 "Selenium PWS", "Selenium All Other Surface Waters","Thallium PWS", "Thallium All Other Surface Waters","Zinc PWS", 
+                 "Zinc All Other Surface Waters")
+
+criteriaSelection <- 'Antimony All Other Surface Waters'#'Zinc Chronic Freshwater'#'Cadmium Acute Freshwater'#'Antimony All Other Surface Waters'
+
+dat <- filter(singleStationMetalsResults, Criteria ==  criteriaSelection)
+dat$SampleDate <- as.POSIXct(dat$WindowDateTimeStart, format="%m/%d/%y")
+plot_ly(data=dat) %>%
+  {if(criteriaSelection %in% staticLimit)
+    add_markers(., x= ~SampleDate, y= ~Value,mode = 'scatter', name=~Metal, marker = list(color= '#535559'),
+              hoverinfo="text",text=~paste(sep="<br>",
+                                           paste("StationID: ",Station_Id),
+                                           paste("Date: ",SampleDate),
+                                           paste("Depth: ",FDT_DEPTH, "m"),
+                                           paste(Metal,":",Value, "ug/L"),
+                                           paste('Static Criteria:', CriteriaValue, "ug/L"))) %>%
+      add_lines(data=dat, x=~SampleDate,y=~CriteriaValue, mode='line', line = list(color = '#484a4c',dash = 'dot'),
+                hoverinfo = "text", text= ~paste(criteriaSelection, "Criteria:",  CriteriaValue, "ug/L"), name="Static Criteria") 
+    else add_markers(., data=dat, x= ~SampleDate, y= ~Value, mode = 'scatter', name=~Metal, marker = list(color= ~Exceedance), colors = c('#535559', 'red'), #color= ~Exceedance, #colors = c('#535559', 'red'),#marker = list(color= '#535559'),
+                     symbol =  ~Exceedance, symbols = c(16,15), 
+                     hoverinfo="text",text=~paste(sep="<br>",
+                                                  paste("StationID: ",Station_Id),
+                                                  paste("Date: ",SampleDate),
+                                                  paste("Depth: ",FDT_DEPTH, "m"),
+                                                  paste(Metal,":",Value, "ug/L"),
+                                                  paste('Hardness Based Criteria:', CriteriaValue, "ug/L")))       } %>%
+  layout(showlegend=FALSE,
+         yaxis=list(title=paste(stringr::word(criteriaSelection, 1), "ug/L")),#"E. coli (CFU / 100 mL)"),
+         xaxis=list(title="Sample Date",tickfont = list(size = 10))) 
