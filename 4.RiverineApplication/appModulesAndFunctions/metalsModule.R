@@ -20,14 +20,24 @@ metalsTableSingleStationUI <- function(id){
                             DT::dataTableOutput(ns('WCmetalsSingleSiteSummary')),
                             hr(), 
                             fluidRow(
-                              column(7, helpText('Below are the calculated results associated with the ',span('selected site'),'. Click on a row to reveal the
-                                                  data included in the selected criteria window in the plot to the right.'), 
-                                     h5(strong('Analyzed Data')),DT::dataTableOutput(ns('analyzedData'))),
-                              column(5, helpText('Click a row on the table to left to reveal a detailed interactive plot of the data
+                              column(7, helpText('Below are the calculated results associated with the ',span('selected site'),". You can view all the
+                                                 analyzed data associated with the site by using the 'All' selection, or you may choose a particular 
+                                                 criteria to investigate further by choosing that in the drop down. The criteria chosen in the drop down
+                                                 will filter the table to just that selected criteria."),# Any selection beside 'All' will
+                                     #generate a plot to the right with the associated data plotted."),#  Click on a row to reveal the data included in the selected criteria window in the plot to the right.'), 
+                                     h5(strong('Analyzed Data')),
+                                     uiOutput(ns('criteriaChoice_')),
+                                     DT::dataTableOutput(ns('analyzedData'))),
+                              column(5, helpText('Choose a specific criteria using the drop down to left to reveal a detailed interactive plot of the data
                                                  included in the selected criteria window. When criteria with static limits are selected, a 
                                                  black dashed line appears corresponding to the appropriate criteria. When criteria with
                                                  hardness based limits are selected, measured values appear as gray if they fall below the 
                                                  calculated criteria and red if they exceed the calculated criteria.'),
+                                     # helpText('Click a row on the table to left to reveal a detailed interactive plot of the data
+                                     # included in the selected criteria window. When criteria with static limits are selected, a 
+                                     # black dashed line appears corresponding to the appropriate criteria. When criteria with
+                                     # hardness based limits are selected, measured values appear as gray if they fall below the 
+                                     # calculated criteria and red if they exceed the calculated criteria.'),
                                      #verbatimTextOutput(ns('test')),
                                      plotlyOutput(ns('plotlyZoom'))))),
                    tabPanel('2022 IR Raw Data',
@@ -107,15 +117,23 @@ metalsTableSingleStation <- function(input,output,session, AUdata, WCmetals , WC
                   selection = 'none')     })
   
   # Zoomed plot section
-  output$analyzedData <- DT::renderDataTable({req(WCmetals_oneStationAnalysis())
-    DT::datatable(WCmetals_oneStationAnalysis(), rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(WCmetals_oneStationAnalysis()), 
-                                                                                 scrollY = "300px", dom='ti'),
-                  selection = 'single') })
+  output$criteriaChoice_ <- renderUI({req(WCmetals_oneStationAnalysis())
+    selectizeInput(ns("criteriaChoice"), "Choose Criteria to visualize", choices = c('All', unique(WCmetals_oneStationAnalysis()$Criteria)), width = '40%')})
   
+  output$analyzedData <- DT::renderDataTable({req(WCmetals_oneStationAnalysis(), input$criteriaChoice)
+    z <- WCmetals_oneStationAnalysis() %>% 
+      {if(input$criteriaChoice != 'All')
+        filter(., Criteria %in% input$criteriaChoice)
+        else . }
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "300px", dom='Bti', buttons=list('copy')),
+                  selection = 'none') })
+  #output$test <- renderPrint({input$criteriaChoice    })
   
-  output$plotlyZoom <- renderPlotly({ req(input$analyzedData_rows_selected, WCmetals_oneStationAnalysis())
-    criteriaSelection <- WCmetals_oneStationAnalysis()[input$analyzedData_rows_selected, ]$Criteria 
-    dat <- filter(WCmetals_oneStationAnalysis(), Criteria ==  criteriaSelection)
+  output$plotlyZoom <- renderPlotly({ req(WCmetals_oneStationAnalysis(), input$criteriaChoice !='All' )#input$analyzedData_rows_selected, 
+    criteriaSelection <- input$criteriaChoice #WCmetals_oneStationAnalysis()[input$analyzedData_rows_selected, ]$Criteria
+    dat <- filter(WCmetals_oneStationAnalysis(), Criteria %in%  criteriaSelection) %>%
+      filter(Value != 'NaN') # drop any unmeasured values
+    print(dat)
     dat$SampleDate <- as.POSIXct(dat$WindowDateTimeStart, format="%m/%d/%y")
     
     plot_ly(data=dat) %>%
@@ -128,9 +146,9 @@ metalsTableSingleStation <- function(input,output,session, AUdata, WCmetals , WC
                                                  paste(Metal,":",Value, "ug/L"),
                                                  paste('Static Criteria:', CriteriaValue, "ug/L"))) %>%
           add_lines(data=dat, x=~SampleDate,y=~CriteriaValue, mode='line', line = list(color = '#484a4c',dash = 'dot'),
-                    hoverinfo = "text", text= ~paste(criteriaSelection, "Criteria:",  CriteriaValue, "ug/L"), name="Static Criteria") 
+                    hoverinfo = "text", text= ~paste(criteriaSelection, "Criteria:",  CriteriaValue, "ug/L"), name="Static Criteria")
         else add_markers(., data=dat, x= ~SampleDate, y= ~Value, mode = 'scatter', name=~Metal, marker = list(color= ~Exceedance), colors = c('#535559', 'red'), #color= ~Exceedance, #colors = c('#535559', 'red'),#marker = list(color= '#535559'),
-                         symbol =  ~Exceedance, symbols = c(16,15), 
+                         symbol =  ~Exceedance, symbols = c(16,15),
                          hoverinfo="text",text=~paste(sep="<br>",
                                                       paste("StationID: ",Station_Id),
                                                       paste("Date: ",SampleDate),
@@ -140,11 +158,6 @@ metalsTableSingleStation <- function(input,output,session, AUdata, WCmetals , WC
       layout(showlegend=FALSE,
              yaxis=list(title=paste(stringr::word(criteriaSelection, 1), "ug/L")),
              xaxis=list(title="Sample Date",tickfont = list(size = 10))) })
-  
-  
-  
-  #output$test <- renderPrint({WCmetals_oneStationAnalysis()[input$analyzedData_rows_selected, ]$Criteria    })
-  
   
   
   
@@ -257,4 +270,8 @@ metalsTableSingleStation <- function(input,output,session, AUdata, WCmetals , WC
                   selection = 'none') #%>%
     #formatStyle(names(z), backgroundColor = styleEqual(c('OE'), c('red'))) # highlight cells red if not supporting
   })
+  
+  
 }
+
+

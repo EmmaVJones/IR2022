@@ -249,7 +249,7 @@ glimpse(WCmetalsForAnalysis)
 # 6BCLN279.43 no data 6/24/2015 after lab codes removed and tons of data
 
 # get one station metals data for assessment
-station <- '8-CON005.38'#'2-JKS028.69'
+station <- '6BCLN279.43'#'2-BGC008.10'#'8-CON005.38'#'2-JKS028.69'
 # pull one station data
 stationData <- filter(conventionals, FDT_STA_ID %in% station) %>% #stationTable$STATION_ID[i]) %>%
   left_join(stationTable, by = c('FDT_STA_ID' = 'STATION_ID')) %>%
@@ -316,9 +316,10 @@ staticLimit <- c("Antimony PWS", "Antimony All Other Surface Waters", "Arsenic A
                  "Selenium PWS", "Selenium All Other Surface Waters","Thallium PWS", "Thallium All Other Surface Waters","Zinc PWS", 
                  "Zinc All Other Surface Waters")
 
-criteriaSelection <- 'Antimony All Other Surface Waters'#'Zinc Chronic Freshwater'#'Cadmium Acute Freshwater'#'Antimony All Other Surface Waters'
+criteriaSelection <- 'Cadmium Acute Freshwater'#'Antimony All Other Surface Waters'#'Zinc Chronic Freshwater'#'Cadmium Acute Freshwater'#'Antimony All Other Surface Waters'
 
-dat <- filter(singleStationMetalsResults, Criteria ==  criteriaSelection)
+dat <- filter(singleStationMetalsResults, Criteria ==  criteriaSelection) %>% 
+  filter(Value != 'NaN') # drop any unmeasured values
 dat$SampleDate <- as.POSIXct(dat$WindowDateTimeStart, format="%m/%d/%y")
 plot_ly(data=dat) %>%
   {if(criteriaSelection %in% staticLimit)
