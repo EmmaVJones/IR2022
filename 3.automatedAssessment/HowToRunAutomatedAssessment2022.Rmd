@@ -189,6 +189,10 @@ bothTypesE <- filter(estuarineStations, str_detect(ID305B_1, 'R_') | str_detect(
 stationTable <- filter(stationTable, ! STATION_ID %in% estuarineStations$STATION_ID) %>%
   bind_rows(bothTypesE) # add northern station back in to be safe
 
+
+# for running only a few select sites
+# stationTable1 <- stationTable
+# stationTable <- filter(stationTable, str_detect(STATION_ID, '7-POQ' ))
 ```
 
 

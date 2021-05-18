@@ -54,7 +54,7 @@ lakeNameStandardization <- function(x){
                                  WATER_NAME %in% c('Claytor Lake (New River)', 'Claytor Lake (Peak Creek)',
                                                    'Claytor Lake Lower (New River)') ~ 'Claytor Lake',
                                  WATER_NAME %in% c('Fairystone Lake (Goblin Town Creek)') ~ 'Fairystone Lake', 
-                                 WATER_NAME %in% c('Harwoods Mill Reservoir (PWS)') ~ 'Harwoods Mill Reservoir',
+                                 WATER_NAME %in% c('Harwood Mill Reservoir (PWS)') ~ 'Harwood Mills Reservoir',
                                  WATER_NAME %in% c('Goose Creek') ~ 'Goose Creek Reservoir',
                                  WATER_NAME %in% c('Lake Anna', 'Lake Anna/Contrary Creek', 'Lake Anna/Freshwater Creek', 
                                                    'Lake Anna/Gold Mine Creek', 'Lake Anna/Pamunkey Creek', 
