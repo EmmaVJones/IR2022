@@ -289,10 +289,10 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
     # No bacteria data to analyze
     } else {
       return(tibble(StationID = unique(x$FDT_STA_ID),
-                    `_EXC` = 0, # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
-                    `_SAMP` = 0, 
-                    `_GM.EXC` = 0,
-                    `_GM.SAMP` = 0,
+                    `_EXC` = NA, # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                    `_SAMP` = NA, 
+                    `_GM.EXC` = NA,
+                    `_GM.SAMP` = NA,
                     `_STAT` = NA, # is this the right code???
                     `_STAT_VERBOSE` = NA, 
                     associatedDecisionData = list(NA)) %>%
