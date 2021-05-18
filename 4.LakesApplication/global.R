@@ -68,6 +68,26 @@ withinAssessmentPeriod <- function(x){
   }else{return('All input data falls within the assessment period.')}
 }
 
+
+# change WQS for a given module
+changeWQSfunction <- function(stationData,  # single station dataset
+                              inputCLASS_DESCRIPTION){ # from user module)
+  WQSvalues <- bind_rows(WQSvalues, 
+                         tribble(
+                           ~`pH Min`, ~`pH Max`, ~CLASS_DESCRIPTION, 
+                           6.5, 9.5, 'SPSTDS = 6.5-9.5'))
+  if(inputCLASS_DESCRIPTION != unique(stationData$CLASS_DESCRIPTION)){
+    changedWQS <- filter(WQSvalues, CLASS_DESCRIPTION %in% inputCLASS_DESCRIPTION)
+    return(dplyr::select(stationData, -c(`Description Of Waters`:CLASS_DESCRIPTION)) %>%
+             mutate(CLASS = changedWQS$CLASS, 
+                    `Description Of Waters` = changedWQS$`Description Of Waters` ) %>%
+             left_join(changedWQS, by = c('CLASS', 'Description Of Waters'))) 
+  } else {return(stationData)} 
+}
+
+
+
+
 ## Old bacteria methods just hanging on
 
 bacteria_ExceedancesSTV_OLD <- function(x, STVlimit){                                    

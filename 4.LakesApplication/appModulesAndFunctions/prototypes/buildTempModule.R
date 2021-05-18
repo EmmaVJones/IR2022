@@ -7,6 +7,10 @@ temperaturePlotlySingleStationUI <- function(id){
     wellPanel(
       h4(strong('Single Station Data Visualization')),
       fluidRow(column(4,uiOutput(ns('oneStationSelectionUI'))),
+               column(1),
+               column(2,uiOutput(ns('changeWQSUI')),
+                      helpText('WQS adjustment applies to this module instance and does not save WQS adjustments or carry over to pooled AU assessments.')),
+               column(1),
                column(4,actionButton(ns('reviewData'),"Review Raw Parameter Data",class='btn-block', width = '250px'))),
       helpText('All data presented in the interactive plot is raw data. Rounding rules are appropriately applied to the 
                assessment functions utilized by the application.'),
@@ -47,9 +51,21 @@ temperaturePlotlySingleStation <- function(input,output,session, AUdata, station
                 choices= sort(unique(c(stationSelectedAbove(),AUdata()$FDT_STA_ID))), # Change this based on stationSelectedAbove
                 width='200px', selected = stationSelectedAbove())})
   
-  oneStation <- reactive({req(ns(input$oneStationSelection))
+  oneStation_original <- reactive({req(ns(input$oneStationSelection))
     filter(AUdata(),FDT_STA_ID %in% input$oneStationSelection) %>%
       filter(!is.na(FDT_TEMP_CELCIUS))})
+  
+  # Option to change WQS used for modal
+  output$changeWQSUI <- renderUI({
+    req(oneStation_original())
+    selectInput(ns('changeWQS'),strong('WQS For Analysis'),
+                choices= WQSvalues$CLASS_DESCRIPTION,
+                width='400px', selected = unique(oneStation_original()$CLASS_DESCRIPTION)) })
+  
+  # change WQS for rest of module if user chooses to do so
+  oneStation <- reactive({req(oneStation_original(), input$changeWQS)
+    changeWQSfunction(oneStation_original(), input$changeWQS) })
+  
   
   # Button to visualize modal table of available parameter data
   observeEvent(input$reviewData,{

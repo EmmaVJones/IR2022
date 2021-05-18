@@ -119,7 +119,7 @@ quickStats <- function(parameterDataset, parameter){
     #rename based on parameter entered
     return(results)
   } else {
-    z <- data.frame(EXC = NA, SAMP= nrow(parameterDataset), exceedanceRate= NA, STAT=NA)
+    z <- data.frame(EXC = NA, SAMP= nrow(parameterDataset), exceedanceRate= NA, STAT= paste(parameter, 'WQS info missing from analysis'))
     names(z) <- paste(parameter,names(z), sep='_')
     return(z)
   }
