@@ -89,9 +89,9 @@ pinnedDecisions <- pin_get('IR2022bioassessmentDecisions_test', board = 'rsconne
 
 
 
-DEQregionSelection <- 'BRRO'
-basinSelection <- 'James-Upper'#"Small Coastal" #"James-Middle"##"Roanoke"#"Roanoke"#'James-Upper'#
-HUC6Selection <- "JU11"#"CB47"#"JM01"#'JM16'#'RU09'#'RL12'#
+DEQregionSelection <- 'TRO'
+basinSelection <- 'James-Lower'#"Small Coastal" #"James-Middle"##"Roanoke"#"Roanoke"#'James-Upper'#
+HUC6Selection <- "JL31"#"CB47"#"JM01"#'JM16'#'RU09'#'RL12'#
 
 # z <- filter(vahu6, ASSESS_REG %in% c(DEQregionSelection, 'CO')) %>%
 #   left_join(dplyr::select(subbasinToVAHU6, VAHU6, Basin, BASIN_CODE, Basin_Code))
@@ -105,6 +105,7 @@ stationTable <- read_csv('userDataToUpload/processedStationData/stationTableResu
 lakeStations <- filter_at(stationTable, vars(starts_with('TYPE')), any_vars(. == 'L'))
 estuarineStations <- filter(stationTable, str_detect(ID305B_1, 'E_'))
 stationTable <- filter(stationTable, !STATION_ID %in% lakeStations$STATION_ID) %>%
+  filter(!STATION_ID %in% estuarineStations$STATION_ID) %>%
   # add WQS information to stations
   left_join(WQSlookup, by = c('STATION_ID'='StationID')) %>%
   mutate(CLASS_BASIN = paste(CLASS,substr(BASIN, 1,1), sep="_")) %>%

@@ -143,6 +143,11 @@ stationTable <- left_join(stationTable, WQSlookup, by = c('STATION_ID'='StationI
    
   # extra special step
   mutate(Lake_Name = case_when(STATION_ID %in% c('2-TRH000.40') ~ 'Thrashers Creek Reservoir',
+                               STATION_ID %in% c('2-LSL000.16') ~ 'Lone Star Lake F (Crystal Lake)',
+                               STATION_ID %in% c('2-LSL000.04') ~ 'Lone Star Lake G (Crane Lake)',
+                               STATION_ID %in% c('2-LSL000.20') ~ 'Lone Star Lake I (Butler Lake)',
+                               STATION_ID %in% c('2-NWB002.93','2-NWB004.67', '2-NWB006.06') ~ 'Western Branch Reservoir',
+                               STATION_ID %in% c('2-LDJ000.60') ~ 'Lake Nottoway (Lee Lake)',
                                TRUE ~ as.character(Lake_Name))) %>%
   
 
@@ -172,6 +177,13 @@ We only want to run riverine methods on riverine stations right now, so drop all
 # stationTable <- filter(stationTable, ! STATION_ID %in% lakeStations$STATION_ID)
 
 #stationTable <- filter(stationTable, STATION_ID %in% lakeStations$STATION_ID)
+
+
+
+# make sure all 187 lakes have chla and tp standards
+# lakeStationsImportant <- dplyr::select(lakeStations, STATION_ID:ID305B_3, NUT_TP_EXC:NUT_CHLA_STAT, WQS_ID, GNIS_Name, WATER_NAME, Lakes_187B, Lake_Name:`Total Phosphorus (ug/L)`) %>% 
+#   filter(!is.na(WQS_ID))
+
 
 ```
 

@@ -132,7 +132,12 @@ shinyServer(function(input, output, session) {
       as_tibble()
     # Remove stations that don't apply to application
     lakeStations <- filter_at(stationTable, vars(starts_with('TYPE')), any_vars(. == 'L'))
+    estuarineStations <- filter(stationTable, str_detect(ID305B_1, 'E_'))
+    
+      
     stationTable <- filter(stationTable, !STATION_ID %in% lakeStations$STATION_ID) %>%
+      filter(!STATION_ID %in% estuarineStations$STATION_ID) %>%
+      
       # add WQS information to stations
       left_join(WQSlookup, by = c('STATION_ID'='StationID')) %>%
       mutate(CLASS_BASIN = paste(CLASS,substr(BASIN, 1,1), sep="_")) %>%
