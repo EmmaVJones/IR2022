@@ -250,8 +250,8 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
                       # not quite right yet
                       `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
                       `_SAMP` = nrow(nSamples), 
-                      `_GM.EXC` = nrow(exceedGeomean),
-                      `_GM.SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
+                      `_GM.EXC` = as.numeric(NA), #nrow(exceedGeomean), # Data Entry manual updated to require NA instead of 0 if < 10 samples per 90 day window
+                      `_GM.SAMP` = as.numeric(NA), #nrow(filter(z, !is.na(`Geomean In Window`))), # Data Entry manual updated to require NA instead of 0 if < 10 samples per 90 day window
                       `_STAT` = "IN", # is this the right code???
                       `_STAT_VERBOSE` = "Insufficient Information (Prioritize for follow up monitoring)- No STV exceedances but insufficient data to analyze geomean.", #0 STV hits but insufficient data to analyze geomean.",
                       associatedDecisionData = list(z) ) %>%
@@ -264,8 +264,8 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
                           # not quite right yet
                           `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the number of STV exceedances in a 90-day period with 10+ samples
                           `_SAMP` = nrow(nSamples), 
-                          `_GM.EXC` = nrow(exceedGeomean),
-                          `_GM.SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
+                          `_GM.EXC` = as.numeric(NA), #nrow(exceedGeomean), # Data Entry manual updated to require NA instead of 0 if < 10 samples per 90 day window
+                          `_GM.SAMP` = as.numeric(NA), #nrow(filter(z, !is.na(`Geomean In Window`))), # Data Entry manual updated to require NA instead of 0 if < 10 samples per 90 day window
                           `_STAT` = "IM", # is this the right code???
                           `_STAT_VERBOSE` = "Impaired- 2 or more STV hits in the same 90-day period with < 10 samples.",
                           associatedDecisionData = list(z) ) %>%
@@ -276,8 +276,8 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
             return(tibble(StationID = unique(z$StationID),
                           `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
                           `_SAMP` = nrow(nSamples), 
-                          `_GM.EXC` = nrow(exceedGeomean),
-                          `_GM.SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
+                          `_GM.EXC` = as.numeric(NA), #nrow(exceedGeomean), # Data Entry manual updated to require NA instead of 0 if < 10 samples per 90 day window
+                          `_GM.SAMP` = as.numeric(NA), #nrow(filter(z, !is.na(`Geomean In Window`))), # Data Entry manual updated to require NA instead of 0 if < 10 samples per 90 day window
                           `_STAT` = "IN", # is this the right code???
                           `_STAT_VERBOSE` = "Insufficient Information (Prioritize for follow up monitoring)- One STV exceedance in one or multiple 90-day periods but insufficient data to analyze geomean.",#1 STV hit in one or multiple 90-day periods but insufficient data to analyze geomean.",
                           associatedDecisionData = list(z) ) %>%
