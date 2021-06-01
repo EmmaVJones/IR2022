@@ -121,14 +121,21 @@ shinyServer(function(input, output, session) {
                                    STATION_ID %in% c('2-LDJ000.60') ~ 'Lake Nottoway (Lee Lake)',
                                    TRUE ~ as.character(Lake_Name))) %>%
       
+      # special step for 187 lakes missing designation
+      #mutate(Lakes_187B = case_when(STATION_ID == '1BNTH043.48' ~ 'y',
+      #                              TRUE ~ as.character(Lakes_187B))) %>% 
       
       
-      left_join(lakeNutStandards, by = c('Lake_Name')) %>%
-      ## lake drummond special standards
-      mutate(`Chlorophyll a (ug/L)` = case_when(Lake_Name %in% c('Lake Drummond') ~ 35,
+      left_join(lakeNutStandards %>% 
+                  mutate(Lakes_187B = 'y'),  # special step to make sure the WQS designation for 187 are correct even when not
+                by = c('Lake_Name')) %>%
+      # lake drummond special standards
+      mutate(Lakes_187B = ifelse(is.na(Lakes_187B.y ), Lakes_187B.x, Lakes_187B.y), 
+             `Chlorophyll a (ug/L)` = case_when(Lake_Name %in% c('Lake Drummond') ~ 35,
                                                 TRUE ~ as.numeric(`Chlorophyll a (ug/L)`)),
              `Total Phosphorus (ug/L)` = case_when(Lake_Name %in% c('Lake Drummond') ~ 40,
-                                                   TRUE ~ as.numeric(`Total Phosphorus (ug/L)`))) %>%
+                                                   TRUE ~ as.numeric(`Total Phosphorus (ug/L)`))) %>% 
+      dplyr::select(STATION_ID:StreamType, Lakes_187B, `Description Of Waters`:`Total Phosphorus (ug/L)`) %>%
       mutate(lakeStation = TRUE)
   })
   
