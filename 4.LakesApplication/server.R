@@ -341,7 +341,8 @@ shinyServer(function(input, output, session) {
   
   observe({
     req(nrow(ecoli()) > 0)# need to tell the app to wait for data to exist in these objects before smashing data together or will bomb out when switching between VAHU6's on the Watershed Selection Page
-    siteData$stationTableOutput <- cbind(StationTableStartingData(stationData()),
+    siteData$stationTableOutput <- bind_rows(stationsTemplate,
+                                             cbind(StationTableStartingData(stationData()),
                                          tempExceedances(stationData()) %>% quickStats('TEMP'),
                                          DOExceedances_Min(stationData()) %>% quickStats('DO'), 
                                          pHExceedances(stationData()) %>% quickStats('PH'),
@@ -373,7 +374,8 @@ shinyServer(function(input, output, session) {
                                          TP_Assessment(stationData()),
                                          chlA_Assessment(stationData()) ) %>%
       mutate(COMMENTS = NA) %>%
-      dplyr::select(-ends_with(c('exceedanceRate','Assessment Decision')))
+      dplyr::select(-ends_with(c('exceedanceRate','Assessment Decision')))) %>% 
+      filter(!is.na(STATION_ID))
   })
   
   #output$test <- renderPrint({TP_Assessment(stationData())})

@@ -81,7 +81,13 @@ stationTable1 <- read_csv('userDataToUpload/processedStationData/stationTableRes
   
   # extra special step
   mutate(Lake_Name = case_when(STATION_ID %in% c('2-TRH000.40') ~ 'Thrashers Creek Reservoir',
+                               STATION_ID %in% c('2-LSL000.16') ~ 'Lone Star Lake F (Crystal Lake)',
+                               STATION_ID %in% c('2-LSL000.04') ~ 'Lone Star Lake G (Crane Lake)',
+                               STATION_ID %in% c('2-LSL000.20') ~ 'Lone Star Lake I (Butler Lake)',
+                               STATION_ID %in% c('2-NWB002.93','2-NWB004.67', '2-NWB006.06') ~ 'Western Branch Reservoir',
+                               STATION_ID %in% c('2-LDJ000.60') ~ 'Lake Nottoway (Lee Lake)',
                                TRUE ~ as.character(Lake_Name))) %>%
+  
   
   left_join(lakeNutStandards, by = c('Lake_Name')) %>%
   # lake drummond special standards

@@ -35,6 +35,11 @@ conn <- config::get("connectionSettings") # get configuration settings
 board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_KEY"),
                          server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
 
+stationsTemplate <- read_excel('WQA_CEDS_templates/WQA_Bulk_Station_Upload_Final.xlsx',#'WQA_CEDS_templates/WQA_Bulk_Station_Upload (3).xlsx', 
+                               sheet = 'Stations', col_types = "text")[0,] %>% 
+  mutate(LATITUDE = as.numeric(LATITUDE), LONGITUDE = as.numeric(LONGITUDE)) %>% 
+  mutate_at(vars(contains('_EXC')), as.integer) %>% 
+  mutate_at(vars(contains('_SAMP')), as.integer)
 template <- read_csv('userDataToUpload/processedStationData/stationTableResults.csv')
 lastUpdated <- as.Date(file.info('userDataToUpload/processedStationData/stationTableResults.csv')$mtime)
 # markPCB <- read_excel('data/2022 IR PCBDatapull_EVJ.xlsx', sheet = '2022IR Datapull EVJ')

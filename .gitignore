@@ -73,10 +73,12 @@ vignettes/*.pdf
 4.LakesApplication/data/
 4.LakesApplication/userDataToUpload/
 4.LakesApplication/AU_working/
+4.LakesApplication/WQA_CEDS_templates/
 
 4.RiverineApplication/data/
 4.RiverineApplication/userDataToUpload/
 4.RiverineApplication/AU_working/
+4.RiverineApplication/WQA_CEDS_templates/
 
 5.BioassessmentTools/data/
 5.BioassessmentTools/config.yml
