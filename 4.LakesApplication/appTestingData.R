@@ -188,6 +188,77 @@ stationData1 <- filter(AUData1, FDT_STA_ID %in% stationSelection1)
 stationInfo1 <- filter(stationTable1, STATION_ID == stationSelection1) %>% 
   select(STATION_ID:VAHU6, WQS_ID:`Total Phosphorus (ug/L)`)
 
+
+# station table
+ecoli1 <- bacteriaAssessmentDecision(stationData1, 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126)
+
+ammoniaAnalysisStation11 <- filter(ammoniaAnalysis, StationID %in% unique(stationData1$FDT_STA_ID)) %>%
+    map(1)
+ammoniaAnalysisStation1 <- ammoniaAnalysisStation11$AmmoniaAnalysis
+
+stationTableOutput1 <- bind_rows(stationsTemplate,
+                                         cbind(StationTableStartingData(stationData1),
+                                               tempExceedances(stationData1) %>% quickStats('TEMP'),
+                                               DOExceedances_Min(stationData1) %>% quickStats('DO'), 
+                                               pHExceedances(stationData1) %>% quickStats('PH'),
+                                               ecoli1 %>% dplyr::select(ECOLI_EXC:ECOLI_STAT),
+                                               tibble(ENTER_EXC = NA, ENTER_SAMP = NA, ENTER_GM_EXC = NA, ENTER_GM_SAMP = NA, ENTER_STAT = NA),
+                                               ammoniaDecision(list(acute = freshwaterNH3Assessment(ammoniaAnalysisStation1, 'acute'),
+                                                                    chronic = freshwaterNH3Assessment(ammoniaAnalysisStation1, 'chronic'),
+                                                                    fourDay = freshwaterNH3Assessment(ammoniaAnalysisStation1, 'four-day'))),
+                                               # Roger's water column metals analysis, transcribed
+                                               metalsData(filter(WCmetals, Station_Id %in% stationData1$FDT_STA_ID), 'WAT_MET'),
+                                               # metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData1$FDT_STA_ID) %>% 
+                                               #                     dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
+                                               # Mark's water column PCB results, flagged
+                                               PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Water')) %>%
+                                                                     filter(StationID %in%  stationData1$FDT_STA_ID), 'WAT_TOX'),
+                                               # Roger's sediment metals analysis, transcribed
+                                               metalsData(filter(Smetals, Station_Id %in% stationData1$FDT_STA_ID), 'SED_MET'),
+                                               # metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData1$FDT_STA_ID) %>% 
+                                               #                     dplyr::select(ARSENIC:ZINC), 'SED_MET'),
+                                               # Mark's sediment PCB results, flagged
+                                               PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Sediment')) %>%
+                                                                     filter(StationID %in%  stationData1$FDT_STA_ID), 'SED_TOX'),
+                                               # Gabe's fish metals results, flagged
+                                               PCBmetalsDataExists(filter(fishMetals, Station_ID %in% stationData1$FDT_STA_ID), 'FISH_MET'),
+                                               # Gabe's fish PCB results, flagged
+                                               PCBmetalsDataExists(filter(fishPCB, `DEQ rivermile` %in%  stationData1$FDT_STA_ID), 'FISH_TOX'),
+                                               # add in benthic placeholders
+                                               tibble(BENTHIC_STAT = NA, BENTHIC_WOE_CAT= NA, BIBI_SCORE = NA),
+                                               TP_Assessment(stationData1),
+                                               chlA_Assessment(stationData1) ) %>%
+                                           #mutate(COMMENTS = NA) %>%
+                                           # add in real comments from uploaded station table
+                                           left_join(dplyr::select(stationTable1, STATION_ID, COMMENTS),
+                                                     by = 'STATION_ID') %>% 
+                                           dplyr::select(-ends_with(c('exceedanceRate','Assessment Decision')))) %>% 
+  filter(!is.na(STATION_ID))
+
+
+datatable(stationTableOutput1, extensions = 'Buttons', escape=F, rownames = F, editable = TRUE,
+          options= list(scrollX = TRUE, pageLength = nrow(stationTableOutput1),
+                        # adjust COMMENTS column width
+                        autoWidth = TRUE, columnDefs = list(list(width = '300px', targets = c(71))),# DT starts counting at 0
+                        dom='Bt', buttons=list('copy')),
+                                               #list(extend='csv',filename=paste('AssessmentResults_',paste(assessmentCycle,input$stationSelection, collapse = "_"),Sys.Date(),sep='')),
+                                               #list(extend='excel',filename=paste('AssessmentResults_',paste(assessmentCycle,input$stationSelection, collapse = "_"),Sys.Date(),sep='')))),
+          selection = 'none') %>% 
+  formatStyle(c('TEMP_EXC','TEMP_SAMP','TEMP_STAT'), 'TEMP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+  formatStyle(c('DO_EXC','DO_SAMP','DO_STAT'), 'DO_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+  formatStyle(c('PH_EXC','PH_SAMP','PH_STAT'), 'PH_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+  formatStyle(c('ECOLI_EXC','ECOLI_SAMP','ECOLI_GM_EXC','ECOLI_GM_SAMP','ECOLI_STAT'), 'ECOLI_STAT', backgroundColor = styleEqual(c('IM'), c('red'))) %>%
+  formatStyle(c('AMMONIA_EXC','AMMONIA_STAT'), 'AMMONIA_STAT', backgroundColor = styleEqual(c('Review', 'IM'), c('yellow','red'))) %>%
+  formatStyle(c('WAT_MET_EXC','WAT_MET_STAT'), 'WAT_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+  formatStyle(c('WAT_TOX_EXC','WAT_TOX_STAT'), 'WAT_TOX_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+  formatStyle(c('SED_MET_EXC','SED_MET_STAT'), 'SED_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%   
+  formatStyle(c('SED_TOX_EXC','SED_TOX_STAT'), 'SED_TOX_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+  formatStyle(c('FISH_MET_EXC','FISH_MET_STAT'), 'FISH_MET_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%   
+  formatStyle(c('FISH_TOX_EXC','FISH_TOX_STAT'), 'FISH_TOX_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
+  formatStyle(c('BENTHIC_STAT'), 'BENTHIC_STAT', backgroundColor = styleEqual(c('Review'), c('yellow'))) %>%
+  formatStyle(c('NUT_TP_EXC','NUT_TP_SAMP'), 'NUT_TP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>% 
+  formatStyle(c('NUT_CHLA_EXC','NUT_CHLA_SAMP'), 'NUT_CHLA_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) 
+
 # point <- dplyr::select(stationInfo1,  STATION_ID, starts_with('ID305B'), LATITUDE, LONGITUDE ) %>%
 #   st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
 #            remove = F, # don't remove these lat/lon cols from df
@@ -200,6 +271,20 @@ stationInfo1 <- filter(stationTable1, STATION_ID == stationSelection1) %>%
 #           popup=NULL, legend= FALSE)
 # map1@map %>% setView(point$LONGITUDE, point$LATITUDE, zoom = 12)
 
+
+z <- pHExceedances(stationData1) %>%
+  filter(exceeds == TRUE) %>%
+  rename('Parameter Rounded to WQS Format' = 'parameterRound') %>%
+  dplyr::select(-c(FDT_STA_ID, limit, interval, exceeds)) %>%
+  dplyr::select(FDT_DATE_TIME, FDT_DEPTH, FDT_FIELD_PH, LEVEL_FDT_FIELD_PH, LakeStratification, everything()) %>%
+  arrange(FDT_DATE_TIME, FDT_DEPTH)
+
+z <- bind_rows(tibble(FDT_DEPTH = 0.0, FDT_FIELD_PH = 6),
+               dplyr::select(stationData1, FDT_DEPTH, FDT_FIELD_PH))
+  
+datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "300px", dom='t'),
+          selection = 'none') %>% 
+  formatStyle(c('FDT_DEPTH'), target = 'row', backgroundColor = styleInterval(c(-1,0.29), c(NA,'red',  NA)))
 
 
 

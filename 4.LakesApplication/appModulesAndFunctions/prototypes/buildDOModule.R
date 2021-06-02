@@ -19,7 +19,8 @@ DOPlotlySingleStationUI <- function(id){
       plotlyOutput(ns('plotly')),
       br(),hr(),br(),
       fluidRow(
-        column(7, h5('All DO records that are outside the criteria for the ',span(strong('selected site')),' are highlighted below.'),
+        column(7, h5('All DO records that are outside the criteria for the ',span(strong('selected site')),' are highlighted below. Rows
+                       are highlighted red if the station depth is < 0.3 meters depth.'),
                dataTableOutput(ns("minTableSingleSite"))),
         column(1),
         column(4, 
@@ -52,7 +53,8 @@ DOPlotlySingleStationUI <- function(id){
                  homogenous and not influenced by tributary contribution, the data may be pooled to determine DO exceedance rates in that AU'"),
         helpText(strong('This application provides an AU level assessment, but it is up to the assessor to determine if pooling should be used.')),
         fluidRow(
-          column(7, h5('All DO records that are above the criteria for the ',span(strong('Assessment Unit')),' are highlighted below.'),
+          column(7, h5('All DO records that are above the criteria for the ',span(strong('Assessment Unit')),' are highlighted below. Rows
+                       are highlighted red if the station depth is < 0.3 meters depth.'),
                  dataTableOutput(ns('rangeTableAU'))),
           column(1),
           column(4, h5('DO exceedance statistics for the ',span(strong('AU')),' are highlighted below.'),
@@ -185,7 +187,8 @@ DOPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
       dplyr::select(FDT_DATE_TIME, FDT_DEPTH, DO, LEVEL_DO, LakeStratification, everything()) %>%
       arrange(FDT_DATE_TIME, FDT_DEPTH)
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t'),
-              selection = 'none')})
+              selection = 'none') %>% 
+      formatStyle(c('FDT_DEPTH'), target = 'row', backgroundColor = styleInterval(c(-1,0.29), c(NA,'red',  NA)))  })
   
   output$stationExceedanceRate <- renderDataTable({req(input$oneStationSelection, oneStation())
     z <- DOExceedances_Min(oneStation()) %>% quickStats('DO') %>% dplyr::select(-DO_STAT)
@@ -216,7 +219,8 @@ DOPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
       dplyr::select(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, DO, LEVEL_DO, LakeStratification, everything()) %>%
       arrange(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH)
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
-              selection = 'none')})
+              selection = 'none') %>% 
+      formatStyle(c('FDT_DEPTH'), target = 'row', backgroundColor = styleInterval(c(-1,0.29), c(NA,'red',  NA)))})
   
   output$AUExceedanceRate <- renderDataTable({  req(ns(input$oneStationSelection), oneStation())
     z <- DOExceedances_Min( filter(AUdata(), !is.na(DO_mg_L)) ) %>% quickStats('DO') %>% dplyr::select(-DO_STAT)

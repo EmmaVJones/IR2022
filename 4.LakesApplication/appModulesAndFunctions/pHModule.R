@@ -1,3 +1,4 @@
+
 pHPlotlySingleStationUI <- function(id){
   ns <- NS(id)
   tagList(
@@ -14,7 +15,8 @@ pHPlotlySingleStationUI <- function(id){
       plotlyOutput(ns('plotly')),
       br(),hr(),br(),
       fluidRow(
-        column(7, h5('All pH records that are outside the criteria for the ',span(strong('selected site')),' are highlighted below.'),
+        column(7, h5('All pH records that are outside the criteria for the ',span(strong('selected site')),' are highlighted below. Rows
+                       are highlighted red if the station depth is < 0.3 meters depth.'),
                dataTableOutput(ns('rangeTableSingleSite'))),
         column(1),
         column(4, h5('Individual pH exceedance statistics for the ',span(strong('selected site')),' are highlighted below.'),
@@ -33,7 +35,8 @@ pHPlotlySingleStationUI <- function(id){
         in that unit is homogenous and not influenced by tributary contribution, the data may be pooled to determine pH
         exceedance rates in that AU.'"),
         fluidRow(
-          column(7, h5('All pH records that are above the criteria for the ',span(strong('Assessment Unit')),' are highlighted below.'),
+          column(7, h5('All pH records that are above the criteria for the ',span(strong('Assessment Unit')),' are highlighted below. Rows
+                       are highlighted red if the station depth is < 0.3 meters depth.'),
                  dataTableOutput(ns('rangeTableAU'))),
           column(1),
           column(4, h5('pH exceedance statistics for the ',span(strong('AU')),' are highlighted below.'),
@@ -137,7 +140,8 @@ pHPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
       dplyr::select(FDT_DATE_TIME, FDT_DEPTH, FDT_FIELD_PH, LEVEL_FDT_FIELD_PH, LakeStratification, everything()) %>%
       arrange(FDT_DATE_TIME, FDT_DEPTH)
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "300px", dom='t'),
-              selection = 'none')})
+              selection = 'none')  %>% 
+      formatStyle(c('FDT_DEPTH'), target = 'row', backgroundColor = styleInterval(c(-1,0.29), c(NA,'red',  NA)))})
   
   
   output$stationExceedanceRate <- renderDataTable({
@@ -179,7 +183,8 @@ pHPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
       dplyr::select(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, FDT_FIELD_PH, LEVEL_FDT_FIELD_PH, LakeStratification, everything()) %>%
       arrange(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH)
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "300px", dom='t'),
-              selection = 'none')})
+              selection = 'none')  %>% 
+      formatStyle(c('FDT_DEPTH'), target = 'row', backgroundColor = styleInterval(c(-1,0.29), c(NA,'red',  NA)))})
   
   
   output$AUExceedanceRate <- renderDataTable({ req(AUdata())

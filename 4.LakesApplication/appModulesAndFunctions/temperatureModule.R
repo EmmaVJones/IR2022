@@ -15,7 +15,8 @@ temperaturePlotlySingleStationUI <- function(id){
       plotlyOutput(ns('plotly')),
       br(),hr(),br(),
       fluidRow(
-        column(7, h5('All temperature records that are above the criteria for the ',span(strong('selected site')),' are highlighted below.'),
+        column(7, h5('All temperature records that are above the criteria for the ',span(strong('selected site')),' are highlighted below. Rows
+                       are highlighted red if the station depth is < 0.3 meters depth.'),
                dataTableOutput(ns('rangeTableSingleSite'))),
         column(1),
         column(4, h5('Individual temperature exceedance statistics for the ',span(strong('selected site')),' are highlighted below.'),
@@ -29,7 +30,8 @@ temperaturePlotlySingleStationUI <- function(id){
                  in that AU.'"),
         helpText(strong('This application provides an AU level assessment, but it is up to the assessor to determine if pooling should be used.')),
         fluidRow(
-          column(7, h5('All temperature records that are above the criteria for the ',span(strong('Assessment Unit')),' are highlighted below.'),
+          column(7, h5('All temperature records that are above the criteria for the ',span(strong('Assessment Unit')),' are highlighted below. Rows
+                       are highlighted red if the station depth is < 0.3 meters depth.'),
                  dataTableOutput(ns('rangeTableAU'))),
           column(1),
           column(4, h5('Temperature exceedance statistics for the ',span(strong('AU')),' are highlighted below.'),
@@ -117,7 +119,8 @@ temperaturePlotlySingleStation <- function(input,output,session, AUdata, station
       filter(exceeds == TRUE) %>%
       dplyr::select(-exceeds)
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
-              selection = 'none')})
+              selection = 'none') %>% 
+      formatStyle(c('FDT_DEPTH'), target = 'row', backgroundColor = styleInterval(c(-1,0.29), c(NA,'red',  NA))) })
   
   # Temperature Station Exceedance Rate
   output$stationExceedanceRate <- renderDataTable({
@@ -134,7 +137,8 @@ temperaturePlotlySingleStation <- function(input,output,session, AUdata, station
       filter(exceeds == TRUE) %>%
       dplyr::select(-exceeds)
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
-              selection = 'none')})
+              selection = 'none') %>% 
+      formatStyle(c('FDT_DEPTH'), target = 'row', backgroundColor = styleInterval(c(-1,0.29), c(NA,'red',  NA))) })
   
   output$AUExceedanceRate <- renderDataTable({  req(ns(input$oneStationSelection), oneStation())
     z <- tempExceedances( filter(AUdata(), !is.na(FDT_TEMP_CELCIUS)) )  %>% quickStats('TEMP') %>% dplyr::select(-TEMP_STAT)

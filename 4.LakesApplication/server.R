@@ -380,7 +380,10 @@ shinyServer(function(input, output, session) {
                                          tibble(BENTHIC_STAT = NA, BENTHIC_WOE_CAT= NA, BIBI_SCORE = NA),
                                          TP_Assessment(stationData()),
                                          chlA_Assessment(stationData()) ) %>%
-      mutate(COMMENTS = NA) %>%
+      #mutate(COMMENTS = NA) %>%
+        # add in real comments from uploaded station table
+        left_join(dplyr::select(stationTable(), STATION_ID, COMMENTS),
+                  by = 'STATION_ID') %>% 
       dplyr::select(-ends_with(c('exceedanceRate','Assessment Decision')))) %>% 
       filter(!is.na(STATION_ID))
   })
@@ -391,7 +394,8 @@ shinyServer(function(input, output, session) {
     req(stationData()$FDT_STA_ID == input$stationSelection, siteData$stationTableOutput)
     datatable(siteData$stationTableOutput, extensions = 'Buttons', escape=F, rownames = F, editable = TRUE,
               options= list(scrollX = TRUE, pageLength = nrow(siteData$stationTableOutput),
-                            # hide certain columns
+                            # adjust COMMENTS column width
+                            autoWidth = TRUE, columnDefs = list(list(width = '400px', targets = c(71))), # DT starts counting at 0
                             dom='Bt', buttons=list('copy',
                                                    list(extend='csv',filename=paste('AssessmentResults_',paste(assessmentCycle,input$stationSelection, collapse = "_"),Sys.Date(),sep='')),
                                                    list(extend='excel',filename=paste('AssessmentResults_',paste(assessmentCycle,input$stationSelection, collapse = "_"),Sys.Date(),sep='')))),

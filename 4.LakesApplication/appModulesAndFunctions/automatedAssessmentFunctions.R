@@ -189,15 +189,15 @@ thermoclineDepth <- function(stationData){
 
 #Max Temperature Exceedance Function
 tempExceedances <- function(x){
-  dplyr::select(x,FDT_DATE_TIME,FDT_TEMP_CELCIUS, LEVEL_FDT_TEMP_CELCIUS, `Max Temperature (C)`)%>% # Just get relevant columns, 
+  dplyr::select(x,FDT_DATE_TIME, FDT_DEPTH, FDT_TEMP_CELCIUS, LEVEL_FDT_TEMP_CELCIUS, `Max Temperature (C)`)%>% # Just get relevant columns, 
     filter(!(LEVEL_FDT_TEMP_CELCIUS %in% c('Level II', 'Level I'))) %>% # get lower levels out
     filter(!is.na(FDT_TEMP_CELCIUS))%>% #get rid of NA's
-    rename(parameter = !!names(.[2]), limit = !!names(.[4])) %>% # rename columns to make functions easier to apply
+    rename(parameter = !!names(.[3]), limit = !!names(.[5])) %>% # rename columns to make functions easier to apply
     # Round to Even Rule
     mutate(parameterRound = signif(parameter, digits = 2), # two significant figures based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section50/
            exceeds = ifelse(parameterRound > limit, T, F)) # Identify where above max Temperature, 
 }
-#tempExceedances(x) %>%
+# tempExceedances(x) %>%
 #  quickStats('TEMP')
 
 
