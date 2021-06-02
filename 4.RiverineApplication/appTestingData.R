@@ -89,9 +89,9 @@ pinnedDecisions <- pin_get('IR2022bioassessmentDecisions_test', board = 'rsconne
 
 
 
-DEQregionSelection <- 'TRO'
-basinSelection <- 'James-Lower'#"Small Coastal" #"James-Middle"##"Roanoke"#"Roanoke"#'James-Upper'#
-HUC6Selection <- "JL31"#"CB47"#"JM01"#'JM16'#'RU09'#'RL12'#
+DEQregionSelection <- 'BRRO'
+basinSelection <- 'Roanoke'#"Small Coastal" #"James-Middle"##"Roanoke"#"Roanoke"#'James-Upper'#
+HUC6Selection <- "RU14"#"CB47"#"JM01"#'JM16'#'RU09'#'RL12'#
 
 # z <- filter(vahu6, ASSESS_REG %in% c(DEQregionSelection, 'CO')) %>%
 #   left_join(dplyr::select(subbasinToVAHU6, VAHU6, Basin, BASIN_CODE, Basin_Code))
@@ -169,7 +169,7 @@ AUselection <- unique(c(conventionals_HUC$ID305B_1,
                           mutate_at(vars(starts_with("ID305B")), as.character) %>%
                           pivot_longer(ID305B_1:ID305B_10, names_to = 'ID305B', values_to = 'keep') %>%
                           pull(keep) ))
-AUselection <- AUselection[!is.na(AUselection) & !(AUselection %in% c("NA", "character(0)", "logical(0)"))][2]
+AUselection <- AUselection[!is.na(AUselection) & !(AUselection %in% c("NA", "character(0)", "logical(0)"))][3]
 
 
 
@@ -190,7 +190,7 @@ if(nrow(carryoverStations) > 0){
     pull()
   if(length(carryoverStationsInAU) > 0){
     stationSelection <- c(stationSelection, carryoverStationsInAU)  } }
-stationSelection <- stationSelection[1]
+stationSelection <- stationSelection[2]
 
 AUData <- filter_at(conventionals_HUC, vars(starts_with("ID305B")), any_vars(. %in% AUselection) ) 
 
