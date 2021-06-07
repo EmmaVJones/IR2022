@@ -346,6 +346,38 @@ shinyServer(function(input, output, session) {
       map(1) 
     z$AmmoniaAnalysis })
   
+  
+  
+  waterToxics <- reactive({ req(stationData())
+    # PWS stuff
+    if(nrow(stationData()) > 0){
+      if(is.na(unique(stationData()$PWS))  ){
+        PWSconcat <- tibble(#STATION_ID = unique(stationData()$FDT_STA_ID),
+          PWS= NA)
+      } else {
+        PWSconcat <- cbind(#tibble(STATION_ID = unique(stationData()$FDT_STA_ID)),
+          assessPWS(stationData(), NITRATE_mg_L, LEVEL_NITRATE, 10, 'PWS_Nitrate'),
+          assessPWS(stationData(), CHLORIDE_mg_L, LEVEL_CHLORIDE, 250, 'PWS_Chloride'),
+          assessPWS(stationData(), SULFATE_TOTAL_mg_L, LEVEL_SULFATE_TOTAL, 250, 'PWS_Total_Sulfate')) %>%
+          dplyr::select(-ends_with('exceedanceRate')) }
+      
+      # chloride assessment if data exists
+      if(nrow(filter(stationData(), !is.na(CHLORIDE_mg_L)))){
+        chlorideFreshwater <- chlorideFreshwaterSummary(suppressMessages(chlorideFreshwaterAnalysis(stationData())))
+      } else {chlorideFreshwater <- tibble(CHL_EXC = NA, CHL_STAT= NA)}
+      
+      # Water toxics combination with PWS, Chloride Freshwater, and water column PCB data
+      if(nrow(bind_cols(PWSconcat,
+                        chlorideFreshwater,
+                        PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Water')) %>%
+                                            filter(StationID %in% stationData()$FDT_STA_ID), 'WAT_TOX')) %>%
+              dplyr::select(contains(c('_EXC','_STAT'))) %>%
+              mutate(across( everything(),  as.character)) %>%
+              pivot_longer(cols = contains(c('_EXC','_STAT')), names_to = 'parameter', values_to = 'values', values_drop_na = TRUE) ) > 1) {
+        WCtoxics <- tibble(WAT_TOX_EXC = NA, WAT_TOX_STAT = 'Review') } else { WCtoxics <- tibble(WAT_TOX_EXC = NA, WAT_TOX_STAT = NA)}
+    } else { WCtoxics <- tibble(WAT_TOX_EXC = NA, WAT_TOX_STAT = NA)} 
+    return(WCtoxics) })
+  
   observe({
     req(nrow(ecoli()) > 0)# need to tell the app to wait for data to exist in these objects before smashing data together or will bomb out when switching between VAHU6's on the Watershed Selection Page
     siteData$stationTableOutput <- bind_rows(stationsTemplate,
@@ -363,8 +395,9 @@ shinyServer(function(input, output, session) {
                                          # metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
                                          #                     dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
                                          # Mark's water column PCB results, flagged
-                                         PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Water')) %>%
-                                                               filter(StationID %in%  stationData()$FDT_STA_ID), 'WAT_TOX'),
+                                         # PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Water')) %>%
+                                         #                       filter(StationID %in%  stationData()$FDT_STA_ID), 'WAT_TOX'),
+                                         waterToxics(),
                                          # Roger's sediment metals analysis, transcribed
                                          metalsData(filter(Smetals, Station_Id %in% stationData()$FDT_STA_ID), 'SED_MET'),
                                          # metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 

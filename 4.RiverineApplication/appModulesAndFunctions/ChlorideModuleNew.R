@@ -1,8 +1,6 @@
-#source('appTestingData.R')
 
 
-
-ClPlotlySingleStationUI <- function(id){
+ChloridePlotlySingleStationUI <- function(id){
   ns <- NS(id)
   tagList(
     wellPanel(
@@ -44,7 +42,7 @@ ClPlotlySingleStationUI <- function(id){
 }
 
 
-ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedAbove){
+ChloridePlotlySingleStation <- function(input,output,session, AUdata, stationSelectedAbove){
   ns <- session$ns
   
   output$oneStationSelectionUI <- renderUI({
@@ -149,7 +147,7 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
           layout(showlegend=FALSE,
                  yaxis=list(title="Dissolved Chloride (mg/L)"),
                  xaxis=list(title="Sample Date",tickfont = list(size = 10)))
-      
+        
       }
     } else {
       if(input$changeWQS == TRUE){
@@ -174,8 +172,8 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
           layout(showlegend=FALSE,
                  yaxis=list(title="Dissolved Chloride (mg/L)"),
                  xaxis=list(title="Sample Date",tickfont = list(size = 10)))
-      
-    } }
+        
+      } }
   })
   
   
@@ -212,7 +210,7 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   output$freshwaterPlotly <- renderPlotly({req(chlorideFreshwater(), nrow(oneStation()) > 0)
     stationData <- oneStation()
     stationData$SampleDate <- as.POSIXct(stationData$FDT_DATE_TIME, format="%m/%d/%y")
-
+    
     plot_ly(data=stationData)%>%
       add_markers(data=stationData, x= ~SampleDate, y= ~CHLORIDE_mg_L, mode = 'scatter', name="Dissolved Chloride (mg/L)",marker = list(color= '#535559'),
                   hoverinfo="text",text=~paste(sep="<br>",
@@ -250,34 +248,4 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   #output$test <- renderPrint({chlorideFreshwater()})
   
 }
-
-
-
-ui <- fluidPage(
-  helpText('Review each site using the single site visualization section. There are no WQS for Specific Conductivity.'),
-  ClPlotlySingleStationUI('Cl')
-)
-
-server <- function(input,output,session){
-  stationData <- eventReactive( input$stationSelection, {
-    filter(AUData, FDT_STA_ID %in% input$stationSelection) })
-  stationSelected <- reactive({input$stationSelection})
-  
-  
-  #AUData <- reactive({filter_at(conventionals_HUC, vars(starts_with("ID305B")), any_vars(. %in% AUselection) ) })
-  AUData <- reactive({filter(conventionals, Huc6_Vahu6 %in% c('JM01','JM02', 'JM03', 'JM04', 'JM05', 'JM06')) %>%
-      left_join(dplyr::select(stationTable, STATION_ID:VAHU6,
-                              WQS_ID:CLASS_DESCRIPTION),
-                #WQS_ID:`Max Temperature (C)`), 
-                by = c('FDT_STA_ID' = 'STATION_ID')) %>%
-      filter(!is.na(ID305B_1)) %>%
-      pHSpecialStandardsCorrection() %>%
-      filter(!is.na(CHLORIDE_mg_L))})
-  
-  
-  callModule(ClPlotlySingleStation,'Cl', AUData, stationSelected)
-  
-}
-
-shinyApp(ui,server)
 

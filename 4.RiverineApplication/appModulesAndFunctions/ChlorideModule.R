@@ -12,7 +12,7 @@ ClPlotlySingleStationUI <- function(id){
                column(2,br(), uiOutput(ns('changeWQSUI'))),
                column(1),
                column(2,br(),actionButton(ns('reviewData'),"Review Raw Parameter Data",class='btn-block', width = '250px'))),
-      helpText('All data presented in the interactive plot is raw data. Rounding rules are appropriately applied to the 
+      helpText('All data presented in the interactive plot is raw data. Rounding rules are appropriately applied to the
                assessment functions utilized by the application.'),
       plotlyOutput(ns('plotly')),
       fluidRow(
@@ -20,7 +20,23 @@ ClPlotlySingleStationUI <- function(id){
                div(style = 'height:150px;overflow-y: scroll', dataTableOutput(ns('rangeTableSingleSite')))),
         column(4, h5('Individual chloride exceedance statistics for the ',span(strong('selected site')),' are highlighted below.
                      If no data is presented, then the PWS criteria is not applicable to the station.'),
-               dataTableOutput(ns("stationExceedanceRate"))))
+               dataTableOutput(ns("stationExceedanceRate")))),
+      br(),hr(),br(),
+      h4('Freshwater Chloride Criteria'),
+      helpText('Below are the results of the chloride freshwater acute and chronic criteria analysis. These results apply to all stations with
+               CLASS II (Tidal Fresh Zone only) and III - VII. The acute and chronic criteria for each data window are presented on the plot below. 
+               Turn the layers on/off to visualize the raw data averaged across each window.'),
+      plotlyOutput(ns('freshwaterPlotly')),
+      br(),
+      fluidRow(
+        column(8, h5('All Chloride data analyzed using acute and chronic criteria for the ',span(strong('selected site')),' are presented below. 
+                     Any exceedances are highlighted in red.'),
+               dataTableOutput(ns("stationFreshwaterAnalysis"))),
+        column(4, h5('Individual Chloride exceedance statistics for the ',span(strong('selected site')),' are highlighted below.'),
+               helpText('The one hour and four day average concentration are not to be exceeded more than once every 3 years on the average, 
+                        unless otherwise noted. This tool does not make that determination, but a summary of the total exceedances for each 
+                        criteria are presented below.'),
+               DT::dataTableOutput(ns('stationFreshwaterExceedanceRate'))))
     )
   )
 }
@@ -64,8 +80,7 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
       easyClose = TRUE))  })
   
   # modal parameter data
-  output$parameterData <- DT::renderDataTable({
-    req(oneStation())
+  output$parameterData <- DT::renderDataTable({    req(oneStation())
     parameterFilter <- dplyr::select(oneStation(), FDT_STA_ID:FDT_COMMENT, CHLORIDE_mg_L, RMK_CHLORIDE, LEVEL_CHLORIDE)
     
     DT::datatable(parameterFilter, rownames = FALSE, 
@@ -81,7 +96,6 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
     
     # Fix look of single measure
     if(nrow(dat) == 1){
-      print('yes')
       dat <- bind_rows(dat,
                        tibble(SampleDate = c(dat$SampleDate- days(5), dat$SampleDate + days(5)),
                               PWSlimit = c(250, 250)))
@@ -163,8 +177,7 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   })
   
   
-  output$rangeTableSingleSite <- renderDataTable({
-    req(oneStation())
+  output$rangeTableSingleSite <- renderDataTable({    req(oneStation())
     if(input$changeWQS == TRUE){
       z <- filter(oneStation(), `Parameter Rounded to WQS Format` > PWSlimit) %>%
         dplyr::select(FDT_DATE_TIME, CHLORIDE_mg_L, LEVEL_CHLORIDE, Criteria = PWSlimit, `Parameter Rounded to WQS Format`) 
@@ -188,4 +201,51 @@ ClPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
                 selection = 'none') }}) 
   
   
+  
+  # Freshwater Chloride Analysis
+  chlorideFreshwater <- reactive({req(nrow(oneStation()) > 0)
+    chlorideFreshwaterAnalysis(oneStation())    })
+  
+  
+  output$freshwaterPlotly <- renderPlotly({req(chlorideFreshwater(), nrow(oneStation()) > 0)
+    stationData <- oneStation()
+    stationData$SampleDate <- as.POSIXct(stationData$FDT_DATE_TIME, format="%m/%d/%y")
+    
+    plot_ly(data=stationData)%>%
+      add_markers(data=stationData, x= ~SampleDate, y= ~CHLORIDE_mg_L, mode = 'scatter', name="Dissolved Chloride (mg/L)",marker = list(color= '#535559'),
+                  hoverinfo="text",text=~paste(sep="<br>",
+                                               paste("Date: ",SampleDate),
+                                               paste("Depth: ",FDT_DEPTH, "m"),
+                                               paste("Dissolved Chloride: ",CHLORIDE_mg_L,"mg/L")))%>%
+      add_markers(data=chlorideFreshwater(), x= ~WindowDateTimeStart, y= ~Value, mode = 'scatter', name= ~paste0(`ValueType`, " Averaged Dissolved Chloride (mg/L)"),
+                  marker = list(color= ~Exceedance), colors = c('#535559', 'red'),#marker = list(color= '#535559'),
+                  symbol = ~`Criteria Type`, #symbols = c('diamond-dot','diamond'),# symbols = c('x','o'),
+                  hoverinfo="text",text=~paste(sep="<br>",
+                                               paste("Window Start: ",WindowDateTimeStart),
+                                               paste("Depth: ",FDT_DEPTH, "m"),
+                                               paste0(`ValueType`, " Averaged Dissolved Chloride: ",Value,"mg/L"),
+                                               paste0(`Criteria Type`," Dissolved Chloride Criteria: ",CriteriaValue,"mg/L")))%>%
+      layout(showlegend=TRUE,
+             yaxis=list(title="Dissolved Chloride (mg/L)"),
+             xaxis=list(title="Sample Date",tickfont = list(size = 10)))
+  })
+  
+  output$stationFreshwaterAnalysis <- renderDataTable({req(chlorideFreshwater())
+    datatable(chlorideFreshwater(), rownames = FALSE, options= list(pageLength = nrow(chlorideFreshwater()), scrollX = TRUE, scrollY = "350px", dom='t'),
+              selection = 'none') %>% 
+      formatStyle('Exceedance', target = 'row', backgroundColor = styleEqual(c(0, 1), c(NA, 'red')))      })
+  
+  output$stationFreshwaterExceedanceRate <- renderDataTable({req(chlorideFreshwater())
+    z <- filter(chlorideFreshwater(), Exceedance == 1) %>% 
+      group_by(`Criteria Type`) %>% 
+      summarise(`Total Exceedances in Dataset` = sum(Exceedance, na.rm = T))
+    if(nrow(z) == 0){ # show them something just in case
+      z <- tibble(`Criteria Type` = c('Chronic', 'Acute'), `Total Exceedances in Dataset` = c(0, 0))
+    }
+    datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "150px", dom='t'),
+              selection = 'none')     })
+  
+  #output$test <- renderPrint({chlorideFreshwater()})
+  
 }
+

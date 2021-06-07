@@ -90,8 +90,8 @@ pinnedDecisions <- pin_get('IR2022bioassessmentDecisions_test', board = 'rsconne
 
 
 DEQregionSelection <- 'BRRO'
-basinSelection <- 'Roanoke'#"Small Coastal" #"James-Middle"##"Roanoke"#"Roanoke"#'James-Upper'#
-HUC6Selection <- "RU14"#"CB47"#"JM01"#'JM16'#'RU09'#'RL12'#
+basinSelection <- "James-Middle"#'James-Upper'#'Roanoke'#"Small Coastal" ##"Roanoke"#"Roanoke"#'James-Upper'#
+HUC6Selection <- "JM01"#'JU21'#"RU14"#"CB47"#'JM16'#'RU09'#'RL12'#
 
 # z <- filter(vahu6, ASSESS_REG %in% c(DEQregionSelection, 'CO')) %>%
 #   left_join(dplyr::select(subbasinToVAHU6, VAHU6, Basin, BASIN_CODE, Basin_Code))
@@ -169,7 +169,7 @@ AUselection <- unique(c(conventionals_HUC$ID305B_1,
                           mutate_at(vars(starts_with("ID305B")), as.character) %>%
                           pivot_longer(ID305B_1:ID305B_10, names_to = 'ID305B', values_to = 'keep') %>%
                           pull(keep) ))
-AUselection <- AUselection[!is.na(AUselection) & !(AUselection %in% c("NA", "character(0)", "logical(0)"))][3]
+AUselection <- AUselection[!is.na(AUselection) & !(AUselection %in% c("NA", "character(0)", "logical(0)"))][1]
 
 
 
@@ -190,7 +190,7 @@ if(nrow(carryoverStations) > 0){
     pull()
   if(length(carryoverStationsInAU) > 0){
     stationSelection <- c(stationSelection, carryoverStationsInAU)  } }
-stationSelection <- stationSelection[2]
+stationSelection <- stationSelection[1]
 
 AUData <- filter_at(conventionals_HUC, vars(starts_with("ID305B")), any_vars(. %in% AUselection) ) 
 
@@ -199,6 +199,61 @@ stationData <- filter(AUData, FDT_STA_ID %in% stationSelection)
 stationInfo <- filter(stationTable, STATION_ID == stationSelection) %>% 
     select(STATION_ID:VAHU6, WQS_ID:Trout) %>% 
     t() %>% as.data.frame() %>% rename(`Station and WQS Information` = 'V1')
+
+
+
+
+
+
+
+
+
+
+# PWS stuff
+if(nrow(stationData) > 0){
+  if(is.na(unique(stationData$PWS))  ){
+    PWSconcat <- tibble(#STATION_ID = unique(stationData$FDT_STA_ID),
+      PWS= NA)
+  } else {
+    PWSconcat <- cbind(#tibble(STATION_ID = unique(stationData$FDT_STA_ID)),
+      assessPWS(stationData, NITRATE_mg_L, LEVEL_NITRATE, 10, 'PWS_Nitrate'),
+      assessPWS(stationData, CHLORIDE_mg_L, LEVEL_CHLORIDE, 250, 'PWS_Chloride'),
+      assessPWS(stationData, SULFATE_TOTAL_mg_L, LEVEL_SULFATE_TOTAL, 250, 'PWS_Total_Sulfate')) %>%
+      dplyr::select(-ends_with('exceedanceRate')) }
+  
+  # chloride assessment if data exists
+  if(nrow(filter(stationData, !is.na(CHLORIDE_mg_L)))){
+    chlorideFreshwater <- chlorideFreshwaterSummary(suppressMessages(chlorideFreshwaterAnalysis(stationData)))
+  } else {chlorideFreshwater <- tibble(CHL_EXC = NA, CHL_STAT= NA)}
+  
+  # Water toxics combination with PWS, Chloride Freshwater, and water column PCB data
+  # if(nrow(bind_cols(PWSconcat,
+  #                   #chlorideFreshwater,
+  #                   PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Water')) %>%
+  #                                       filter(StationID %in% stationData$FDT_STA_ID), 'WAT_TOX')) %>%
+  #         dplyr::select(contains(c('_EXC','_STAT'))) %>%
+  #         mutate(across( everything(),  as.character)) %>%
+  #         pivot_longer(cols = contains(c('_EXC','_STAT')), names_to = 'parameter', values_to = 'values', values_drop_na = TRUE) ) > 1) {
+  #   WCtoxics <- tibble(WAT_TOX_EXC = NA, WAT_TOX_STAT = 'Review') }
+  #  } else { WCtoxics <- tibble(WAT_TOX_EXC = NA, WAT_TOX_STAT = NA)} 
+  if(nrow(bind_cols(PWSconcat,
+                    chlorideFreshwater,
+                    PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Water')) %>%
+                                        filter(StationID %in% stationData$FDT_STA_ID), 'WAT_TOX')) %>%
+          dplyr::select(contains(c('_EXC','_STAT'))) %>%
+          mutate(across( everything(),  as.character)) %>%
+          pivot_longer(cols = contains(c('_EXC','_STAT')), names_to = 'parameter', values_to = 'values', values_drop_na = TRUE) ) > 1) {
+    WCtoxics <- tibble(WAT_TOX_EXC = NA, WAT_TOX_STAT = 'Review') } else { WCtoxics <- tibble(WAT_TOX_EXC = NA, WAT_TOX_STAT = NA)}
+   } else { WCtoxics <- tibble(WAT_TOX_EXC = NA, WAT_TOX_STAT = NA)}
+  
+
+
+
+
+
+
+
+
 
 
 

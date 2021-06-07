@@ -1222,3 +1222,84 @@ metalsAssessmentFunction <- function(metalsAnalysisResults){
     pivot_wider(names_from = Criteria, values_from = Exceedances)
 }
 
+
+# Single station chloride assessment
+chlorideFreshwaterAnalysis <- function(stationData){
+  # doesn't apply in class II transition zone
+  stationData <- filter(stationData, CLASS %in% c('III', "IV","V","VI","VII") |
+                          CLASS ==  "II" & ZONE == 'Tidal Fresh') %>% 
+    filter(!(LEVEL_CHLORIDE %in% c('Level II', 'Level I'))) %>% # get lower levels out
+    filter(!is.na(CHLORIDE_mg_L)) #get rid of NA's
+  
+  if(nrow(stationData) > 0){
+    
+    # make a place to store analysis results
+    acuteCriteriaResults <- tibble(FDT_STA_ID = as.character(NA), WindowDateTimeStart = as.POSIXct(NA), FDT_DEPTH = as.numeric(NA),
+                                   Value = as.numeric(NA), ValueType = as.character(NA), 
+                                   `Criteria Type` = as.character(NA), CriteriaValue = as.numeric(NA), 
+                                   parameterRound = as.numeric(NA), Exceedance = as.numeric(NA))
+    chronicCriteriaResults <- acuteCriteriaResults
+    
+    # loop through each row of data to correctly calculate criteria and find any chronic scenarios
+    for(k in stationData$FDT_DATE_TIME){  #k = stationData$FDT_DATE_TIME[1]
+      acuteDataWindow <- filter(stationData,  between(FDT_DATE_TIME, k, k + hours(1)))
+      chronicDataWindow <- filter(stationData,  between(FDT_DATE_TIME, k, k + days(4)))
+      
+      # Run acute analysis if data exists
+      if(nrow(acuteDataWindow) > 0){
+        acuteDataCriteriaAnalysis <- dplyr::select(acuteDataWindow, FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, CHLORIDE_mg_L) %>% 
+          group_by(FDT_STA_ID, FDT_DEPTH) %>% # can't group by datetime or summary can't happen
+          summarise(Value = mean(CHLORIDE_mg_L, na.rm=T)) %>%  # get hourly average
+          mutate(ValueType = 'Hourly Average',
+                 ID = paste( FDT_STA_ID, FDT_DEPTH, sep = '_'), # make a uniqueID in case >1 sample for given datetime
+                 `Criteria Type` = 'Acute', 
+                 CriteriaValue = 860) %>%  # 860,000ug/L criteria to mg/L
+          mutate(parameterRound = signif(Value, digits = 2), # two significant figures based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
+                 Exceedance = ifelse(parameterRound > CriteriaValue, 1, 0 ), # use 1/0 to easily summarize multiple results later
+                 WindowDateTimeStart = min(acuteDataWindow$FDT_DATE_TIME)) %>% 
+          dplyr::select(FDT_STA_ID, WindowDateTimeStart, everything(), -ID)
+        # Save the results for viewing later
+        acuteCriteriaResults <- bind_rows(acuteCriteriaResults, acuteDataCriteriaAnalysis) 
+      } else {acuteCriteriaResults <- acuteCriteriaResults }
+      
+      # Run chronic analysis if data exists
+      if(nrow(chronicDataWindow) > 0){
+        chronicDataCriteriaAnalysis <- dplyr::select(chronicDataWindow, FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH, CHLORIDE_mg_L) %>% 
+          group_by(FDT_STA_ID, FDT_DEPTH) %>% # can't group by datetime or summary can't happen
+          summarise(Value = mean(CHLORIDE_mg_L, na.rm=T)) %>%  # get hourly average
+          mutate(ValueType = 'Four Day Average',
+                 ID = paste( FDT_STA_ID, FDT_DEPTH, sep = '_'), # make a uniqueID in case >1 sample for given datetime
+                 `Criteria Type` = 'Chronic', 
+                 CriteriaValue = 230) %>%  # 230,000ug/L criteria to mg/L
+          mutate(parameterRound = signif(Value, digits = 2), # two significant figures based on WQS https://law.lis.virginia.gov/admincode/title9/agency25/chapter260/section140/
+                 Exceedance = ifelse(parameterRound > CriteriaValue, 1, 0 ), # use 1/0 to easily summarize multiple results later
+                 WindowDateTimeStart = min(chronicDataWindow$FDT_DATE_TIME)) %>% 
+          dplyr::select(FDT_STA_ID, WindowDateTimeStart, everything(), -ID)
+        # Save the results for viewing later
+        chronicCriteriaResults <- bind_rows(chronicCriteriaResults, chronicDataCriteriaAnalysis) 
+      } else {chronicCriteriaResults <- chronicCriteriaResults }
+    }
+    #summarise results
+    stationCriteriaResults <- bind_rows( acuteCriteriaResults, chronicCriteriaResults) %>% 
+      filter(!is.na(FDT_STA_ID)) %>% # drop placeholder rows
+      distinct(FDT_STA_ID, WindowDateTimeStart, FDT_DEPTH, `Criteria Type`, .keep_all = T) %>% # remove duplicates in case > 1 depth per datetime
+      arrange(FDT_STA_ID, WindowDateTimeStart, FDT_DEPTH, `Criteria Type`)
+    return(stationCriteriaResults)
+  } else {return(tibble(FDT_STA_ID = as.character(NA), WindowDateTimeStart = as.POSIXct(NA), FDT_DEPTH = as.numeric(NA),
+                        Value = as.numeric(NA), ValueType = as.character(NA), 
+                        `Criteria Type` = as.character(NA), CriteriaValue = as.numeric(NA), 
+                        parameterRound = as.numeric(NA), Exceedance = as.numeric(NA)) ) }
+}
+#chlorideFreshwaterAnalysis(stationData)
+
+
+
+
+chlorideFreshwaterSummary <- function(chlorideFreshwater){
+  chlorideFreshwaterExceed <- filter(chlorideFreshwater, Exceedance ==1)
+  if(nrow(chlorideFreshwaterExceed) >0){
+    return(tibble(CHL_EXC = nrow(chlorideFreshwaterExceed), CHL_STAT = 'Review'))
+  } else {return(tibble(CHL_EXC = NA, CHL_STAT= NA))}
+}
+#chlorideFreshwaterSummary(suppressMessages(chlorideFreshwaterAnalysis(stationData)))
+

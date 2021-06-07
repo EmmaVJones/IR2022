@@ -127,7 +127,6 @@ Pull pinned WQS info saved on server and join to station table. Identify if any 
 ```{r pull WQS info}
 WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
 
-stationTable <- read_csv('processedStationData/stationsTable2022begin.csv')# %>% 
 
 stationTable <- left_join(stationTable, WQSlookup, by = c('STATION_ID'='StationID')) %>%
   mutate(CLASS_BASIN = paste(CLASS,substr(BASIN, 1,1), sep="_")) %>%
@@ -282,9 +281,15 @@ for(i in 1:nrow(stationTable)){
                          assessPWS(stationData, CHLORIDE_mg_L, LEVEL_CHLORIDE, 250, 'PWS_Chloride'),
                          assessPWS(stationData, SULFATE_TOTAL_mg_L, LEVEL_SULFATE_TOTAL, 250, 'PWS_Total_Sulfate')) %>%
        dplyr::select(-ends_with('exceedanceRate')) }
-  
-  # Water toxics combination with PWS
+    
+  # chloride assessment if data exists
+    if(nrow(filter(stationData, !is.na(CHLORIDE_mg_L)))){
+      chlorideFreshwater <- chlorideFreshwaterSummary(suppressMessages(chlorideFreshwaterAnalysis(stationData)))
+    } else {chlorideFreshwater <- tibble(CHL_EXC = NA, CHL_STAT= NA)}
+    
+  # Water toxics combination with PWS, Chloride Freshwater, and water column PCB data
   if(nrow(bind_cols(PWSconcat,
+                    chlorideFreshwater,
                     PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Water')) %>%
                                         filter(StationID %in% stationData$FDT_STA_ID), 'WAT_TOX')) %>%
           dplyr::select(contains(c('_EXC','_STAT'))) %>%

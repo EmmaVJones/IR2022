@@ -4,7 +4,8 @@ library(shiny) # version 1.4.0
 library(lubridate) # version 1.7.4
 library(DT) # version 0.13
 library(plotly) # version 4.9.1
-
+library(EnvStats) # version 2.4.0
+library(round) # version 0.12-2
 
 # Bring in assessment Functions and app modules
 source('appModulesAndFunctions/updatedBacteriaCriteria.R')

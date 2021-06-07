@@ -21,35 +21,35 @@ historicalStationsTable <- st_read('data/GIS/va20ir_wqms.shp') %>%
   st_drop_geometry()#read_csv('data/stationsTable2022begin.csv') # last cycle stations table (forced into new station table format)
 WCmetals <- pin_get("WCmetals-2022IRfinal",  board = "rsconnect")
 # Separate object for analysis, tack on METALS and RMK designation to make the filtering of certain lab comment codes easier
-WCmetalsForAnalysis <- WCmetals %>% 
+WCmetalsForAnalysis <- WCmetals %>%
   dplyr::select(Station_Id, FDT_DATE_TIME, FDT_DEPTH, # include depth bc a few samples taken same datetime but different depths
-                METAL_Antimony = `STORET_01095_ANTIMONY, DISSOLVED (UG/L AS SB)`, RMK_Antimony = RMK_01097, 
-                METAL_Arsenic = `STORET_01000_ARSENIC, DISSOLVED  (UG/L AS AS)`, RMK_Arsenic = RMK_01002, 
-                METAL_Barium = `STORET_01005_BARIUM, DISSOLVED (UG/L AS BA)`, RMK_Barium = RMK_01005, 
+                METAL_Antimony = `STORET_01095_ANTIMONY, DISSOLVED (UG/L AS SB)`, RMK_Antimony = RMK_01097,
+                METAL_Arsenic = `STORET_01000_ARSENIC, DISSOLVED  (UG/L AS AS)`, RMK_Arsenic = RMK_01002,
+                METAL_Barium = `STORET_01005_BARIUM, DISSOLVED (UG/L AS BA)`, RMK_Barium = RMK_01005,
                 METAL_Cadmium = `STORET_01025_CADMIUM, DISSOLVED (UG/L AS CD)`, RMK_Cadmium = RMK_01025,
-                METAL_Chromium = `STORET_01030_CHROMIUM, DISSOLVED (UG/L AS CR)`, RMK_Chromium = RMK_01030, 
+                METAL_Chromium = `STORET_01030_CHROMIUM, DISSOLVED (UG/L AS CR)`, RMK_Chromium = RMK_01030,
                 # Chromium III and ChromiumVI dealt with inside metalsAnalysis()
-                METAL_Copper = `STORET_01040_COPPER, DISSOLVED (UG/L AS CU)`, RMK_Copper = RMK_01040, 
-                METAL_Lead = `STORET_01049_LEAD, DISSOLVED (UG/L AS PB)`, RMK_Lead = RMK_01049, 
+                METAL_Copper = `STORET_01040_COPPER, DISSOLVED (UG/L AS CU)`, RMK_Copper = RMK_01040,
+                METAL_Lead = `STORET_01049_LEAD, DISSOLVED (UG/L AS PB)`, RMK_Lead = RMK_01049,
                 METAL_Mercury = `STORET_50091_MERCURY-TL,FILTERED WATER,ULTRATRACE METHOD UG/L`, RMK_Mercury = RMK_50091,
-                METAL_Nickel = `STORET_01065_NICKEL, DISSOLVED (UG/L AS NI)`, RMK_Nickel = RMK_01067, 
-                METAL_Uranium = `URANIUM_TOT`, RMK_Uranium = `RMK_7440-61-1T`, 
-                METAL_Selenium = `STORET_01145_SELENIUM, DISSOLVED (UG/L AS SE)`, RMK_Selenium = RMK_01145, 
-                METAL_Silver = `STORET_01075_SILVER, DISSOLVED (UG/L AS AG)`, RMK_Silver = RMK_01075, 
+                METAL_Nickel = `STORET_01065_NICKEL, DISSOLVED (UG/L AS NI)`, RMK_Nickel = RMK_01067,
+                METAL_Uranium = `URANIUM_TOT`, RMK_Uranium = `RMK_7440-61-1T`,
+                METAL_Selenium = `STORET_01145_SELENIUM, DISSOLVED (UG/L AS SE)`, RMK_Selenium = RMK_01145,
+                METAL_Silver = `STORET_01075_SILVER, DISSOLVED (UG/L AS AG)`, RMK_Silver = RMK_01075,
                 METAL_Thallium = `STORET_01057_THALLIUM, DISSOLVED (UG/L AS TL)`, RMK_Thallium = RMK_01057,
                 METAL_Zinc = `STORET_01090_ZINC, DISSOLVED (UG/L AS ZN)`, RMK_Zinc = RMK_01092,
-                METAL_Hardness = `STORET_DHARD_HARDNESS, CA MG CALCULATED (MG/L AS CACO3) AS DISSOLVED`, RMK_Hardness = RMK_DHARD) %>% 
-  group_by(Station_Id, FDT_DATE_TIME, FDT_DEPTH) %>% 
-  mutate_if(is.numeric, as.character) %>% 
-  pivot_longer(cols = METAL_Antimony:RMK_Hardness, #RMK_Antimony:RMK_Hardness, 
+                METAL_Hardness = `STORET_DHARD_HARDNESS, CA MG CALCULATED (MG/L AS CACO3) AS DISSOLVED`, RMK_Hardness = RMK_DHARD) %>%
+  group_by(Station_Id, FDT_DATE_TIME, FDT_DEPTH) %>%
+  mutate_if(is.numeric, as.character) %>%
+  pivot_longer(cols = METAL_Antimony:RMK_Hardness, #RMK_Antimony:RMK_Hardness,
                names_to = c('Type', 'Metal'),
                names_sep = "_",
-               values_to = 'Value') %>% 
-  ungroup() %>% group_by(Station_Id, FDT_DATE_TIME, FDT_DEPTH, Metal) %>% 
+               values_to = 'Value') %>%
+  ungroup() %>% group_by(Station_Id, FDT_DATE_TIME, FDT_DEPTH, Metal) %>%
   pivot_wider(id_cols = c(Station_Id, FDT_DATE_TIME, FDT_DEPTH, Metal), names_from = Type, values_from = Value) %>% # pivot remark wider so the appropriate metal value is dropped when filtering on lab comment codes
   filter(! RMK %in% c('IF', 'J', 'O', 'QF', 'V')) %>% # lab codes dropped from further analysis
   pivot_longer(cols= METAL:RMK, names_to = 'Type', values_to = 'Value') %>% # get in appropriate format to flip wide again
-  pivot_wider(id_cols = c(Station_Id, FDT_DATE_TIME, FDT_DEPTH), names_from = c(Type, Metal), names_sep = "_", values_from = Value) %>% 
+  pivot_wider(id_cols = c(Station_Id, FDT_DATE_TIME, FDT_DEPTH), names_from = c(Type, Metal), names_sep = "_", values_from = Value) %>%
   mutate_at(vars(contains('METAL')), as.numeric) %>%# change metals values back to numeric
   rename_with(~str_remove(., 'METAL_')) # drop METAL_ prefix for easier analyses
 Smetals <- pin_get("Smetals-2022IRfinal",  board = "rsconnect")
@@ -428,6 +428,38 @@ shinyServer(function(input, output, session) {
       map(1) 
     z$AmmoniaAnalysis })
   
+  waterToxics <- reactive({ req(stationData())
+    # PWS stuff
+    if(nrow(stationData()) > 0){
+      if(is.na(unique(stationData()$PWS))  ){
+        PWSconcat <- tibble(#STATION_ID = unique(stationData()$FDT_STA_ID),
+          PWS= NA)
+      } else {
+        PWSconcat <- cbind(#tibble(STATION_ID = unique(stationData()$FDT_STA_ID)),
+          assessPWS(stationData(), NITRATE_mg_L, LEVEL_NITRATE, 10, 'PWS_Nitrate'),
+          assessPWS(stationData(), CHLORIDE_mg_L, LEVEL_CHLORIDE, 250, 'PWS_Chloride'),
+          assessPWS(stationData(), SULFATE_TOTAL_mg_L, LEVEL_SULFATE_TOTAL, 250, 'PWS_Total_Sulfate')) %>%
+          dplyr::select(-ends_with('exceedanceRate')) }
+      
+      # chloride assessment if data exists
+      if(nrow(filter(stationData(), !is.na(CHLORIDE_mg_L)))){
+        chlorideFreshwater <- chlorideFreshwaterSummary(suppressMessages(chlorideFreshwaterAnalysis(stationData())))
+      } else {chlorideFreshwater <- tibble(CHL_EXC = NA, CHL_STAT= NA)}
+
+      # Water toxics combination with PWS, Chloride Freshwater, and water column PCB data
+      if(nrow(bind_cols(PWSconcat,
+                        chlorideFreshwater,
+                        PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Water')) %>%
+                                            filter(StationID %in% stationData()$FDT_STA_ID), 'WAT_TOX')) %>%
+              dplyr::select(contains(c('_EXC','_STAT'))) %>%
+              mutate(across( everything(),  as.character)) %>%
+              pivot_longer(cols = contains(c('_EXC','_STAT')), names_to = 'parameter', values_to = 'values', values_drop_na = TRUE) ) > 1) {
+        WCtoxics <- tibble(WAT_TOX_EXC = NA, WAT_TOX_STAT = 'Review') } else { WCtoxics <- tibble(WAT_TOX_EXC = NA, WAT_TOX_STAT = NA)}
+       } else { WCtoxics <- tibble(WAT_TOX_EXC = NA, WAT_TOX_STAT = NA)} 
+      return(WCtoxics) })
+  
+  #output$testtesttest <- renderPrint({waterToxics()})
+  
   observe({
     req(nrow(ecoli()) > 0, nrow(enter()) > 0)# need to tell the app to wait for data to exist in these objects before smashing data together or will bomb out when switching between VAHU6's on the Watershed Selection Page
     siteData$stationTableOutput <- bind_rows(stationsTemplate,
@@ -449,8 +481,9 @@ shinyServer(function(input, output, session) {
                                          # metalsExceedances(filter(WCmetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
                                          #                     dplyr::select(`ANTIMONY HUMAN HEALTH PWS`:`ZINC ALL OTHER SURFACE WATERS`), 'WAT_MET'),
                                          # Mark's water column PCB results, flagged
-                                         PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Water')) %>%
-                                                               filter(StationID %in%  stationData()$FDT_STA_ID), 'WAT_TOX'),
+                                         # PCBmetalsDataExists(filter(markPCB, str_detect(SampleMedia, 'Water')) %>%
+                                         #                       filter(StationID %in%  stationData()$FDT_STA_ID), 'WAT_TOX'),
+                                         waterToxics(),
                                          # Roger's sediment metals analysis, transcribed
                                          metalsData(filter(Smetals, Station_Id %in% stationData()$FDT_STA_ID), 'SED_MET'),
                                          # metalsExceedances(filter(Smetals, FDT_STA_ID %in% stationData()$FDT_STA_ID) %>% 
