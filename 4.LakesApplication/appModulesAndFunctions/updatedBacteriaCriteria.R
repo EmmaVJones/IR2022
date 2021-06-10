@@ -66,15 +66,18 @@ bacteriaExceedances_NEW <- function(x, # input dataframe with bacteria data
       timePlus89 <- time1 + days(89) 
       
       # Organize prerequisites to decision process
-      z <- filter(x2, FDT_DATE_TIME >= time1 & FDT_DATE_TIME <= timePlus89) %>% 
+      z <- filter(x2, as.Date(FDT_DATE_TIME) >= time1 & as.Date(FDT_DATE_TIME) <= timePlus89) %>% 
         mutate(nSamples = n(), # count number of samples in 90 day window
                STVhit = ifelse(Value > STV, TRUE, FALSE), # test values in window against STV
-               geomean = ifelse(nSamples > 1, EnvStats::geoMean(Value, na.rm = TRUE), NA), # calculate geomean of samples if nSamples>1
-               geomeanCriteriaHit = ifelse(geomean > geomeanCriteria, TRUE, FALSE)) # test geomean against geomean Criteria
+               geomean = ifelse(nSamples > 1, # calculate geomean of samples if nSamples>1
+                                as.numeric(round::roundAll(EnvStats::geoMean(Value, na.rm = TRUE), digits=0, "r0.C")), # round to nearest whole number per Memo to Standardize Rounding for Assessment Guidance
+                                NA), 
+               geomeanCriteriaHit = ifelse(geomean > geomeanCriteria, TRUE, FALSE)) # test round to even geomean against geomean Criteria
       
       # First level of testing: any STV hits in dataset? Want this information for all scenarios
       nSTVhitsInWindow <- nrow(filter(z, STVhit == TRUE))
-      STVexceedanceRate <- ifelse(z$nSamples >= 10, round(( nSTVhitsInWindow / unique(z$nSamples)) * 100, digits = 0), # STV exceedance rate calculation with round to even math
+      # STV exceedance rate calculation with round to even math
+      STVexceedanceRate <- ifelse(z$nSamples >= 10, as.numeric(round::roundAll((nSTVhitsInWindow / unique(z$nSamples)) * 100,digits=0, "r0.C")), # round to nearest whole number per Memo to Standardize Rounding for Assessment Guidance
                                   NA) # no STV exceedance rate if < 10 samples
       if(nSTVhitsInWindow == 0){
         `STV Assessment` <- 'No STV violations within 90 day window' } 
