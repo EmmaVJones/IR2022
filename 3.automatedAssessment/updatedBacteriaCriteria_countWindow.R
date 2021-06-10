@@ -164,14 +164,14 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
 
     # Run assessment function
     z <- suppressWarnings(bacteriaExceedances_NEW(x, bacteriaField, bacteriaRemark, sampleRequirement, STV, geomeanCriteria)   )
-    exceedSTVn <- select(x,  Value = {{ bacteriaField }} ) %>%
-      filter(Value > STV) # total STV exceedances in dataset
-
-    # # could change this logic to
-    # exceedSTVn <- bind_rows(filter(z, `STV Exceedance Rate` > 10), # `STV Exceedance Rate` only appears when 10+ samples in window
-    #                         filter(z, `STV Exceedances In Window` > 0 & `Samples in 90 Day Window` < 10))
-    # # # would also need to change the verbose description to just "Fully Supporting"
+    # exceedSTVn <- select(x,  Value = {{ bacteriaField }} ) %>% 
+    #   filter(Value > STV) # total STV exceedances in dataset
     # 
+    # could change this logic to
+    exceedSTVn <- bind_rows(filter(z, `STV Exceedance Rate` > 10), # `STV Exceedance Rate` only appears when 10+ samples in window
+                            filter(z, `STV Exceedances In Window` > 0 & `Samples in 90 Day Window` < 10))
+    # # would also need to change the verbose description to just "Fully Supporting"
+    
     exceedSTVrate <- filter(z, `STV Exceedance Rate` > 10)
     exceedGeomean <- filter(z, `Geomean In Window` > geomeanCriteria)
     
