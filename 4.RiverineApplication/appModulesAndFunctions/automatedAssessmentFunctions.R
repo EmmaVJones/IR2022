@@ -426,12 +426,12 @@ chlA_Assessment <- function(x){
         if(all(unique(mostRecent2years$chlA_Exceedance)) == TRUE){ # both years exceed
           return(tibble(NUT_CHLA_EXC= nrow(mostRecent2years), NUT_CHLA_SAMP = nrow(mostRecent2years),	NUT_CHLA_STAT = 'IM'))
         } else { # run a tiebreak with third most recent year
-          mostRecent3years <- slice_max(validYears, Year, n = 3) %>% # get most recent three years of results
-            filter(chlA_Exceedance == TRUE)
-          if(nrow(mostRecent3years) >= 2){
-            return(tibble(NUT_CHLA_EXC= nrow(mostRecent3years), NUT_CHLA_SAMP = nrow(mostRecent3years),	NUT_CHLA_STAT = 'IM'))
+          mostRecent3years <- slice_max(validYears, Year, n = 3) # get most recent three years of results
+          mostRecent3yearsExceed <- filter(mostRecent3years, chlA_Exceedance == TRUE)
+          if(nrow(mostRecent3yearsExceed) >= 2){
+            return(tibble(NUT_CHLA_EXC= nrow(mostRecent3yearsExceed), NUT_CHLA_SAMP = nrow(mostRecent3years),	NUT_CHLA_STAT = 'IM'))
           } else {
-            return(tibble(NUT_CHLA_EXC= nrow(mostRecent3years), NUT_CHLA_SAMP = nrow(mostRecent3years),	NUT_CHLA_STAT = 'Review')) }
+            return(tibble(NUT_CHLA_EXC= nrow(mostRecent3yearsExceed), NUT_CHLA_SAMP = nrow(mostRecent3years),	NUT_CHLA_STAT = 'Review')) }
         }}} else {return(tibble(NUT_CHLA_EXC= NA, NUT_CHLA_SAMP = nrow(validYears),	NUT_CHLA_STAT = 'IN') ) }
     } else {    return(tibble(NUT_CHLA_EXC= NA, NUT_CHLA_SAMP = NA,	NUT_CHLA_STAT = NA) )  }
 }
@@ -951,7 +951,7 @@ freshwaterNH3Assessment <- function(x, # x is station run through freshwaterNH3l
       return(
         list(
           tibble(AMMONIA_EXC = 0,
-                 AMMONIA_STAT = 'S',
+                 AMMONIA_STAT = ifelse(nrow(x) > 1, 'S', 'IN'),#'S',
                  `Assessment Decision` = paste0('Dataset contains no ', assessmentType, ' exceedances.')),
           `Exceedance Results` = NA)  )
     }
@@ -1001,7 +1001,6 @@ ammoniaDecision <- function(freshwaterAssessments # list of freshwater assessmen
 #ammoniaDecision(list(acute = freshwaterNH3Assessment(x, 'acute'),
 #                     chronic = freshwaterNH3Assessment(x, 'chronic'),
 #                     fourDay = freshwaterNH3Assessment(x, 'four-day')))
-
 
 
 

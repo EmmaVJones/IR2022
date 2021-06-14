@@ -82,7 +82,9 @@ stationsTemplate <- read_excel('WQA_CEDS_templates/WQA_Bulk_Station_Upload_Final
                                sheet = 'Stations', col_types = "text")[0,] %>% 
   mutate(LATITUDE = as.numeric(LATITUDE), LONGITUDE = as.numeric(LONGITUDE)) %>% 
   mutate_at(vars(contains('_EXC')), as.integer) %>% 
-  mutate_at(vars(contains('_SAMP')), as.integer)
+  mutate_at(vars(contains('_SAMP')), as.integer) %>% 
+  # new addition that breaks station table upload template but very helpful for assessors
+  mutate(`Date Last Sampled` = as.character(NA))
 
   #read_excel('WQA_CEDS_templates/WQA_Bulk_Station_Upload (3).xlsx', 
       #sheet = 'Stations')[0,]#, col_types = "text")[0,] %>%  # just want structure and not the draft data, force everything to character for now
@@ -205,8 +207,10 @@ bothTypesE <- filter(estuarineStations, str_detect(ID305B_1, 'R_') | str_detect(
                           str_detect(ID305B_5, 'R_') | str_detect(ID305B_6, 'R_') | str_detect(ID305B_7, 'R_') | str_detect(ID305B_8, 'R_') | 
                           str_detect(ID305B_9, 'R_') | str_detect(ID305B_10, 'R_') ) 
 #View(dplyr::select(stationTable, STATION_ID, ID305B_1, WQS_ID, everything()))
-stationTable <- filter(stationTable, ! STATION_ID %in% estuarineStations$STATION_ID) %>%
-  bind_rows(bothTypesE) # add northern station back in to be safe
+
+# filter out estuarine stations for analysis
+# stationTable <- filter(stationTable, ! STATION_ID %in% estuarineStations$STATION_ID) %>%
+#   bind_rows(bothTypesE) # add northern station back in to be safe
 
 
 # for running only a few select sites
@@ -229,7 +233,7 @@ go through conventionals one station at a time, join stationTable, analyze by fu
 
 
 ```{r}
-stationTableResults <- stationsTemplate
+stationTableResults <- stationsTemplate 
 # save ammonia results (based on default assessment information) for use in app to speed rendering
 ammoniaAnalysis <- tibble()
 
@@ -261,6 +265,10 @@ for(i in 1:nrow(stationTable)){
 
   # Previous station table comments
   comments <- stationTableComments(stationTable$STATION_ID[i], stationTable, '2020', historicalStationsTable2, '2018')
+  
+  # Date last sampled
+  if(nrow(stationData) > 0){
+    dateLastSampled <- as.character(max(stationData$FDT_DATE_TIME)) } else {dateLastSampled <- 'No data in conventionals data pull'}
   
   # Ammonia special section
   ammoniaAnalysisStation <- freshwaterNH3limit(stationData, trout = ifelse(unique(stationData$CLASS) %in% c('V','VI'), TRUE, FALSE),
@@ -400,12 +408,14 @@ for(i in 1:nrow(stationTable)){
                                ' | Enterococci Comment: ', ENTER_STATENTER_VERBOSE,
                                ' | AMMONIA Comment: ', `Assessment Decision`)) %>%
       left_join(comments, by = 'STATION_ID') %>%
-      dplyr::select(-ends_with(c('exceedanceRate', 'VERBOSE', 'Assessment Decision', 'StationID'))) # to match Bulk Upload template but helpful to keep visible til now for testing
+      dplyr::select(-ends_with(c('exceedanceRate', 'VERBOSE', 'Assessment Decision', 'StationID'))) %>%  # to match Bulk Upload template but helpful to keep visible til now for testing
+      mutate(`Date Last Sampled` = dateLastSampled)
   } else {# pull what you can from last cycle and flag as carry over
     results <- filter(stationTable, STATION_ID == stationTable$STATION_ID[i]) %>%
       dplyr::select(STATION_ID:VAHU6, COMMENTS) %>%
       mutate(COMMENTS = 'This station has no data in current window but was carried over due to IM in one of the 2020IR status fields or the 2020 stations table reports the station was carried over from a previous cycle.') %>%
-      left_join(comments, by = 'STATION_ID')
+      left_join(comments, by = 'STATION_ID') %>% 
+      mutate(`Date Last Sampled` = dateLastSampled)
   }
   
   stationTableResults <- bind_rows(stationTableResults,results)
@@ -429,23 +439,23 @@ timeDiff = Sys.time()- startTime
 Now add in comment for estuarine stations to expedite assessor identification of stations
 
 ```{r add back estuarine stations }
-estuarineStations <- filter(estuarineStations, ! STATION_ID %in% bothTypesE$STATION_ID) # drop duplicates
-
-# Previous station table comments
-comments <- stationTableComments(unique(estuarineStations$STATION_ID), stations2020IR, '2020', historicalStationsTable2, '2018')
-  
-
-estuarineStationData <- dplyr::select(estuarineStations, STATION_ID:VAHU6, COMMENTS) %>%
-      mutate(COMMENTS = 'This station is designated as an estuarine station and cannot be assessed by current automated methods.') %>%
-      left_join(comments, by = 'STATION_ID')
-  
-  
-stationTableResults <- bind_rows(stationTableResults, estuarineStationData)
-
-# stationTableResults1 <- stationTableResults1 %>% group_by(STATION_ID) %>% mutate(n()) %>% 
-#   dplyr::select(`n()`, everything())
+# estuarineStations <- filter(estuarineStations, ! STATION_ID %in% bothTypesE$STATION_ID) # drop duplicates
 # 
-# View(filter(stationTableResults1, STATION_ID == '7ACHE004.29'))
+# # Previous station table comments
+# comments <- stationTableComments(unique(estuarineStations$STATION_ID), stations2020IR, '2020', historicalStationsTable2, '2018')
+#   
+# 
+# estuarineStationData <- dplyr::select(estuarineStations, STATION_ID:VAHU6, COMMENTS) %>%
+#       mutate(COMMENTS = 'This station is designated as an estuarine station and cannot be assessed by current automated methods.') %>%
+#       left_join(comments, by = 'STATION_ID')
+#   
+#   
+# stationTableResults <- bind_rows(stationTableResults, estuarineStationData)
+
+### stationTableResults1 <- stationTableResults1 %>% group_by(STATION_ID) %>% mutate(n()) %>% 
+###   dplyr::select(`n()`, everything())
+### 
+### View(filter(stationTableResults1, STATION_ID == '7ACHE004.29'))
 ```
 
 Fix station comments if not already fixed

@@ -951,7 +951,7 @@ freshwaterNH3Assessment <- function(x, # x is station run through freshwaterNH3l
       return(
         list(
           tibble(AMMONIA_EXC = 0,
-                 AMMONIA_STAT = 'S',
+                 AMMONIA_STAT = ifelse(nrow(x) > 1, 'S', 'IN'),#'S',
                  `Assessment Decision` = paste0('Dataset contains no ', assessmentType, ' exceedances.')),
           `Exceedance Results` = NA)  )
     }
@@ -1001,7 +1001,6 @@ ammoniaDecision <- function(freshwaterAssessments # list of freshwater assessmen
 #ammoniaDecision(list(acute = freshwaterNH3Assessment(x, 'acute'),
 #                     chronic = freshwaterNH3Assessment(x, 'chronic'),
 #                     fourDay = freshwaterNH3Assessment(x, 'four-day')))
-
 
 
 
