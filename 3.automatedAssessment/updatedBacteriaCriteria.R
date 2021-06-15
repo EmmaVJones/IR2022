@@ -164,15 +164,20 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
 
     # Run assessment function
     z <- suppressWarnings(bacteriaExceedances_NEW(x, bacteriaField, bacteriaRemark, sampleRequirement, STV, geomeanCriteria)   )
+    # number of STV exceedances, reported in bacteria_EXC field in stations table and useful for logic testing
     exceedSTVn <- select(x,  Value = {{ bacteriaField }} ) %>%
       filter(Value > STV) # total STV exceedances in dataset
-
-    # # could change this logic to report on big window/small window proposed methods
-    # exceedSTVn <- bind_rows(filter(z, `STV Exceedance Rate` > 10), # `STV Exceedance Rate` only appears when 10+ samples in window
+    # Windows with impairments, reported outside stations table bulk upload template
+    zz <- mutate(z, UID = 1:n())
+    impairedWindow <- bind_rows(filter(zz, str_detect(`STV Assessment`, 'Impaired')), 
+                                filter(zz, str_detect(`Geomean Assessment`, 'Impaired')) ) %>% 
+      distinct(UID, .keep_all = T)
+    # exceedSTVwindow <-   filter(z,`STV Exceedances In Window` > 0)
+    # exceedSTVwindow <- bind_rows(filter(z, `STV Exceedance Rate` > 10), # `STV Exceedance Rate` only appears when 10+ samples in window
     #                         filter(z, `STV Exceedances In Window` > 0 & `Samples in 90 Day Window` < 10))
-    # # # would also need to change the verbose description to just "Fully Supporting"
-    # 
+    # Windows with > 10% STV rate
     exceedSTVrate <- filter(z, `STV Exceedance Rate` > 10)
+    # windows with geomean exceedances
     exceedGeomean <- filter(z, `Geomean In Window` > geomeanCriteria)
     
     # Decision logic time, work through geomean first and if there is no appropriate geomean data (no windows with 10+ samples)
@@ -189,6 +194,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
           if(nrow(filter(exceedSTVrate, `Samples in 90 Day Window` >= 10 & `STV Exceedance Rate` > 10)) > 0){ # STV exceedances in a 90-day period represented by >= 10 samples
             return(tibble(StationID = unique(z$StationID),
                           `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                          `_IMPAIREDWINDOWS` = nrow(impairedWindow), # number of impaired windows
                           `_SAMP` = nrow(nSamples), 
                           `_GM.EXC` = nrow(exceedGeomean),
                           `_GM.SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
@@ -204,6 +210,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
             if(any(z$`STV Exceedances In Window` >= 2) ){
               return(tibble(StationID = unique(z$StationID),
                             `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                            `_IMPAIREDWINDOWS` = nrow(impairedWindow), # number of impaired windows
                             `_SAMP` = nrow(nSamples), 
                             `_GM.EXC` = nrow(exceedGeomean),
                             `_GM.SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
@@ -218,6 +225,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
                 if(all(filter(z, `STV Exceedances In Window` > 0)$`Samples in 90 Day Window` >= 10)){
                   return(tibble(StationID = unique(z$StationID),
                                 `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                                `_IMPAIREDWINDOWS` = nrow(impairedWindow), # number of impaired windows
                                 `_SAMP` = nrow(nSamples), 
                                 `_GM.EXC` = nrow(exceedGeomean),
                                 `_GM.SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
@@ -232,6 +240,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
                 # 1 hit in one or multiple 90-day periods after verifying geomean passes where applicable
                 return(tibble(StationID = unique(z$StationID),
                               `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                              `_IMPAIREDWINDOWS` = nrow(impairedWindow), # number of impaired windows
                               `_SAMP` = nrow(nSamples), 
                               `_GM.EXC` = nrow(exceedGeomean),
                               `_GM.SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
@@ -247,6 +256,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
         } else {  # Do any of the 90-day periods of the assessment window represented in the dataset exceed the 10% STV Exceedance Rate? - No
           return(tibble(StationID = unique(z$StationID),
                         `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                        `_IMPAIREDWINDOWS` = nrow(impairedWindow), # number of impaired windows
                         `_SAMP` = nrow(nSamples), 
                         `_GM.EXC` = nrow(exceedGeomean),
                         `_GM.SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
@@ -260,6 +270,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
       } else { # Do the geometric means calculated for the 90-day periods represented by 10+ samples meet the GM criterion? - No
         return(tibble(StationID = unique(z$StationID),
                       `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                      `_IMPAIREDWINDOWS` = nrow(impairedWindow), # number of impaired windows
                       `_SAMP` = nrow(nSamples), 
                       `_GM.EXC` = nrow(exceedGeomean),
                       `_GM.SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
@@ -274,8 +285,8 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
       # Were there any hits of the STV during the dataset?
       if( nrow(exceedSTVn) == 0){ # Were there any hits of the STV during the dataset? - No
         return(tibble(StationID = unique(z$StationID),
-                      # not quite right yet
                       `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                      `_IMPAIREDWINDOWS` = nrow(impairedWindow), # number of impaired windows
                       `_SAMP` = nrow(nSamples), 
                       `_GM.EXC` = as.numeric(NA), #nrow(exceedGeomean), # Data Entry manual updated to require NA instead of 0 if < 10 samples per 90 day window
                       `_GM.SAMP` = as.numeric(NA), #nrow(filter(z, !is.na(`Geomean In Window`))), # Data Entry manual updated to require NA instead of 0 if < 10 samples per 90 day window
@@ -290,6 +301,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
             return(tibble(StationID = unique(z$StationID),
                           # not quite right yet
                           `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the number of STV exceedances in a 90-day period with 10+ samples
+                          `_IMPAIREDWINDOWS` = nrow(impairedWindow), # number of impaired windows
                           `_SAMP` = nrow(nSamples), 
                           `_GM.EXC` = as.numeric(NA), #nrow(exceedGeomean), # Data Entry manual updated to require NA instead of 0 if < 10 samples per 90 day window
                           `_GM.SAMP` = as.numeric(NA), #nrow(filter(z, !is.na(`Geomean In Window`))), # Data Entry manual updated to require NA instead of 0 if < 10 samples per 90 day window
@@ -302,6 +314,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
             # 1 hit in one or multiple 90-day periods
             return(tibble(StationID = unique(z$StationID),
                           `_EXC` = nrow(exceedSTVn), # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                          `_IMPAIREDWINDOWS` = nrow(impairedWindow), # number of impaired windows
                           `_SAMP` = nrow(nSamples), 
                           `_GM.EXC` = as.numeric(NA), #nrow(exceedGeomean), # Data Entry manual updated to require NA instead of 0 if < 10 samples per 90 day window
                           `_GM.SAMP` = as.numeric(NA), #nrow(filter(z, !is.na(`Geomean In Window`))), # Data Entry manual updated to require NA instead of 0 if < 10 samples per 90 day window
@@ -317,6 +330,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
     } else {
       return(tibble(StationID = unique(x$FDT_STA_ID),
                     `_EXC` = NA, # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                    `_IMPAIREDWINDOWS` = NA,
                     `_SAMP` = NA, 
                     `_GM.EXC` = NA,
                     `_GM.SAMP` = NA,
@@ -349,7 +363,7 @@ bacteriaAssessmentDecisionClass <- function(x){ # input dataframe with bacteria 
         bacteriaAssessmentDecision(x, 'ENTEROCOCCI', 'LEVEL_ENTEROCOCCI', 10, 130, 35) %>%
           mutate(ECOLI_EXC = as.numeric(NA), ECOLI_SAMP = as.numeric(NA), ECOLI_GM_EXC = as.numeric(NA), ECOLI_GM_SAMP = as.numeric(NA),
                  ECOLI_STAT = as.character(NA), ECOLI_STATECOLI_VERBOSE = as.character(NA)) %>%
-          dplyr::select(StationID, ECOLI_EXC, ECOLI_SAMP, ECOLI_GM_EXC, ECOLI_GM_SAMP, ECOLI_STAT, ECOLI_STATECOLI_VERBOSE, ENTER_EXC,
+          dplyr::select(StationID, ECOLI_EXC, ECOLI_SAMP, ECOLI_GM_EXC, ECOLI_GM_SAMP, ECOLI_STAT, ECOLI_STATECOLI_VERBOSE, ENTER_EXC, ENTER_IMPAIREDWINDOWS, 
                         ENTER_SAMP, ENTER_GM_EXC, ENTER_GM_SAMP, ENTER_STAT, ENTER_STATENTER_VERBOSE) )
     } else {
       return(

@@ -84,7 +84,8 @@ stationsTemplate <- read_excel('WQA_CEDS_templates/WQA_Bulk_Station_Upload_Final
   mutate_at(vars(contains('_EXC')), as.integer) %>% 
   mutate_at(vars(contains('_SAMP')), as.integer) %>% 
   # new addition that breaks station table upload template but very helpful for assessors
-  mutate(`Date Last Sampled` = as.character(NA))
+  mutate(ECOLI_IMPAIREDWINDOWS = as.numeric(NA), ENTER_IMPAIREDWINDOWS = as.numeric(NA), `Date Last Sampled` = as.character(NA)) %>% 
+  dplyr::select(STATION_ID:ECOLI_EXC, ECOLI_IMPAIREDWINDOWS, ECOLI_SAMP:ENTER_EXC, ENTER_IMPAIREDWINDOWS, ENTER_STAT:`Date Last Sampled`)
 
   #read_excel('WQA_CEDS_templates/WQA_Bulk_Station_Upload (3).xlsx', 
       #sheet = 'Stations')[0,]#, col_types = "text")[0,] %>%  # just want structure and not the draft data, force everything to character for now
@@ -404,16 +405,17 @@ for(i in 1:nrow(stationTable)){
     
       # COMMENTS
       mutate(COMMENTS = paste0(DO_Daily_Avg_STAT, 
-                               ' | E.coli Comment: ', ECOLI_STATECOLI_VERBOSE,
-                               ' | Enterococci Comment: ', ENTER_STATENTER_VERBOSE,
-                               ' | AMMONIA Comment: ', `Assessment Decision`)) %>%
+                               ' | AMMONIA Comment: ', `Assessment Decision`),
+             BACTERIA_COMMENTS = paste0(' | E.coli Comment: ', ECOLI_STATECOLI_VERBOSE,
+                               ' | Enterococci Comment: ', ENTER_STATENTER_VERBOSE)) %>%
       left_join(comments, by = 'STATION_ID') %>%
       dplyr::select(-ends_with(c('exceedanceRate', 'VERBOSE', 'Assessment Decision', 'StationID'))) %>%  # to match Bulk Upload template but helpful to keep visible til now for testing
       mutate(`Date Last Sampled` = dateLastSampled)
   } else {# pull what you can from last cycle and flag as carry over
     results <- filter(stationTable, STATION_ID == stationTable$STATION_ID[i]) %>%
       dplyr::select(STATION_ID:VAHU6, COMMENTS) %>%
-      mutate(COMMENTS = 'This station has no data in current window but was carried over due to IM in one of the 2020IR status fields or the 2020 stations table reports the station was carried over from a previous cycle.') %>%
+      mutate(COMMENTS = 'This station has no data in current window but was carried over due to IM in one of the 2020IR status fields or the 2020 stations table reports the station was carried over from a previous cycle.',
+             BACTERIA_COMMENTS = NA) %>%
       left_join(comments, by = 'STATION_ID') %>% 
       mutate(`Date Last Sampled` = dateLastSampled)
   }
