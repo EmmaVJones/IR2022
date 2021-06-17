@@ -234,8 +234,8 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
                                 `_SAMP` = nrow(nSamples), 
                                 `_GM.EXC` = nrow(exceedGeomean),
                                 `_GM.SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
-                                `_STAT` = "FS",
-                                `_STAT_VERBOSE` = "Fully Supporting - No STV exceedance rates >10% or geomean exceedances in any 90-day period represented by 10+ samples.",# No geomean exceedances and STV exceedance(s) in one or multiple 90-day periods represented by 10+ samples.", # previous language: 1 STV hit in one or multiple 90-day periods with < 10 samples after verifying geomean passes where applicable.",
+                                `_STAT` = "S",
+                                `_TAT_VERBOSE` = "Fully Supporting - No STV exceedance rates >10% or geomean exceedances in any 90-day period represented by 10+ samples.",# No geomean exceedances and STV exceedance(s) in one or multiple 90-day periods represented by 10+ samples.", # previous language: 1 STV hit in one or multiple 90-day periods with < 10 samples after verifying geomean passes where applicable.",
                                 `BACTERIADECISION` = paste0(stationTableName, ": ",`_STAT_VERBOSE`),
                                 `BACTERIASTATS` = paste0(stationTableName, ": Number of 90 day windows with > 10% STV exceedance rate: ", nrow(exceedSTVrate)),
                                 associatedDecisionData = list(z) ) %>%
