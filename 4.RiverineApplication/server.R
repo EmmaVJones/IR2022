@@ -505,7 +505,8 @@ shinyServer(function(input, output, session) {
                                            left_join(dplyr::select(stationTable(), STATION_ID, COMMENTS),
                                                      by = 'STATION_ID') %>% 
       dplyr::select(-ends_with(c('exceedanceRate','Assessment Decision', 'VERBOSE', 'StationID')))) %>% 
-      filter(!is.na(STATION_ID))
+      filter(!is.na(STATION_ID)) %>% 
+      dplyr::select(-c(BACTERIADECISION, BACTERIASTATS))
   })
   
   #output$testOutside <- renderPrint({ecoli()})#siteData$ecoli})

@@ -144,7 +144,7 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
       dplyr::select(-associatedData) %>% # remove embedded tibble to make table work
       mutate(`Date Window Starts` = as.Date(`Date Window Starts`),
              `Date Window Ends` = as.Date(`Date Window Ends`))
-    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='t'), selection = 'none')   
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "250px", dom='ti'), selection = 'none')   
   })
   
   
@@ -266,7 +266,7 @@ EnteroPlotlySingleStation <- function(input,output,session, AUdata, stationSelec
     req(!is.na(oneStationDecisionData()))
     z <- oneStationDecisionData() %>%
       dplyr::select(-associatedData) # remove embedded tibble to make table work
-    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "400px", dom='t'), selection = 'none')  
+    DT::datatable(z, rownames = FALSE, options= list(scrollX = TRUE, pageLength = nrow(z), scrollY = "400px", dom='ti'), selection = 'none')  
   })
   
   # these kill app when shifting to stations with no bacteria data
