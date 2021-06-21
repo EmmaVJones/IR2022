@@ -34,9 +34,9 @@ In order to link all data in the IR window to the appropriate station informatio
 
 The following sections will detail bringing in these necessary data sources and organizing them in a format the automated scripts can digest.
 
-#### Conventionals (draft)
+#### Conventionals 
 
-This dataset is the draft data sent out by Roger in Februrary 2021 prior to the official start of the assessment.
+This dataset is the final data sent out by Roger in March 2021 prior for the official start of the assessment.
 
 New method, matching Roland's citmon/nonagency database.
 
@@ -50,6 +50,13 @@ This is a tough one. The 2022IR is the first time DEQ is kinda getting things to
 
 ```{r}
 #source('addInBRRO2020IRcitmonData.R')
+```
+
+Change of plans, just include organized 2019-2020 citmon/nonagency data.
+
+```{r}
+library(naniar) # for replacing "NULL" with NA
+source('addInCitMonData.R')
 ```
 
 
@@ -130,6 +137,7 @@ Secchi depth has not been pulled in the conventionals dataset but is required in
 
 ```{r establish ODS connection}
 library(pool)
+library(dbplyr)
 ### Production Environment
 pool <- dbPool(
   drv = odbc::odbc(),
@@ -141,7 +149,7 @@ pool <- dbPool(
 
 #station <- '4AROA167.34'
 
-stationSecchiDepth <- pool %>% tbl("Wqm_Field_Data_View") %>%
+stationSecchiDepth <- pool %>% tbl(in_schema('wqm', "Wqm_Field_Data_View")) %>%
   filter(Fdt_Sta_Id %in% !! conventionals_distinct$FDT_STA_ID & #station & #
            between(as.Date(Fdt_Date_Time), "2014-12-31", "2020-12-31") &
            !is.na(Fdt_Secchi_Depth)) %>% # x >= left & x <= right
@@ -367,6 +375,7 @@ for now, maybe this is my starting point for rebuilding assessment scripts??????
 
 ```{r save}
 write.csv(stationsTable2022begin, 'processedStationData/stationsTable2022begin.csv', row.names = F)
+write.csv(stationsTable2022begin, 'processedStationData/stationsTable2022begin_CitmonJames.csv', row.names = F)
 ```
 
 
@@ -433,11 +442,17 @@ board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_K
 
 #conventionals2022IRdraftWithSecchi_Feb2021 <- conventionals
 conventionals2022IRfinalWithSecchi <- conventionals
+#conventionals2022IRfinalWithSecchi_CitmonJames <- conventionals
+
 
 #conventionals2022IRdraft_Feb2021 <- conventionals
 stations2020IR_sf_final <- lastCycleStation_sf
+#stations2020IR_sf_final_CitmonJames <- lastCycleStation_sf
+
 #stations2020IR_sf_draft_Feb2021 <- lastCycleStation_sf
 conventionals_distinct_final <- conventionals_distinct 
+#conventionals_distinct_final_CitmonJames <- conventionals_distinct 
+
 #conventionals_distinct_draft_Feb2021 <- conventionals_distinct 
 
 #2020 final metals data (pre manipulated by me) to act as a placeholder
@@ -452,14 +467,22 @@ Smetals_2022IRfinal <- read_excel('data/final2022data/CEDSWQM/SEDIMENT_2022_2021
 
 # Pin data
 pin(conventionals2022IRfinalWithSecchi, description = "Final 2022IR conventionals dataset from Roger Stewart", board = "rsconnect")
+#pin(conventionals2022IRfinalWithSecchi_CitmonJames, description = "Final 2022IR conventionals dataset from Roger Stewart _CitmonJames", board = "rsconnect")
 #pin(conventionals2022IRdraftWithSecchi_Feb2021, description = "DRAFT 2022IR conventionals dataset from Roger Stewart Feb 2021 update", board = "rsconnect")
 
 #pin(conventionals2022IRdraft_Feb2021, description = "DRAFT 2022IR conventionals dataset from Roger Stewart Feb 2021 update", board = "rsconnect")
 pin(conventionals_distinct_final, description = "Final 2022IR conventionals distinct stations from Roger Stewart", board = "rsconnect")
+#pin(conventionals_distinct_final_CitmonJames, description = "Final 2022IR conventionals distinct stations from Roger Stewart _CitmonJames", board = "rsconnect")
+
 #pin(conventionals_distinct_draft_Feb2021, description = "DRAFT 2022IR conventionals distinct stations from Roger Stewart Feb 2021 update", board = "rsconnect")
 pin(vahu6, description = "DEQ Assessment Region Data at VAHU6 level", board = "rsconnect")
+
+
 pin(stations2020IR_sf_final, description = "Final 2020IR stations from Cleo Baker", board = "rsconnect")
+#pin(stations2020IR_sf_final_CitmonJames, description = "Final 2020IR stations from Cleo Baker _CitmonJames", board = "rsconnect")
 #pin(stations2020IR_sf_draft_Feb2021, description = "DRAFT 2020IR stations from Cleo Baker Feb 2021 update", board = "rsconnect")
+
+
 #pin(WCmetals_2020IRfinal, description = "FINAL 2020IR water column metals data from Roger Stewart", board = "rsconnect")
 #pin(Smetals_2020IRfinal, description = "FINAL 2020IR sediment metals data from Roger Stewart", board = "rsconnect")
 pin(WCmetals_2022IRfinal, description = "FINAL 2022IR water column metals data from Roger Stewart", board = "rsconnect")

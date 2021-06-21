@@ -45,8 +45,27 @@ schemaFin <- read_csv('data/citmonnonagencydummydata_EVJ.csv') %>%# email 1/8/21
 
 
 # map new names
-conventionalsRaw <- conventionalsRaw <- read_excel('./data/final2022data/CEDSWQM/CONVENTIONALS_20210316.xlsx') # takes forever to read in so just do it once and manipulate from there
+# official conventionals for assessment
+conventionalsRaw <-  read_excel('./data/final2022data/CEDSWQM/CONVENTIONALS_20210316.xlsx') # takes forever to read in so just do it once and manipulate from there
 #read_excel('./data/draft2022data/CEDSWQM/CONVENTIONALS_2022_20210201.xlsx') # takes forever to read in so just do it once and manipulate from there
+
+# new version with missing stations does not fit original data schema. force it to fit
+conventionalsRawNew <- read_excel('./data/final2022data/CEDSWQM/CONVENTIONALS_20210504.xlsx') # May update that includes missing James sites
+conventionalsRawNew <- conventionalsRawNew %>% 
+  rename('Deq_Region'='VADEQ_ADMIN_REGION', 'STA_REC_CODE' = 'MONITORING_REGION',
+         'ECOLI' = 'E.COLI_ECOLI_CFU/100mL', 'ENTEROCOCCI' = 'ENTEROCOCCI_31649_NO/100mL') %>% 
+  left_join(dplyr::select(conventionalsRaw, FDT_STA_ID, STA_CBP_NAME) %>% 
+              distinct(FDT_STA_ID, .keep_all = TRUE), by = 'FDT_STA_ID')
+names(conventionalsRaw) == names(conventionalsRawNew)
+
+# identify which data is new
+conventionalsRaw %>% group_by(FDT_STA_ID, FDT_DATE_TIME) %>% mu
+saveRDS(filter(conventionalsRawNew, ! FDT_STA_ID %in% conventionalsRaw$FDT_STA_ID) %>% distinct(FDT_STA_ID),
+        'C:/HardDriveBackup/R/GitHub/IR2022/3.automatedAssessment/data/mayUpdateSites.RDS')
+
+
+conventionalsRaw <- conventionalsRawNew 
+
 conventionals <- conventionalsRaw %>% 
   # Important for working with draft datasets
   # #mutate(GROUP_STA_ID = as.character(NA), Data_Source = 'DEQ') %>%
@@ -191,7 +210,7 @@ names(conventionals) == names(schemaFin)
 #conventionals <- bind_rows(schemaFin, conventionals)
 
 
-rm(schemaFin); rm(conventionalsRaw)
+rm(schemaFin); rm(conventionalsRaw); rm(conventionalsRawNew)
 
 
 

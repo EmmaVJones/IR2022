@@ -235,7 +235,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
                                 `_GM.EXC` = nrow(exceedGeomean),
                                 `_GM.SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
                                 `_STAT` = "S",
-                                `_TAT_VERBOSE` = "Fully Supporting - No STV exceedance rates >10% or geomean exceedances in any 90-day period represented by 10+ samples.",# No geomean exceedances and STV exceedance(s) in one or multiple 90-day periods represented by 10+ samples.", # previous language: 1 STV hit in one or multiple 90-day periods with < 10 samples after verifying geomean passes where applicable.",
+                                `_STAT_VERBOSE` = "Fully Supporting - No STV exceedance rates >10% or geomean exceedances in any 90-day period represented by 10+ samples.",# No geomean exceedances and STV exceedance(s) in one or multiple 90-day periods represented by 10+ samples.", # previous language: 1 STV hit in one or multiple 90-day periods with < 10 samples after verifying geomean passes where applicable.",
                                 `BACTERIADECISION` = paste0(stationTableName, ": ",`_STAT_VERBOSE`),
                                 `BACTERIASTATS` = paste0(stationTableName, ": Number of 90 day windows with > 10% STV exceedance rate: ", nrow(exceedSTVrate)),
                                 associatedDecisionData = list(z) ) %>%
@@ -375,6 +375,23 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
 ## outermost function to decide which bacteria should be assessed based on WQS Class
 bacteriaAssessmentDecisionClass <- function(x){ # input dataframe with bacteria data
   z <- unique(x$FDT_STA_ID) # just in case
+  
+  # quick out if all bacteria data level II or I
+  if(any( ! all(x$LEVEL_ECOLI %in% c(NA, 'Level II', 'Level I')) | ! all(x$LEVEL_ENTEROCOCCI %in% c(NA, 'Level II', 'Level I')) ) ){
+    # run both bacteria methods if level III data exists to be most inclusive
+    left_join(bacteriaAssessmentDecision(x, 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126), 
+              bacteriaAssessmentDecision(x, 'ENTEROCOCCI', 'LEVEL_ENTEROCOCCI', 10, 130, 35), by = 'StationID') %>% 
+      dplyr::select(StationID, ECOLI_EXC, ECOLI_SAMP, ECOLI_GM_EXC, ECOLI_GM_SAMP, ECOLI_STAT, ECOLI_STATECOLI_VERBOSE,
+                    ENTER_EXC, ENTER_SAMP, ENTER_GM_EXC, ENTER_GM_SAMP, ENTER_STAT, ENTER_STATENTER_VERBOSE)
+  } else {
+    return(
+      tibble(StationID = z, ECOLI_EXC = as.numeric(NA), ECOLI_SAMP = as.numeric(NA), ECOLI_GM_EXC = as.numeric(NA), ECOLI_GM_SAMP = as.numeric(NA),
+             ECOLI_STAT = as.character(NA), ECOLI_STATECOLI_VERBOSE = as.character(NA),
+             ENTER_EXC = as.numeric(NA), ENTER_SAMP = as.numeric(NA), ENTER_GM_EXC = as.numeric(NA), ENTER_GM_SAMP = as.numeric(NA),
+             ENTER_STAT = as.character(NA), ENTER_STATENTER_VERBOSE = as.character(NA)) ) }
+  
+    
+    
   # lake stations should only be surface sample
   if(unique(x$lakeStation) == TRUE){
     x <- filter(x, FDT_DEPTH <= 0.3) }

@@ -48,6 +48,13 @@ Scripts to organize and pin data are in ../2.organizeMetadata/organizeStationMet
 Much faster method and makes sure data used by assessors is same for testing.
 
 ```{r pull pins}
+# May updates
+# conventionals <- pin_get("conventionals2022IRfinalWithSecchi-CitmonJames", board = "rsconnect")
+# conventionals_distinct <- pin_get("conventionals-distinct-final-CitmonJames", board = "rsconnect")
+# stations2020IR <- pin_get("stations2020IR-sf-final-CitmonJames", board = "rsconnect")
+
+
+# official March Data releases
 conventionals <- pin_get("conventionals2022IRfinalWithSecchi", board = "rsconnect")
 conventionals_distinct <- pin_get("conventionals-distinct-final", board = "rsconnect")
 stations2020IR <- pin_get("stations2020IR-sf-final", board = "rsconnect")
@@ -120,6 +127,8 @@ The following steps complete the automated assessment.
 This information communicates to the scripts which stations should be assessed and where they should be organized (AUs). It also has data from the last cycle to populate the historical station information table in the application
 
 ```{r stationTable, echo = FALSE}
+#stationTable <- read_csv('processedStationData/stationsTable2022begin_CitmonJames.csv')
+
 stationTable <- read_csv('processedStationData/stationsTable2022begin.csv')# %>% 
   #filter(STATION_ID %in% kristie$StationID)
 ```
@@ -229,6 +238,18 @@ For testing reduce stationTable to just BRRO for now
 
 ```{r}
 #stationTable <- filter(stationTable, REGION == "BRRO")
+
+# just run what is new based on citmon and may update
+citmon <- read_excel('C:/HardDriveBackup/R/GitHub/IR2022/2.organizeMetadata/data/final2022data/Citizen Monitoring Data/20192020CitMonData_20210611.xlsx') %>% distinct(FDT_STA_ID)
+conventionals_distinctMarch <- pin_get("conventionals-distinct-final", board = "rsconnect") %>% 
+  filter(! FDT_STA_ID %in% conventionals_distinct$FDT_STA_ID) %>% 
+  distinct(FDT_STA_ID)
+justNew <- bind_rows(citmon, conventionals_distinctMarch) %>% 
+  bind_rows(readRDS('data/mayUpdateSites.RDS')) %>% 
+  distinct(FDT_STA_ID)
+
+stationTable <- filter(stationTable, STATION_ID %in% justNew$FDT_STA_ID)
+
 ```
 
 
@@ -481,6 +502,9 @@ stationTableResults <- left_join(stationTableResults, realComments, by = "STATIO
 Now this is the starting point for the app.
 
 ```{r}
+#write_csv(stationTableResults, 'processedStationData/stationTableResults_CitmonJames.csv',
+#          na = "") # dont write out a character NA in csv
+
 # can use write_csv bc there are no date fields that could be corrupted by function
 write_csv(stationTableResults, 'processedStationData/stationTableResults.csv',
           na = "") # dont write out a character NA in csv

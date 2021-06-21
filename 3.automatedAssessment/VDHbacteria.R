@@ -42,3 +42,21 @@ write_csv(stationTableResults,'dataForAssessors/VDHbacteriaResults.csv', na = ""
 
 
 
+
+# station review
+
+
+x <- filter(VDHsimple, FDT_STA_ID  == '21VABCH-VA582379')
+x <- filter(VDHsimple, FDT_STA_ID  == '21VABCH-VA532597')
+bacteriaAssessmentDecision(x, 'ENTEROCOCCI', 'LEVEL_ENTEROCOCCI', 10, 130, 35)
+bacteriaField <- 'ENTEROCOCCI'
+bacteriaRemark <- 'LEVEL_ENTEROCOCCI'
+sampleRequirement <- 10
+STV <- 130
+geomeanCriteria <- 35
+
+z1 <- z
+z2 <- z
+
+write.csv(bind_rows(z1, z2) %>% 
+  dplyr::select(-associatedData), 'dataForAssessors/VDHsnippet.csv', row.names = F)
