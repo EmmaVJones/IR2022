@@ -248,7 +248,7 @@ justNew <- bind_rows(citmon, conventionals_distinctMarch) %>%
   bind_rows(readRDS('data/mayUpdateSites.RDS')) %>% 
   distinct(FDT_STA_ID)
 
-stationTable <- filter(stationTable, STATION_ID %in% justNew$FDT_STA_ID)
+#stationTable <- filter(stationTable, STATION_ID %in% justNew$FDT_STA_ID)
 
 ```
 
