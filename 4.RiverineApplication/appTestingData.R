@@ -90,8 +90,8 @@ pinnedDecisions <- pin_get('IR2022bioassessmentDecisions_test', board = 'rsconne
 
 
 DEQregionSelection <- 'BRRO'
-basinSelection <- "James-Middle"#'James-Upper'#'Roanoke'#"Small Coastal" ##"Roanoke"#"Roanoke"#'James-Upper'#
-HUC6Selection <- "JM01"#'JU21'#"RU14"#"CB47"#'JM16'#'RU09'#'RL12'#
+basinSelection <- 'Roanoke'#"James-Middle"#'James-Upper'#'Roanoke'#"Small Coastal" ##"Roanoke"#"Roanoke"#'James-Upper'#
+HUC6Selection <- "RU24"#"JM01"#'JU21'#"RU14"#"CB47"#'JM16'#'RU09'#'RL12'#
 
 # z <- filter(vahu6, ASSESS_REG %in% c(DEQregionSelection, 'CO')) %>%
 #   left_join(dplyr::select(subbasinToVAHU6, VAHU6, Basin, BASIN_CODE, Basin_Code))
@@ -101,6 +101,7 @@ HUC6Selection <- "JM01"#'JU21'#"RU14"#"CB47"#'JM16'#'RU09'#'RL12'#
 
 stationTable <- read_csv('userDataToUpload/processedStationData/stationTableResults.csv',
                          col_types = cols(COMMENTS = col_character())) # force to character bc parsing can incorrectly guess logical based on top 1000 rows
+#stationTable <- read_csv('userDataToUpload/processedStationData/stationTableResults_EVJ_4ABWR019.75.csv', col_types = cols(COMMENTS = col_character())) # force to character bc parsing can incorrectly guess logical based on top 1000 rows
 # Remove stations that don't apply to application
 lakeStations <- filter_at(stationTable, vars(starts_with('TYPE')), any_vars(. == 'L'))
 estuarineStations <- filter(stationTable, str_detect(ID305B_1, 'E_'))

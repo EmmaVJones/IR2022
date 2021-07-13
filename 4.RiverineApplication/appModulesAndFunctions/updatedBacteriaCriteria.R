@@ -141,6 +141,11 @@ STVexceedance <- function(df, STV){
 }
 
 
+# bacteriaField <- 'ECOLI' #
+# bacteriaRemark <- 'LEVEL_ECOLI' #
+# sampleRequirement <- 10
+# STV <- 410 #
+# geomeanCriteria <- 126 #
 
 # Function to summarize bacteria assessment results into decisions
 # This function returns all potential issues with priory on geomean results IF there
@@ -164,6 +169,23 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
 
     # Run assessment function
     z <- suppressWarnings(bacteriaExceedances_NEW(x, bacteriaField, bacteriaRemark, sampleRequirement, STV, geomeanCriteria)   )
+    # bail out if no data to analyze bc all Level II or Level I
+    if(nrow(filter(z, !is.na(`Date Window Starts`))) == 0 ){
+      return(tibble(StationID = unique(x$FDT_STA_ID),
+                    `_EXC` = NA, # right now this is set to # total STV exceedances, not the # STV exceedances in a 90-day period with 10+ samples
+                    #`_IMPAIREDWINDOWS` = NA,
+                    `_SAMP` = NA, 
+                    `_GM.EXC` = NA,
+                    `_GM.SAMP` = NA,
+                    `_STAT` = NA, # is this the right code???
+                    `_STAT_VERBOSE` = NA, 
+                    `BACTERIADECISION` = NA,
+                    `BACTERIASTATS` = NA,
+                    associatedDecisionData = list(NA)) %>%
+               rename_with( ~ gsub("_", paste0(stationTableName,"_"), .x, fixed = TRUE)) %>%  # fix names to match station table format
+               rename_with( ~ gsub(".", "_", .x, fixed = TRUE)) ) # special step to get around accidentally replacing _GM with station table name
+    }
+    
     # number of STV exceedances, reported in bacteria_EXC field in stations table and useful for logic testing
     exceedSTVn <- select(x,  Value = {{ bacteriaField }} ) %>%
       filter(Value > STV) # total STV exceedances in dataset
@@ -235,7 +257,7 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
                                 `_GM.EXC` = nrow(exceedGeomean),
                                 `_GM.SAMP` = nrow(filter(z, !is.na(`Geomean In Window`))),
                                 `_STAT` = "S",
-                                `_TAT_VERBOSE` = "Fully Supporting - No STV exceedance rates >10% or geomean exceedances in any 90-day period represented by 10+ samples.",# No geomean exceedances and STV exceedance(s) in one or multiple 90-day periods represented by 10+ samples.", # previous language: 1 STV hit in one or multiple 90-day periods with < 10 samples after verifying geomean passes where applicable.",
+                                `_STAT_VERBOSE` = "Fully Supporting - No STV exceedance rates >10% or geomean exceedances in any 90-day period represented by 10+ samples.",# No geomean exceedances and STV exceedance(s) in one or multiple 90-day periods represented by 10+ samples.", # previous language: 1 STV hit in one or multiple 90-day periods with < 10 samples after verifying geomean passes where applicable.",
                                 `BACTERIADECISION` = paste0(stationTableName, ": ",`_STAT_VERBOSE`),
                                 `BACTERIASTATS` = paste0(stationTableName, ": Number of 90 day windows with > 10% STV exceedance rate: ", nrow(exceedSTVrate)),
                                 associatedDecisionData = list(z) ) %>%
@@ -375,6 +397,28 @@ bacteriaAssessmentDecision <- function(x, # input dataframe with bacteria data
 ## outermost function to decide which bacteria should be assessed based on WQS Class
 bacteriaAssessmentDecisionClass <- function(x){ # input dataframe with bacteria data
   z <- unique(x$FDT_STA_ID) # just in case
+  
+  # # quick out if all bacteria data level II or I
+  # if(any( c('CMON', 'NONA') %in% unique(dplyr::select(x, contains('TYPE_')) %>% summarize(unique(.)) %>%
+  #                                       pivot_longer(cols = everything(), names_to = 'name', values_to = 'value') %>% pull(value)) ) ){
+  #   # quick out if all bacteria data level II or I
+  #   if(all(c(filter(x, !is.na(LEVEL_ECOLI)) %>% dplyr::select(LEVEL_ECOLI) %>% pull(),
+  #            filter(x, !is.na(LEVEL_ENTEROCOCCI)) %>% dplyr::select(LEVEL_ENTEROCOCCI) %>% pull() )  %in% c('Level II', 'Level I')) ){
+  #     return(
+  #       tibble(StationID = z, ECOLI_EXC = as.numeric(NA), ECOLI_SAMP = as.numeric(NA), ECOLI_GM_EXC = as.numeric(NA), ECOLI_GM_SAMP = as.numeric(NA),
+  #              ECOLI_STAT = as.character(NA), ECOLI_STATECOLI_VERBOSE = as.character(NA),
+  #              ENTER_EXC = as.numeric(NA), ENTER_SAMP = as.numeric(NA), ENTER_GM_EXC = as.numeric(NA), ENTER_GM_SAMP = as.numeric(NA),
+  #              ENTER_STAT = as.character(NA), ENTER_STATENTER_VERBOSE = as.character(NA)) ) }
+  #   if(any(c(filter(x, !is.na(LEVEL_ECOLI)) %>% dplyr::select(LEVEL_ECOLI) %>% pull(),
+  #            filter(x, !is.na(LEVEL_ENTEROCOCCI)) %>% dplyr::select(LEVEL_ENTEROCOCCI) %>% pull() )  %in% c('Level III')) ){
+  #     # run both bacteria methods if level III data exists to be most inclusive
+  #     return(
+  #       left_join(bacteriaAssessmentDecision(x, 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126), 
+  #                 bacteriaAssessmentDecision(x, 'ENTEROCOCCI', 'LEVEL_ENTEROCOCCI', 10, 130, 35), by = 'StationID') %>% 
+  #         dplyr::select(StationID, ECOLI_EXC, ECOLI_SAMP, ECOLI_GM_EXC, ECOLI_GM_SAMP, ECOLI_STAT, ECOLI_STATECOLI_VERBOSE,
+  #                       ENTER_EXC, ENTER_SAMP, ENTER_GM_EXC, ENTER_GM_SAMP, ENTER_STAT, ENTER_STATENTER_VERBOSE) ) } }
+    
+    
   # lake stations should only be surface sample
   if(unique(x$lakeStation) == TRUE){
     x <- filter(x, FDT_DEPTH <= 0.3) }
