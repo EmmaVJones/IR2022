@@ -87,7 +87,9 @@ vignettes/*.pdf
 5.BioassessmentTools/images/
 5.BioassessmentTools/GPreports/
 
-5.AssessOnTheFly/data/
+
+
+6.AssessOnTheFly/data/
 
 bookdown/
 WQSlookupTable/
