@@ -144,7 +144,16 @@ stationTable <- left_join(tibble(STATION_ID = station),
   dplyr::select(STATION_ID:StreamType, Lakes_187B, `Description Of Waters`:`Total Phosphorus (ug/L)`)
 
 
-
+# stationTableForUserReview <- dplyr::select(stationTable, STATION_ID, SEC:Lakes_187B) %>% 
+#   mutate(`Lake Station` = ifelse(Lakes_187B == 'y', T, F),
+#          `Lacustrine Zone` = F,
+#          lake1= paste0('<input type="checkbox"  name=\"Dec\" value="%s"/>') )
+# 
+# sprintf(
+#       '<input type="checkbox" name="%s" value="%s"/>',
+#       #        '<input type="radio" name="%s" value="%s"/>',
+#       month.abb[i], m[i, ]
+#     )
 
 
 # Need to find way to identify lake stations
@@ -164,7 +173,7 @@ lacustrineDesignation <- filter(stationTable, STATION_ID %in% c('2-JKS044.60', '
 3) Assess data
 
 ```{r automated assessment function}
-automatedAssessmentFunction <- function(stationTable, conventionals){
+automatedAssessmentFunction <- function(stationTable, conventionals, lakeStations, lacustrineDesignation, VSCIresults){
   stationTableResults <- tibble()
 # save ammonia results (based on default assessment information) for use in app to speed rendering
 ammoniaAnalysis <- tibble()
@@ -359,6 +368,12 @@ conventionals <- conventionalsSummary(conventionals= pin_get("conventionals2022I
                            dropCodes = c('QF'))%>% 
   arrange(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH) #%>% 
 
+WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
+WQMstationSpatial <- pin_get("WQM-Stations-Spatial", board = "rsconnect")
+VSCIresults <- pin_get("VSCIresults", board = "rsconnect") %>%
+  filter( between(`Collection Date`, dateRange[1], dateRange[2]) )
+
+
 stationTable <- left_join(tibble(STATION_ID = station),
                           WQSlookup, by = c('STATION_ID'='StationID')) %>%
   mutate(CLASS_BASIN = paste(CLASS,substr(BASIN, 1,1), sep="_")) %>%
@@ -397,7 +412,15 @@ lakeStations <- filter(stationTable, STATION_ID %in% c('2-JKS044.60', '2-JKS046.
 lacustrineDesignation <- filter(stationTable, STATION_ID %in% c('2-JKS044.60', '2-JKS046.40'))
 
 # run assessment
-assessmentResults <- automatedAssessmentFunction(stationTable, conventionals)
+# using just a vector of names for now, ideally will be sourced by providing and DT::datatable with checkbox field and using the checkbox information to
+# identify whether a station is a lake station or not
+lakeStations <- filter(stationTable, STATION_ID %in% c('2-JKS044.60', '2-JKS046.40', '2-JKS048.90', '2-JKS053.48'))
+lacustrineDesignation <- filter(stationTable, STATION_ID %in% c('2-JKS044.60', '2-JKS046.40'))
+
+assessmentResults <- automatedAssessmentFunction(stationTable, conventionals, 
+                                                 lakeStations = filter(stationTable, Lakes_187B == 'y' ), 
+                                                 lacustrineDesignation, 
+                                                 VSCIresults)
 View(assessmentResults$stationTableResults)
 assessmentResults$ammoniaAnalysis
 
@@ -407,36 +430,373 @@ assessmentResults$ammoniaAnalysis
 
 
 
-```{r}
-As_Station_Types=pool %>%
-tbl(dbplyr::in_schema("wqa","Wqa_Station_Types_View")) %>%
-filter(STL_TYPE_CODE %in% "C2") %>%
-dplyr::select(STX_STATION_DETAIL_ID,STL_TYPE_DESCRIPTION)%>%
-as_tibble()
+# Monitoring Report Workflow
 
-jks <- pool %>%
-tbl(dbplyr::in_schema("wqa","Wqa_Station_Types_View")) %>%
-  filter(STX_STATION_DETAIL_ID == '57086') %>% 
-  dplyr::select(STX_STATION_DETAIL_ID,STL_TYPE_DESCRIPTION)%>%
+This section identifies efficient workflows to stay on top of data collection and QA.
+
+Ways to run report:
+- by region
+- by collector
+- by program type
+
+Basic report by region.
+
+```{r query by Region}
+dateRange <- c(as.Date('2021-01-01'), as.Date(Sys.Date()))
+region <- c('SCRO', 'WCRO')# convert BRRO to codes manually until fixed
+spgCodes <- NULL#c('IM', 'TM')
+
+if(!is.null(region)){
+  peeps <- pool %>% tbl(in_schema("wqm", "Wqm_Collector_Cds_Codes_Wqm_View")) %>% 
+    {if(any(region %in% c('SCRO', 'WCRO')))
+      filter(., Unt_Rec_Code %in% !! region | Col_Id == 'RJS') 
+      else filter(., Unt_Rec_Code) } %>% 
+    as_tibble()
+  } else {peeps <- tibble()}
+
+
+stationFieldData <- pool %>% tbl(in_schema("wqm", "Wqm_Field_Data_View")) %>%
+  filter(between(as.Date(Fdt_Date_Time), !! dateRange[1], !! dateRange[2]) ) %>% # date range always required
+  # if Region (aka people) selected
+  {if(nrow(peeps) > 0)
+    filter(., Fdt_Collector_Id %in% !! peeps$Col_Id )
+    else . } %>%
+  # if Program Code selected
+  {if(!is.null(spgCodes))
+    filter(., Fdt_Spg_Code %in% !! spgCodes)
+    else . } %>% 
+  # always drop crap data
+  filter(! Ssc_Description %in% "INVALID DATA SET QUALITY ASSURANCE FAILURE") %>% 
+  as_tibble() 
+
+# still need this for other functions
+station <- unique(stationFieldData$Fdt_Sta_Id)
+           
+stationAnalyteData <- pool %>% tbl(in_schema("wqm", "Wqm_Analytes_View")) %>%
+  filter(Ana_Sam_Fdt_Id %in% !! stationFieldData$Fdt_Id &
+           #between(as.Date(Ana_Received_Date), !! dateRange[1], !! dateRange[2]) & # x >= left & x <= right
+           Pg_Parm_Name != "STORET STORAGE TRANSACTION DATE YR/MO/DAY") %>%
+  as_tibble() %>%
+  left_join(dplyr::select(stationFieldData, Fdt_Id, Fdt_Sta_Id, Fdt_Date_Time), by = c("Ana_Sam_Fdt_Id" = "Fdt_Id"))
+
+stationInfo <- pool %>% tbl(in_schema("wqm",  "Wqm_Stations_View")) %>%
+  filter(Sta_Id %in% !! toupper(station)) %>%
   as_tibble()
 
-As_Sta_Details=pool %>%
-tbl(dbplyr::in_schema("wqa","Wqa_Station_Details_View")) %>%
-filter(WXA_STATION_DETAIL_ID %in% !!As_Station_Types$STX_STATION_DETAIL_ID) %>%
-#filter(WXA_STATION_DETAIL_ID %in% !!jks$STX_STATION_DETAIL_ID) %>%
+stationGIS_View <-  pool %>% tbl(in_schema("wqm",  "Wqm_Sta_GIS_View")) %>%
+  filter(Station_Id %in% !! toupper(station)) %>%
   as_tibble()
 
-jks2<- pool %>%
-tbl(dbplyr::in_schema("wqa","Wqa_Station_Details_View")) %>%
-filter(WXA_STATION_DETAIL_ID %in% !!jks$STX_STATION_DETAIL_ID) %>%
-  as_tibble()
+conventionals <- conventionalsSummary(conventionals= pin_get("conventionals2022IRfinalWithSecchi", board = "rsconnect")[0,],
+                           stationFieldDataUserFilter= stationFieldData, stationAnalyteDataUserFilter = stationAnalyteData,
+                           stationInfo,
+                           stationGIS_View,
+                           dropCodes = c('QF'))%>% 
+  arrange(FDT_STA_ID, FDT_DATE_TIME, FDT_DEPTH) #%>% 
 
-stations <- pool %>%
-tbl(dbplyr::in_schema("wqa","Wqa_Station_Details_View")) %>%
-  filter(WSD_STATION_ID == '2-JKS023.61') %>% 
-  #distinct(WSD_STATION_ID) %>% 
-  as_tibble()
+# run assessment
+# identify whether a station is a lake station or not
+
+assessmentStations <-  pool %>% tbl(in_schema("wqa", "Wqa_Station_Details_View")) %>% 
+  filter(STA_NAME %in% !! station) %>% 
+  as_tibble() %>% 
+  group_by(STA_NAME) %>% 
+  filter(WSD_CYCLE == max(WSD_CYCLE))
+
+lakeStations <- pool %>% tbl(in_schema("wqa", "WQA_Station_Types_View")) %>% 
+  filter(STX_STATION_DETAIL_ID %in% !! assessmentStations$WXA_STATION_DETAIL_ID && STL_TYPE_CODE == 'L') %>% 
+  as_tibble() %>% 
+  left_join(assessmentStations, by = c('STX_STATION_DETAIL_ID' = 'WXA_STATION_DETAIL_ID')) %>% 
+  distinct(WSD_STATION_ID) %>% 
+  pull()
+
+lacustrineDesignation <- filter(assessmentStations, WSD_STATION_ID %in% lakeStations &&  WSD_LAC_ZONE_YN == 'Y') %>% 
+  distinct( WSD_STATION_ID) %>% 
+  pull()
+
+assessmentResults <- automatedAssessmentFunction(stationTable, conventionals, 
+                                                 lakeStations = filter(stationTable, STATION_ID %in% lakeStations ), 
+                                                 lacustrineDesignation = filter(stationTable, STATION_ID %in% lacustrineDesignation), 
+                                                 VSCIresults)
+View(assessmentResults$stationTableResults)
+
 ```
+
+
+Summarize this information for user.
+
+```{r regional summary}
+
+summarizeRuns <- function(stationFieldData){
+  stationFieldData %>% 
+    mutate(SampleDate = as.Date(Fdt_Date_Time)) %>% 
+    group_by(Fdt_Collector_Id, Fdt_Run_Id) %>% 
+    summarise(`Times Completed` = length(unique(SampleDate)),
+              `Dates Sampled` = paste0(unique(SampleDate), collapse = ', '),
+              `Stations Per Run` = length(unique(Fdt_Sta_Id))) }
+z <- summarizeRuns(stationFieldData)
+
+# Run and Station summary by monitor, this should be reported first, then dig in to summarizeRun info by person
+z %>% 
+  group_by(Fdt_Collector_Id) %>% 
+  summarise(`Runs Completed` = sum(`Times Completed`),
+            `Stations Monitored` = sum(`Stations Per Run`))
+```
+
+```{r collector Heatmap}
+library(inlmisc)
+library(leaflet)
+assessmentLayer <- st_read('data/GIS/AssessmentRegions_VA84_basins.shp') %>%
+  st_transform( st_crs(4326))
+collectorID <- 'RJS'
+collectorHeatmap <- function(stationFieldData, stationGIS_View, assessmentLayer, collectorID){
+  stations <- filter(stationFieldData, Fdt_Collector_Id %in% collectorID)
+  if(nrow(stations) > 0){
+    stations <- stations %>% 
+      group_by(Fdt_Sta_Id) %>% 
+    summarise(`Station Visited` = length(unique(Fdt_Date_Time))) %>% 
+    left_join(stationGIS_View, by = c('Fdt_Sta_Id' = 'Station_Id')) %>% 
+    st_as_sf(coords = c("Longitude", "Latitude"),  # make spatial layer using these columns
+                   remove = F, # don't remove these lat/lon cols from df
+                   crs = 4326)
+  
+    VAHU6 <- filter(assessmentLayer, VAHU6 %in% stations$Huc6_Vahu6)
+  
+  pal <- colorNumeric(
+    palette = "Reds",
+    domain = stations$`Station Visited`)
+  
+  CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE,
+                 options= leafletOptions(zoomControl = TRUE,minZoom = 3, maxZoom = 20,
+                                         preferCanvas = TRUE)) %>%
+      #setView(-79.1, 37.7, zoom=7)  %>%
+      addPolygons(data= VAHU6,  color = 'gray', weight = 1,
+                  fillColor= 'yellow', fillOpacity = 0.5,stroke=0.1,
+                  group="VAHU6 sampled",label = ~VAHU6) %>% 
+    addCircleMarkers(data = stations, color = 'black', fillColor = ~pal(stations$`Station Visited`),
+                     radius = 3, fillOpacity = 1, weight = 1,stroke=T, label = ~Fdt_Sta_Id,
+                     popup = leafpop::popupTable(stations, zcol=c('Fdt_Sta_Id', 'Station Visited')))
+  
+  } else { return(NULL)}
+  
+}
+collectorHeatmap(stationFieldData, stationGIS_View, assessmentLayer, collectorID = 'SMH')
+
+
+```
+
+
+
+Dig into exceedances
+
+```{r}
+# highlight stations where exceedances occur
+View(filter_at(assessmentResults$stationTableResults, vars(ends_with("_EXC")), any_vars( . > 0)))
+               #vars(c('TEMP_STAT', 'DO_STAT')), any_vars(. %in%  c('10.5% Exceedance', 'IM')) ))
+               #vars(ends_with("_STAT")), any_vars(. %in%  c('Review', '10.5% Exceedance', 'IM')) ))
+```
+
+```{r}
+stationTableResults <- assessmentResults$stationTableResults
+stationSummary <- function(stationTableResults, parameterSTATcrosswalk){
+  #vahu6StationSummary <- filter(stationTable, VAHU6 %in% VAHU6chosen) 
+  
+  
+  if(nrow(stationTableResults) > 0){
+    stationTableResults1 <- stationTableResults %>%
+      dplyr::select(STATION_ID, contains('_EXC')) %>% 
+      group_by(STATION_ID) %>%
+      pivot_longer(-STATION_ID, names_to = 'ParameterEXC', values_to = 'Exceedance') %>%
+      mutate(individualColor = case_when(Exceedance > 1 ~ 'red',
+                                         Exceedance == 1 ~ 'yellow',
+                                         Exceedance == 0 ~ 'green',
+                                         is.na(Exceedance) ~ 'gray'),
+             # create a variable that ranks statuses to easily combine into single "score"
+             individualScore = case_when(individualColor == 'red' ~ 1,
+                                         individualColor == 'yellow' ~ 2,
+                                         individualColor == 'green' ~ 3,
+                                         individualColor == 'gray' ~ 4))
+    # Gives one "rank" per station
+    overall <- stationTableResults1 %>%
+      group_by(STATION_ID, individualColor, individualScore) %>%
+      dplyr::summarise(`n Parameters of lowest status` = n()) 
+    # join number of ranks causing color info
+    overall2 <- overall %>%
+      group_by(STATION_ID) %>%
+      summarise(stationOverallScore = min(individualScore)) %>%
+      left_join(overall, by = c('STATION_ID','stationOverallScore' = 'individualScore')) %>%
+      dplyr::select(-individualColor)
+    
+    return(left_join(stationTableResults1, overall2, by = 'STATION_ID') %>%
+             mutate(stationColor = case_when(stationOverallScore == 1 ~ 'red',
+                                             stationOverallScore == 2 ~ 'yellow',
+                                             stationOverallScore == 3 ~ 'green',
+                                             stationOverallScore == 4 ~ 'gray'),
+                    stationOverallScore = as.factor(stationOverallScore), 
+                    `Overall Station Result` = case_when(stationColor == 'red' ~ 'Station contains at least one parameter with 2 or more exceedances',
+                                                         stationColor == 'yellow' ~ 'Station contains at least one parameter with one exceedance',
+                                                         stationColor == 'green' ~ 'Station contains at least one parameter status of S and no exceedances',
+                                                         stationColor == 'gray' ~ 'Station unassessed')) %>%
+             left_join(parameterSTATcrosswalk, by = c('ParameterEXC' = 'ParameterSTAT')) %>%
+             
+             
+             
+             
+             
+             
+             
+           
+             ### Issue here, need lat/lng info in stationTableResults to get this to work  
+             
+             
+             
+             
+           
+           
+           left_join(dplyr::select(stationTableResults, STATION_ID, LATITUDE, LONGITUDE), by = 'STATION_ID') %>%
+             ungroup() %>%
+             st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
+                      remove = T, # remove these lat/lon cols from df
+                      crs = 4326) ) # add projection, needs to be geographic for now bc entering lat/lng
+    
+    # Gives ranked scale of n statuses
+    #  overall <- vahu6StationSummary %>%
+    #    group_by(STATION_ID, individualColor, individualScore) %>%
+    #    dplyr::summarise(n = n()) %>%
+    #    left_join(dplyr::select(stationTable, STATION_ID, LATITUDE, LONGITUDE), by = 'STATION_ID') %>%
+    #    ungroup() %>%
+    #    st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
+    #             remove = T, # remove these lat/lon cols from df
+    #             crs = 4269)  # add projection, needs to be geographic for now bc entering lat/lng
+    #  
+    #return(overall)
+  } else {
+    return(tibble(STATION_ID = NA, ParameterEXC = NA, Status = NA, individualColor = NA, 
+                  individualScore = NA, stationOverallScore = NA, stationColor = NA, Parameter = NA)) }
+  #return(tibble(STATION_ID = NA, individualColor = NA, individualScore = NA, n = NA)) }
+}
+
+assessmentSummary <- stationSummary(assessmentResults$stationTableResults, parameterSTATcrosswalk)
+```
+
+
+functions from riverine tool for 30k foot view
+```{r}
+# parameter name crosswalk for prettier names later
+parameterSTATcrosswalk <- tibble(Parameter = c("Temperature", 'Dissolved Oxygen', 'pH', 'E.coli', 'Enterococci', 'Ammonia', 'Water Column Metals',
+                                               'Water Column Toxics', 'Sediment Metals', 'Sediment Toxics', 'Fish Tissue Metals', 'Fish Tissue Toxics',
+                                               'Benthics', 'Total Phosphorus', 'Chlorophyll a'),
+                                 ParameterSTAT = c("TEMP_STAT", "DO_STAT", "PH_STAT", "ECOLI_STAT", "ENTER_STAT", "AMMONIA_STAT", "WAT_MET_STAT", 
+                                                   "WAT_TOX_STAT", "SED_MET_STAT", "SED_TOX_STAT", "FISH_MET_STAT", "FISH_TOX_STAT", "BENTHIC_STAT",
+                                                   "NUT_TP_STAT", "NUT_CHLA_STAT"))
+# Some data reorg to identify individual parameter issues and "rank" station (basically identifies worst status and colors
+#  station that one color, user can dig in to station results to figure out what is causing the flag)
+VAHU6stationSummary <- function(stationTable, VAHU6chosen, parameterSTATcrosswalk){
+  vahu6StationSummary <- filter(stationTable, VAHU6 %in% VAHU6chosen) 
+  
+  if(nrow(vahu6StationSummary) > 0){
+    vahu6StationSummary <- vahu6StationSummary %>%
+      dplyr::select(STATION_ID, contains('_STAT')) %>% 
+      group_by(STATION_ID) %>%
+      pivot_longer(-STATION_ID, names_to = 'ParameterSTAT', values_to = 'Status') %>%
+      mutate(individualColor = case_when(Status %in% c("10.5% Exceedance", 'IM') ~ 'red',
+                                         Status %in% c('IN', 'Review') ~ 'yellow',
+                                         Status %in% c("S") ~ 'green',
+                                         is.na(Status) ~ 'gray'),
+             # create a variable that ranks statuses to easily combine into single "score"
+             individualScore = case_when(individualColor == 'red' ~ 1,
+                                         individualColor == 'yellow' ~ 2,
+                                         individualColor == 'green' ~ 3,
+                                         individualColor == 'gray' ~ 4))
+    # Gives one "rank" per station
+    overall <- vahu6StationSummary %>%
+      group_by(STATION_ID, individualColor, individualScore) %>%
+      dplyr::summarise(`n Parameters of lowest status` = n()) 
+    # join number of ranks causing color info
+    overall2 <- overall %>%
+      group_by(STATION_ID) %>%
+      summarise(stationOverallScore = min(individualScore)) %>%
+      left_join(overall, by = c('STATION_ID','stationOverallScore' = 'individualScore')) %>%
+      dplyr::select(-individualColor)
+    
+    return(left_join(vahu6StationSummary, overall2, by = 'STATION_ID') %>%
+             mutate(stationColor = case_when(stationOverallScore == 1 ~ 'red',
+                                             stationOverallScore == 2 ~ 'yellow',
+                                             stationOverallScore == 3 ~ 'green',
+                                             stationOverallScore == 4 ~ 'gray'),
+                    stationOverallScore = as.factor(stationOverallScore), 
+                    `Overall Station Result` = case_when(stationColor == 'red' ~ 'Station contains at least one parameter status of IM or 10.5% Exceedance',
+                                                         stationColor == 'yellow' ~ 'Station contains at least one parameter status of IN or Review',
+                                                         stationColor == 'green' ~ 'Station contains at least one parameter status of S and no IM, IN, 10.5% Exceedance, or Review',
+                                                         stationColor == 'gray' ~ 'Station contains all NA statuses')) %>%
+             left_join(parameterSTATcrosswalk, by = 'ParameterSTAT') %>%
+             left_join(dplyr::select(stationTable, STATION_ID, LATITUDE, LONGITUDE), by = 'STATION_ID') %>%
+             ungroup() %>%
+             st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
+                      remove = T, # remove these lat/lon cols from df
+                      crs = 4326) ) # add projection, needs to be geographic for now bc entering lat/lng
+    
+    # Gives ranked scale of n statuses
+    #  overall <- vahu6StationSummary %>%
+    #    group_by(STATION_ID, individualColor, individualScore) %>%
+    #    dplyr::summarise(n = n()) %>%
+    #    left_join(dplyr::select(stationTable, STATION_ID, LATITUDE, LONGITUDE), by = 'STATION_ID') %>%
+    #    ungroup() %>%
+    #    st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
+    #             remove = T, # remove these lat/lon cols from df
+    #             crs = 4269)  # add projection, needs to be geographic for now bc entering lat/lng
+    #  
+    #return(overall)
+  } else {
+    return(tibble(STATION_ID = NA, ParameterSTAT = NA, Status = NA, individualColor = NA, 
+                  individualScore = NA, stationOverallScore = NA, stationColor = NA, Parameter = NA)) }
+  #return(tibble(STATION_ID = NA, individualColor = NA, individualScore = NA, n = NA)) }
+}
+
+# Station Status Map Function
+indStatusMap <- function(parameter, status){
+  pal <- colorFactor(
+    palette = c('red', 'yellow','green', 'gray'),
+    domain = c(1, 2, 3, 4))
+  
+  if(parameter == 'Overall Status'){
+    CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE) %>%
+      addCircleMarkers(data = status, color='black', fillColor=~pal(status$stationOverallScore), radius = 6,
+                       fillOpacity = 0.5,opacity=1,weight = 2,stroke=T,group="Overall Station Status Summary",
+                       label = ~STATION_ID, layerId = ~STATION_ID,
+                       popup = leafpop::popupTable(status, zcol=c( "STATION_ID", "Overall Station Result", "n Parameters of lowest status"))  ) %>% 
+      addLegend('topright', colors = c('red', 'yellow','green', 'gray'),
+                labels = c('Station contains at least <br>one parameter status of <br>IM or 10.5% Exceedance',
+                           'Station contains at least <br>one parameter status of <br>IN or Review',
+                           'Station contains at least <br>one parameter status of S <br>and no IM, IN, <br>10.5% Exceedance, or Review', 
+                           'Station contains all <br>NA statuses'), title = 'Legend') %>%
+      addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                       overlayGroups = c('Overall Station Status Summary'),
+                       options=layersControlOptions(collapsed=T),
+                       position='topleft') 
+  } else {
+    indParameter <- filter(status, Parameter %in% parameter)
+    
+    CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE) %>%
+      addCircleMarkers(data = indParameter , color='black', fillColor=~pal(indParameter$individualScore), radius = 6,
+                       fillOpacity = 0.5,opacity=1,weight = 2,stroke=T,group=paste(parameter, "Station Summary"),
+                       label = ~STATION_ID, layerId = ~STATION_ID,
+                       popup = leafpop::popupTable(indParameter , zcol=c( "STATION_ID", "Parameter", "Status"))  ) %>% 
+      addLegend('topright', colors = c('red', 'yellow','green', 'gray'),
+                labels = c('Station status of IM or 10.5% Exceedance',
+                           'Station status of IN or Review',
+                           'Station status of S', 
+                           'Station status of NA'), title = 'Legend') %>%
+      addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                       overlayGroups = c(paste(parameter, "Station Summary")),
+                       options=layersControlOptions(collapsed=T),
+                       position='topleft')  }
+}
+```
+
+
+
+
 
 
 ```{r test case BRRO ambient}
@@ -472,3 +832,55 @@ stationRegion <- pool %>% tbl(in_schema("wqm", "Wqm_Stations_View")) %>%
 ```
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+As_Station_Types=pool %>%
+tbl(dbplyr::in_schema("wqa","Wqa_Station_Types_View")) %>%
+filter(STL_TYPE_CODE %in% "C2") %>%
+dplyr::select(STX_STATION_DETAIL_ID,STL_TYPE_DESCRIPTION)%>%
+as_tibble()
+
+jks <- pool %>%
+tbl(dbplyr::in_schema("wqa","Wqa_Station_Types_View")) %>%
+  filter(STX_STATION_DETAIL_ID == '57086') %>% 
+  dplyr::select(STX_STATION_DETAIL_ID,STL_TYPE_DESCRIPTION)%>%
+  as_tibble()
+
+As_Sta_Details=pool %>%
+tbl(dbplyr::in_schema("wqa","Wqa_Station_Details_View")) %>%
+filter(WXA_STATION_DETAIL_ID %in% !!As_Station_Types$STX_STATION_DETAIL_ID) %>%
+#filter(WXA_STATION_DETAIL_ID %in% !!jks$STX_STATION_DETAIL_ID) %>%
+  as_tibble()
+
+jks2<- pool %>%
+tbl(dbplyr::in_schema("wqa","Wqa_Station_Details_View")) %>%
+filter(WXA_STATION_DETAIL_ID %in% !!jks$STX_STATION_DETAIL_ID) %>%
+  as_tibble()
+
+stations <- pool %>%
+tbl(dbplyr::in_schema("wqa","Wqa_Station_Details_View")) %>%
+  filter(WSD_STATION_ID == '2-JKS023.61') %>% 
+  #distinct(WSD_STATION_ID) %>% 
+  as_tibble()
+```
