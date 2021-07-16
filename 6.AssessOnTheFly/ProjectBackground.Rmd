@@ -51,6 +51,7 @@ source('methods/conventionalsFunction.R')
 source('methods/updatedBacteriaCriteria.R')
 source('methods/3.automatedAssessment_global.R')
 source('methods/automatedAssessmentFunctions.R')
+source('methods/assessmentFunction.R')
 lakeNutStandards <- read_csv('data/9VAC25-260-187lakeNutrientStandards.csv')
 
 ```
@@ -487,6 +488,47 @@ stationGIS_View <-  pool %>% tbl(in_schema("wqm",  "Wqm_Sta_GIS_View")) %>%
   filter(Station_Id %in% !! toupper(station)) %>%
   as_tibble()
 
+
+WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
+WQMstationSpatial <- pin_get("WQM-Stations-Spatial", board = "rsconnect")
+VSCIresults <- pin_get("VSCIresults", board = "rsconnect") %>%
+  filter( between(`Collection Date`, dateRange[1], dateRange[2]) )
+
+
+stationTable <- left_join(tibble(STATION_ID = station),
+                          WQSlookup, by = c('STATION_ID'='StationID')) %>%
+  mutate(CLASS_BASIN = paste(CLASS,substr(BASIN, 1,1), sep="_")) %>%
+  mutate(CLASS_BASIN = ifelse(CLASS_BASIN == 'II_7', "II_7", as.character(CLASS))) %>%
+  # Fix for Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard)
+  left_join(WQSvalues, by = 'CLASS_BASIN') %>%
+  dplyr::select(-c(CLASS.y,CLASS_BASIN)) %>%
+  rename('CLASS' = 'CLASS.x') %>%
+  left_join(WQMstationSpatial %>% distinct(StationID, .keep_all = TRUE), by = c('STATION_ID' = 'StationID')) %>%
+  # last cycle had code to fix Class II Tidal Waters in Chesapeake (bc complicated DO/temp/etc standard) but not sure if necessary
+  lakeNameStandardization() %>% # standardize lake names
+  
+   
+  # extra special step
+  mutate(Lake_Name = case_when(STATION_ID %in% c('2-TRH000.40') ~ 'Thrashers Creek Reservoir',
+                               STATION_ID %in% c('2-LSL000.16') ~ 'Lone Star Lake F (Crystal Lake)',
+                               STATION_ID %in% c('2-LSL000.04') ~ 'Lone Star Lake G (Crane Lake)',
+                               STATION_ID %in% c('2-LSL000.20') ~ 'Lone Star Lake I (Butler Lake)',
+                               STATION_ID %in% c('2-NWB002.93','2-NWB004.67', '2-NWB006.06') ~ 'Western Branch Reservoir',
+                               STATION_ID %in% c('2-LDJ000.60') ~ 'Lake Nottoway (Lee Lake)',
+                               TRUE ~ as.character(Lake_Name))) %>%
+  left_join(lakeNutStandards %>% 
+              mutate(Lakes_187B = 'y'),  # special step to make sure the WQS designation for 187 are correct even when not
+            by = c('Lake_Name')) %>%
+  # lake drummond special standards
+  mutate(Lakes_187B = ifelse(is.na(Lakes_187B.y ), Lakes_187B.x, Lakes_187B.y), 
+    `Chlorophyll a (ug/L)` = case_when(Lake_Name %in% c('Lake Drummond') ~ 35,
+                                            TRUE ~ as.numeric(`Chlorophyll a (ug/L)`)),
+         `Total Phosphorus (ug/L)` = case_when(Lake_Name %in% c('Lake Drummond') ~ 40,
+                                               TRUE ~ as.numeric(`Total Phosphorus (ug/L)`))) %>% 
+  dplyr::select(STATION_ID:StreamType, Lakes_187B, `Description Of Waters`:`Total Phosphorus (ug/L)`)
+
+
+
 conventionals <- conventionalsSummary(conventionals= pin_get("conventionals2022IRfinalWithSecchi", board = "rsconnect")[0,],
                            stationFieldDataUserFilter= stationFieldData, stationAnalyteDataUserFilter = stationAnalyteData,
                            stationInfo,
@@ -575,14 +617,15 @@ collectorHeatmap <- function(stationFieldData, stationGIS_View, assessmentLayer,
                   group="VAHU6 sampled",label = ~VAHU6) %>% 
     addCircleMarkers(data = stations, color = 'black', fillColor = ~pal(stations$`Station Visited`),
                      radius = 3, fillOpacity = 1, weight = 1,stroke=T, label = ~Fdt_Sta_Id,
-                     popup = leafpop::popupTable(stations, zcol=c('Fdt_Sta_Id', 'Station Visited')))
+                     popup = leafpop::popupTable(stations, zcol=c('Fdt_Sta_Id', 'Station Visited'))) %>% 
+    addLegend(data = stations,'topright', pal = pal, values = ~`Station Visited`, title = 'Number of Station Visits')
+
   
   } else { return(NULL)}
-  
 }
-collectorHeatmap(stationFieldData, stationGIS_View, assessmentLayer, collectorID = 'SMH')
 
 
+collectorHeatmap(stationFieldData, stationGIS_View, assessmentLayer, collectorID = 'RJS')#'SMH')
 ```
 
 
@@ -597,7 +640,22 @@ View(filter_at(assessmentResults$stationTableResults, vars(ends_with("_EXC")), a
 ```
 
 ```{r}
-stationTableResults <- assessmentResults$stationTableResults
+# parameter name crosswalk for prettier names later
+parameterEXCcrosswalk <- tibble(Parameter = c("Temperature", 'Dissolved Oxygen', 'pH', 'E.coli STV', 'E.coli Geomean', 'Enterococci STV',  'Enterococci Geomean',
+                                              'Ammonia', 'Water Column Metals',
+                                               'Water Column Toxics', 'Sediment Metals', 'Sediment Toxics', 'Fish Tissue Metals', 'Fish Tissue Toxics',
+                                               'Benthics', 'Total Phosphorus', 'Chlorophyll a'),
+                                 ParameterEXC = c("TEMP_EXC", "DO_EXC", "PH_EXC", "ECOLI_EXC", "ECOLI_GM_EXC ","ENTER_EXC", "ENTER_GM_EXC",
+                                                  "AMMONIA_EXC", "WAT_MET_EXC", 
+                                                   "WAT_TOX_EXC", "SED_MET_EXC", "SED_TOX_EXC", "FISH_MET_EXC", "FISH_TOX_EXC", "BENTHIC_EXC",
+                                                   "NUT_TP_EXC", "NUT_CHLA_EXC"))
+
+
+stationTableResults <- left_join(assessmentResults$stationTableResults,
+                                 dplyr::select(stationGIS_View, STATION_ID = Station_Id, LATITUDE = Latitude, LONGITUDE = Longitude),
+                                 by = 'STATION_ID')
+
+
 stationSummary <- function(stationTableResults, parameterSTATcrosswalk){
   #vahu6StationSummary <- filter(stationTable, VAHU6 %in% VAHU6chosen) 
   
@@ -635,25 +693,10 @@ stationSummary <- function(stationTableResults, parameterSTATcrosswalk){
                     stationOverallScore = as.factor(stationOverallScore), 
                     `Overall Station Result` = case_when(stationColor == 'red' ~ 'Station contains at least one parameter with 2 or more exceedances',
                                                          stationColor == 'yellow' ~ 'Station contains at least one parameter with one exceedance',
-                                                         stationColor == 'green' ~ 'Station contains at least one parameter status of S and no exceedances',
+                                                         stationColor == 'green' ~ 'Station contains no exceedances',
                                                          stationColor == 'gray' ~ 'Station unassessed')) %>%
-             left_join(parameterSTATcrosswalk, by = c('ParameterEXC' = 'ParameterSTAT')) %>%
-             
-             
-             
-             
-             
-             
-             
-           
-             ### Issue here, need lat/lng info in stationTableResults to get this to work  
-             
-             
-             
-             
-           
-           
-           left_join(dplyr::select(stationTableResults, STATION_ID, LATITUDE, LONGITUDE), by = 'STATION_ID') %>%
+             left_join(parameterEXCcrosswalk, by = 'ParameterEXC' ) %>%
+             left_join(dplyr::select(stationTableResults, STATION_ID, LATITUDE, LONGITUDE), by = 'STATION_ID') %>%
              ungroup() %>%
              st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
                       remove = T, # remove these lat/lon cols from df
@@ -676,82 +719,10 @@ stationSummary <- function(stationTableResults, parameterSTATcrosswalk){
   #return(tibble(STATION_ID = NA, individualColor = NA, individualScore = NA, n = NA)) }
 }
 
-assessmentSummary <- stationSummary(assessmentResults$stationTableResults, parameterSTATcrosswalk)
-```
-
-
-functions from riverine tool for 30k foot view
-```{r}
-# parameter name crosswalk for prettier names later
-parameterSTATcrosswalk <- tibble(Parameter = c("Temperature", 'Dissolved Oxygen', 'pH', 'E.coli', 'Enterococci', 'Ammonia', 'Water Column Metals',
-                                               'Water Column Toxics', 'Sediment Metals', 'Sediment Toxics', 'Fish Tissue Metals', 'Fish Tissue Toxics',
-                                               'Benthics', 'Total Phosphorus', 'Chlorophyll a'),
-                                 ParameterSTAT = c("TEMP_STAT", "DO_STAT", "PH_STAT", "ECOLI_STAT", "ENTER_STAT", "AMMONIA_STAT", "WAT_MET_STAT", 
-                                                   "WAT_TOX_STAT", "SED_MET_STAT", "SED_TOX_STAT", "FISH_MET_STAT", "FISH_TOX_STAT", "BENTHIC_STAT",
-                                                   "NUT_TP_STAT", "NUT_CHLA_STAT"))
-# Some data reorg to identify individual parameter issues and "rank" station (basically identifies worst status and colors
-#  station that one color, user can dig in to station results to figure out what is causing the flag)
-VAHU6stationSummary <- function(stationTable, VAHU6chosen, parameterSTATcrosswalk){
-  vahu6StationSummary <- filter(stationTable, VAHU6 %in% VAHU6chosen) 
-  
-  if(nrow(vahu6StationSummary) > 0){
-    vahu6StationSummary <- vahu6StationSummary %>%
-      dplyr::select(STATION_ID, contains('_STAT')) %>% 
-      group_by(STATION_ID) %>%
-      pivot_longer(-STATION_ID, names_to = 'ParameterSTAT', values_to = 'Status') %>%
-      mutate(individualColor = case_when(Status %in% c("10.5% Exceedance", 'IM') ~ 'red',
-                                         Status %in% c('IN', 'Review') ~ 'yellow',
-                                         Status %in% c("S") ~ 'green',
-                                         is.na(Status) ~ 'gray'),
-             # create a variable that ranks statuses to easily combine into single "score"
-             individualScore = case_when(individualColor == 'red' ~ 1,
-                                         individualColor == 'yellow' ~ 2,
-                                         individualColor == 'green' ~ 3,
-                                         individualColor == 'gray' ~ 4))
-    # Gives one "rank" per station
-    overall <- vahu6StationSummary %>%
-      group_by(STATION_ID, individualColor, individualScore) %>%
-      dplyr::summarise(`n Parameters of lowest status` = n()) 
-    # join number of ranks causing color info
-    overall2 <- overall %>%
-      group_by(STATION_ID) %>%
-      summarise(stationOverallScore = min(individualScore)) %>%
-      left_join(overall, by = c('STATION_ID','stationOverallScore' = 'individualScore')) %>%
-      dplyr::select(-individualColor)
-    
-    return(left_join(vahu6StationSummary, overall2, by = 'STATION_ID') %>%
-             mutate(stationColor = case_when(stationOverallScore == 1 ~ 'red',
-                                             stationOverallScore == 2 ~ 'yellow',
-                                             stationOverallScore == 3 ~ 'green',
-                                             stationOverallScore == 4 ~ 'gray'),
-                    stationOverallScore = as.factor(stationOverallScore), 
-                    `Overall Station Result` = case_when(stationColor == 'red' ~ 'Station contains at least one parameter status of IM or 10.5% Exceedance',
-                                                         stationColor == 'yellow' ~ 'Station contains at least one parameter status of IN or Review',
-                                                         stationColor == 'green' ~ 'Station contains at least one parameter status of S and no IM, IN, 10.5% Exceedance, or Review',
-                                                         stationColor == 'gray' ~ 'Station contains all NA statuses')) %>%
-             left_join(parameterSTATcrosswalk, by = 'ParameterSTAT') %>%
-             left_join(dplyr::select(stationTable, STATION_ID, LATITUDE, LONGITUDE), by = 'STATION_ID') %>%
-             ungroup() %>%
-             st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
-                      remove = T, # remove these lat/lon cols from df
-                      crs = 4326) ) # add projection, needs to be geographic for now bc entering lat/lng
-    
-    # Gives ranked scale of n statuses
-    #  overall <- vahu6StationSummary %>%
-    #    group_by(STATION_ID, individualColor, individualScore) %>%
-    #    dplyr::summarise(n = n()) %>%
-    #    left_join(dplyr::select(stationTable, STATION_ID, LATITUDE, LONGITUDE), by = 'STATION_ID') %>%
-    #    ungroup() %>%
-    #    st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
-    #             remove = T, # remove these lat/lon cols from df
-    #             crs = 4269)  # add projection, needs to be geographic for now bc entering lat/lng
-    #  
-    #return(overall)
-  } else {
-    return(tibble(STATION_ID = NA, ParameterSTAT = NA, Status = NA, individualColor = NA, 
-                  individualScore = NA, stationOverallScore = NA, stationColor = NA, Parameter = NA)) }
-  #return(tibble(STATION_ID = NA, individualColor = NA, individualScore = NA, n = NA)) }
-}
+assessmentSummary <- stationSummary(stationTableResults = left_join(assessmentResults$stationTableResults,
+                                 dplyr::select(stationGIS_View, STATION_ID = Station_Id, LATITUDE = Latitude, LONGITUDE = Longitude),
+                                 by = 'STATION_ID'),
+                                 parameterEXCcrosswalk)
 
 # Station Status Map Function
 indStatusMap <- function(parameter, status){
@@ -766,10 +737,10 @@ indStatusMap <- function(parameter, status){
                        label = ~STATION_ID, layerId = ~STATION_ID,
                        popup = leafpop::popupTable(status, zcol=c( "STATION_ID", "Overall Station Result", "n Parameters of lowest status"))  ) %>% 
       addLegend('topright', colors = c('red', 'yellow','green', 'gray'),
-                labels = c('Station contains at least <br>one parameter status of <br>IM or 10.5% Exceedance',
-                           'Station contains at least <br>one parameter status of <br>IN or Review',
-                           'Station contains at least <br>one parameter status of S <br>and no IM, IN, <br>10.5% Exceedance, or Review', 
-                           'Station contains all <br>NA statuses'), title = 'Legend') %>%
+                labels = c('Station contains at least <br>one parameter with 2 or more exceedances',
+                           'Station contains at least <br>one parameter with one exceedance',
+                           'Station contains no exceedances',
+                           'Station unassessed'), title = 'Legend') %>%
       addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                        overlayGroups = c('Overall Station Status Summary'),
                        options=layersControlOptions(collapsed=T),
@@ -781,18 +752,37 @@ indStatusMap <- function(parameter, status){
       addCircleMarkers(data = indParameter , color='black', fillColor=~pal(indParameter$individualScore), radius = 6,
                        fillOpacity = 0.5,opacity=1,weight = 2,stroke=T,group=paste(parameter, "Station Summary"),
                        label = ~STATION_ID, layerId = ~STATION_ID,
-                       popup = leafpop::popupTable(indParameter , zcol=c( "STATION_ID", "Parameter", "Status"))  ) %>% 
+                       popup = leafpop::popupTable(indParameter , zcol=c( "STATION_ID", "Parameter", "Exceedance"))  ) %>% 
       addLegend('topright', colors = c('red', 'yellow','green', 'gray'),
-                labels = c('Station status of IM or 10.5% Exceedance',
-                           'Station status of IN or Review',
-                           'Station status of S', 
-                           'Station status of NA'), title = 'Legend') %>%
+                labels = c('Station has 2 or more exceedances',
+                           'Station has one exceedance',
+                           'Station has no exceedances', 
+                           'Station unassessed'), title = 'Legend') %>%
       addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
                        overlayGroups = c(paste(parameter, "Station Summary")),
                        options=layersControlOptions(collapsed=T),
                        position='topleft')  }
 }
+
+indStatusMap('Overall Status',assessmentSummary)
+indStatusMap('pH',assessmentSummary)
+
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
