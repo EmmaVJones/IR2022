@@ -25,36 +25,37 @@ board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_K
                          server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
 
 ## For testing: connect to ODS production
-pool <- dbPool(
-  drv = odbc::odbc(),
-  Driver = "ODBC Driver 11 for SQL Server",#"SQL Server Native Client 11.0",
-  Server= "DEQ-SQLODS-PROD,50000",
-  dbname = "ODS",
-  trusted_connection = "yes"
-)
-
-# For deployment on the R server: Set up pool connection to production environment
 # pool <- dbPool(
 #   drv = odbc::odbc(),
-#   Driver = "SQLServer",   # note the LACK OF space between SQL and Server ( how RStudio named driver)
-#   # Production Environment
+#   Driver = "ODBC Driver 11 for SQL Server",#"SQL Server Native Client 11.0",
 #   Server= "DEQ-SQLODS-PROD,50000",
 #   dbname = "ODS",
-#   UID = conn$UID_prod,
-#   PWD = conn$PWD_prod,
-#   #UID = Sys.getenv("userid_production"), # need to change in Connect {vars}
-#   #PWD = Sys.getenv("pwd_production")   # need to change in Connect {vars}
-#   # Test environment
-#   #Server= "WSQ04151,50000",
-#   #dbname = "ODS_test",
-#   #UID = Sys.getenv("userid"),  # need to change in Connect {vars}
-#   #PWD = Sys.getenv("pwd"),  # need to change in Connect {vars}
 #   trusted_connection = "yes"
 # )
+
+# For deployment on the R server: Set up pool connection to production environment
+pool <- dbPool(
+  drv = odbc::odbc(),
+  Driver = "SQLServer",   # note the LACK OF space between SQL and Server ( how RStudio named driver)
+  # Production Environment
+  Server= "DEQ-SQLODS-PROD,50000",
+  dbname = "ODS",
+  UID = conn$UID_prod,
+  PWD = conn$PWD_prod,
+  #UID = Sys.getenv("userid_production"), # need to change in Connect {vars}
+  #PWD = Sys.getenv("pwd_production")   # need to change in Connect {vars}
+  # Test environment
+  #Server= "WSQ04151,50000",
+  #dbname = "ODS_test",
+  #UID = Sys.getenv("userid"),  # need to change in Connect {vars}
+  #PWD = Sys.getenv("pwd"),  # need to change in Connect {vars}
+  trusted_connection = "yes"
+)
 
 onStop(function() {
   poolClose(pool)
 })
+
 
 
 # bring in methods and data for automated assessment to work
