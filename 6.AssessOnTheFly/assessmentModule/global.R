@@ -58,11 +58,12 @@ onStop(function() {
 
 
 # bring in methods and data for automated assessment to work
+source('AssessmentModule.R')
 source('methods/conventionalsFunction.R')
 source('methods/updatedBacteriaCriteria.R')
 source('methods/3.automatedAssessment_global.R')
 source('methods/automatedAssessmentFunctions.R')
-source('methods/assessmentFuntion.R')
+source('methods/assessmentFunction.R')
 lakeNutStandards <- read_csv('data/9VAC25-260-187lakeNutrientStandards.csv')
 conventionalsTemplate <- pin_get("conventionals2022IRfinalWithSecchi", board = "rsconnect")[0,]
 

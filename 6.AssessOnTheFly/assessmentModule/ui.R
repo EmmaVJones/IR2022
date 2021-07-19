@@ -71,7 +71,7 @@ shinyUI(fluidPage(tags$head(
                                  mainPanel(
                                    tabsetPanel(
                                      tabPanel('Station Data',
-                                              h4('Field and Chemistry Data Combined') )))),
+                                              h4('Same same as WQM Data query tool') )))),
                       tabPanel("Rapid Assessment Results",
                                assessmentUI('assessmentModule') ),
                                

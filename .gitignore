@@ -90,6 +90,7 @@ vignettes/*.pdf
 
 
 6.AssessOnTheFly/data/
+6.AssessOnTheFly/assessmentModule/data/
 
 bookdown/
 WQSlookupTable/

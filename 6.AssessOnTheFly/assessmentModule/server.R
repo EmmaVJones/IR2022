@@ -1,51 +1,51 @@
-# source('global.R')
-# 
-# assessmentRegions <- st_read( 'data/GIS/AssessmentRegions_simple.shp')
-# ecoregion <- st_read('data/GIS/vaECOREGIONlevel3__proj84.shp')
-# ecoregionLevel4 <- st_read('data/GIS/vaECOREGIONlevel4__proj84.shp')
-# county <- st_read('data/GIS/VACountyBoundaries.shp')
-# assessmentLayer <- st_read('data/GIS/AssessmentRegions_VA84_basins.shp') %>%
-#   st_transform( st_crs(4326))
-# subbasins <- st_read('data/GIS/DEQ_VAHUSB_subbasins_EVJ.shp') %>%
-#   rename('SUBBASIN' = 'SUBBASIN_1') %>%
-#   mutate(SUBBASIN = ifelse(is.na(SUBBASIN), as.character(BASIN_NAME), as.character(SUBBASIN))) %>%
-#   mutate(ProbBasin = case_when(SUBBASIN == 'Big Sandy River' ~ 'Big Sandy',
-#                                SUBBASIN == 'Chowan River' ~ 'Chowan',
-#                                SUBBASIN %in% c('James River - Lower', "James River - Middle", "James River - Upper") ~ 'James',
-#                                SUBBASIN == 'New River' ~ 'New',
-#                                SUBBASIN == 'Potomac River' ~ 'Potomac',
-#                                SUBBASIN == 'Shenandoah River' ~ 'Shenandoah',
-#                                SUBBASIN == 'Rappahannock River' ~ 'Rappahannock',
-#                                SUBBASIN == 'Roanoke River' ~ 'Roanoke',
-#                                SUBBASIN == 'Clinch and Powell Rivers' ~ 'Clinch',
-#                                SUBBASIN == 'Holston River' ~ 'Holston',
-#                                SUBBASIN == 'York River' ~ 'York',
-#                                TRUE ~ as.character(NA)),
-#          ProbSuperBasin = case_when(SUBBASIN %in% c('Big Sandy River','Holston River','Clinch and Powell Rivers') ~ 'Tennessee',
-#                                     SUBBASIN %in% c('Potomac River', 'Shenandoah River') ~ 'Potomac-Shenandoah',
-#                                     SUBBASIN %in% c('Rappahannock River', 'York River') ~ 'Rappahannock-York',
-#                                     TRUE ~ as.character(NA)))
-# 
-# subbasinVAHU6crosswalk <- read_csv('data/basinAssessmentReg_clb_EVJ.csv') %>%
-#   filter(!is.na(SubbasinVAHU6code)) %>%
-#   mutate(SUBBASIN = ifelse(is.na(SUBBASIN), BASIN_NAME, SUBBASIN)) #%>%
-# #dplyr::select(SUBBASIN, SubbasinVAHU6code)
-# 
-# # labCommentCodes <- pool %>% tbl( "Wqm_Comment_Cds_Codes_Wqm_View") %>%
-# #   as_tibble()
-# # pin(labCommentCodes, description = 'Lab Comment Codes', board = 'rsconnect')
-# labCommentCodes <- pin_get("labCommentCodes", board = 'rsconnect')
-# 
-# WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
-# WQM_Stations_Spatial <- pin_get("ejones/WQM-Stations-Spatial", board = "rsconnect") %>%
-#   rename("Basin_Name" = "Basin_Code") # can't have same name different case when using sqldf
-# WQM_Stations_Full <- st_as_sf(pin_get('ejones/WQM-Station-Full', board = 'rsconnect'))
+source('global.R')
+
+assessmentRegions <- st_read( 'data/GIS/AssessmentRegions_simple.shp')
+ecoregion <- st_read('data/GIS/vaECOREGIONlevel3__proj84.shp')
+ecoregionLevel4 <- st_read('data/GIS/vaECOREGIONlevel4__proj84.shp')
+county <- st_read('data/GIS/VACountyBoundaries.shp')
+assessmentLayer <- st_read('data/GIS/AssessmentRegions_VA84_basins.shp') %>%
+  st_transform( st_crs(4326))
+subbasins <- st_read('data/GIS/DEQ_VAHUSB_subbasins_EVJ.shp') %>%
+  rename('SUBBASIN' = 'SUBBASIN_1') %>%
+  mutate(SUBBASIN = ifelse(is.na(SUBBASIN), as.character(BASIN_NAME), as.character(SUBBASIN))) %>%
+  mutate(ProbBasin = case_when(SUBBASIN == 'Big Sandy River' ~ 'Big Sandy',
+                               SUBBASIN == 'Chowan River' ~ 'Chowan',
+                               SUBBASIN %in% c('James River - Lower', "James River - Middle", "James River - Upper") ~ 'James',
+                               SUBBASIN == 'New River' ~ 'New',
+                               SUBBASIN == 'Potomac River' ~ 'Potomac',
+                               SUBBASIN == 'Shenandoah River' ~ 'Shenandoah',
+                               SUBBASIN == 'Rappahannock River' ~ 'Rappahannock',
+                               SUBBASIN == 'Roanoke River' ~ 'Roanoke',
+                               SUBBASIN == 'Clinch and Powell Rivers' ~ 'Clinch',
+                               SUBBASIN == 'Holston River' ~ 'Holston',
+                               SUBBASIN == 'York River' ~ 'York',
+                               TRUE ~ as.character(NA)),
+         ProbSuperBasin = case_when(SUBBASIN %in% c('Big Sandy River','Holston River','Clinch and Powell Rivers') ~ 'Tennessee',
+                                    SUBBASIN %in% c('Potomac River', 'Shenandoah River') ~ 'Potomac-Shenandoah',
+                                    SUBBASIN %in% c('Rappahannock River', 'York River') ~ 'Rappahannock-York',
+                                    TRUE ~ as.character(NA)))
+
+subbasinVAHU6crosswalk <- read_csv('data/basinAssessmentReg_clb_EVJ.csv') %>%
+  filter(!is.na(SubbasinVAHU6code)) %>%
+  mutate(SUBBASIN = ifelse(is.na(SUBBASIN), BASIN_NAME, SUBBASIN)) #%>%
+#dplyr::select(SUBBASIN, SubbasinVAHU6code)
+
+# labCommentCodes <- pool %>% tbl( "Wqm_Comment_Cds_Codes_Wqm_View") %>%
+#   as_tibble()
+# pin(labCommentCodes, description = 'Lab Comment Codes', board = 'rsconnect')
+labCommentCodes <- pin_get("labCommentCodes", board = 'rsconnect')
+
+WQSlookup <- pin_get("WQSlookup-withStandards",  board = "rsconnect")
+WQM_Stations_Spatial <- pin_get("ejones/WQM-Stations-Spatial", board = "rsconnect") %>%
+  rename("Basin_Name" = "Basin_Code") # can't have same name different case when using sqldf
+WQM_Stations_Full <- st_as_sf(pin_get('ejones/WQM-Station-Full', board = 'rsconnect'))
 
 
 # analyte options
-# Wqm_Parameter_Grp_Cds_Codes_Wqm_View <- pool %>% tbl(in_schema("wqm", 'Wqm_Parameter_Grp_Cds_Codes_Wqm_View')) %>%
-#   filter(Pg_Parm_Name != "STORET STORAGE TRANSACTION DATE YR/MO/DAY") %>%
-#   distinct(Pg_Parm_Name) %>% arrange(Pg_Parm_Name) %>% as_tibble() %>% drop_na()
+Wqm_Parameter_Grp_Cds_Codes_Wqm_View <- pool %>% tbl(in_schema("wqm", 'Wqm_Parameter_Grp_Cds_Codes_Wqm_View')) %>%
+  filter(Pg_Parm_Name != "STORET STORAGE TRANSACTION DATE YR/MO/DAY") %>%
+  distinct(Pg_Parm_Name) %>% arrange(Pg_Parm_Name) %>% as_tibble() %>% drop_na()
 
 
 
@@ -507,7 +507,8 @@ shinyServer(function(input, output, session) {
                multistationAnalyteDataUserFilter = reactive(reactive_objects$multistationAnalyteDataUserFilter),
                WQM_Stations_Filter = reactive(reactive_objects$WQM_Stations_Filter), 
                multistationSelection = reactive(reactive_objects$multistationInfoFin),
-               VSCIresults = reactive(reactive_objects$VSCIresults))
+               VSCIresults = reactive(reactive_objects$VSCIresults),
+               WQSlookup = reactive(WQSlookup))
     
   
   
