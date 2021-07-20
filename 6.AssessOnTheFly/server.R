@@ -85,7 +85,7 @@ shinyServer(function(input, output, session) {
   output$monitorSummaryTable <- renderDataTable({req(reactive_objects$runSummary, input$monitorSelection)
     z <- filter(reactive_objects$runSummary, Fdt_Collector_Id %in% input$monitorSelection)
     datatable(z, rownames = F, escape= F, extensions = 'Buttons',
-              options = list(dom = 'Bit', scrollX = TRUE, scrollY = '350px',selection = 'none',
+              options = list(dom = 'Bit', scrollX = TRUE, scrollY = '310px',selection = 'none',
                              pageLength = nrow(z),
                              buttons=list('copy',
                                           list(extend='excel',filename=paste0('MonitoringSummary',input$monitorSelection)))) )})
