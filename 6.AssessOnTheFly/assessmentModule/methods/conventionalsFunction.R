@@ -4,6 +4,62 @@
 # Built in R 3.6.2
 # source as needed for other applications
 
+# multiple parameter clean up function
+# newMethod <-  stationAnalyteDataUserFilter0 %>% 
+#   
+#   # filter(Ana_Sam_Fdt_Id %in% '2880155') %>% 
+#   # 
+#   # dplyr::select(Ana_Sam_Fdt_Id, Ana_Sam_Mrs_Container_Id_Desc, Ana_Sam_Mrs_Lcc_Parm_Group_Cd, Pg_Storet_Code, ParameterName, Ana_Uncensored_Value, Ana_Uncensored_Val_Comment) %>% 
+#   group_by(Ana_Sam_Fdt_Id, Pg_Storet_Code) %>% 
+#   mutate(n = n()) %>% #filter(Ana_Sam_Fdt_Id == '3001273') 
+#   arrange(desc(n), Ana_Sam_Fdt_Id, Pg_Storet_Code) 
+
+fixMultipleParameterResultsFunction <- function(newMethod){
+  potentialIssues <- filter(newMethod, n > 1)
+  if(nrow(potentialIssues) > 0){
+    nonIssues <- filter(newMethod, n == 1)
+    #i = unique(potentialIssues$Ana_Sam_Fdt_Id)[1]
+    for(i in unique(potentialIssues$Ana_Sam_Fdt_Id)){
+      sampleIssue <- filter(potentialIssues, Ana_Sam_Fdt_Id == i)
+      
+      parameterOut <- sampleIssue[0,] %>% dplyr::select(-c(Ana_Uncensored_Val_Comment, n))
+      for(k in unique(sampleIssue$ParameterName)){
+        parameter <- filter(sampleIssue, ParameterName == k)
+        # catch in case all nondetect
+        if(all(parameter$Ana_Uncensored_Val_Comment %in% c('T', 'QQ'))){
+          parameter <- suppressWarnings(suppressMessages(
+            parameter %>% 
+              group_by(Fdt_Sta_Id, Ana_Sam_Fdt_Id, Ana_Sam_Mrs_Container_Id_Desc, Pg_Storet_Code, ParameterName) %>%
+              summarise(Ana_Uncensored_Value = max(Ana_Uncensored_Value)) ))
+          parameterOut <- bind_rows(parameterOut, parameter)
+        } else {
+          parameter <- parameter %>% 
+            {if(any(parameter$Ana_Uncensored_Val_Comment %in% c('T', 'QQ')))
+              filter(., ! Ana_Uncensored_Val_Comment %in% c('T', 'QQ'))
+              else . } %>% 
+            ungroup() %>% 
+            group_by(Fdt_Sta_Id, Ana_Sam_Fdt_Id, Ana_Sam_Mrs_Container_Id_Desc, Pg_Storet_Code, ParameterName) %>%
+            summarise(Ana_Uncensored_Value = mean(Ana_Uncensored_Value))
+          parameterOut <- bind_rows(parameterOut, parameter) }
+      }
+      
+      fixedSample <- suppressWarnings(suppressMessages(
+        parameterOut %>% 
+          left_join(sampleIssue %>% 
+                      ungroup() %>% 
+                      group_by(Ana_Sam_Fdt_Id, Ana_Sam_Mrs_Container_Id_Desc, Pg_Storet_Code, ParameterName) %>% 
+                      summarise(Ana_Uncensored_Val_Comment = paste0(Ana_Uncensored_Val_Comment, collapse = ' | ')),
+                    by = c('Ana_Sam_Fdt_Id', 'Ana_Sam_Mrs_Container_Id_Desc', 'Pg_Storet_Code', 'ParameterName') )
+      ))
+      nonIssues <- bind_rows(nonIssues, fixedSample) 
+    }
+  } else {
+    nonIssues <- newMethod
+  }
+  return(nonIssues %>% arrange(Ana_Id))
+}
+
+
 # Conventionals Summary
 conventionalsSummary <- function(conventionals, stationFieldDataUserFilter, stationAnalyteDataUserFilter, stationInfo, stationGIS_View, dropCodes){
   # make template to provide columns that may not exist for coalesce step
@@ -115,6 +171,7 @@ conventionalsSummary <- function(conventionals, stationFieldDataUserFilter, stat
                                               TRUE ~ Ana_Uncensored_Value)) %>% # drop results from invalid lab codes
       filter(Ana_Sam_Mrs_Container_Id_Desc %in% c('', 'C', 'H', 'HV', 'R', 'S1', 'V')) # only keep samples with select container descriptions
     
+
     # Step 3.2: Rename by storet codes to match conventionals format
     stationAnalyteDataUserFilter0 <- stationAnalyteDataUserFilter %>% 
       
@@ -163,10 +220,22 @@ conventionalsSummary <- function(conventionals, stationFieldDataUserFilter, stat
                                        Pg_Storet_Code == 'TSS45' ~ 'TOTAL_SUSPENDED_SOLIDS_TSS45_mg_L',
                                        TRUE ~ as.character(Pg_Storet_Code))) 
     
+    
+    # Step 3.2.1: Fix issues associated with multiple parameter values returned for a single sample for same parameter (when multiple lab group codes call for same analysis)
+    # This step averages only the values that are not non detects (T, QQ) only when multiple parameters exist for the same storet code
+    # All remark codes are concatenated regardless of non detect status
+    stationAnalyteDataUserFilter0_0 <-  suppressMessages(suppressWarnings(
+      stationAnalyteDataUserFilter0 %>% 
+      group_by(Ana_Sam_Fdt_Id, Pg_Storet_Code) %>% 
+      mutate(n = n()) %>% 
+      arrange(desc(n), Ana_Sam_Fdt_Id, Pg_Storet_Code) %>% 
+      fixMultipleParameterResultsFunction() ))
+    
     # Step 3.3: Organize lab data
     stationAnalyteDataUserFilter1 <- bind_rows(parameterTemplate, 
                                                suppressWarnings(
-                                                 stationAnalyteDataUserFilter0 %>% 
+                                                 stationAnalyteDataUserFilter0_0 %>% 
+                                                 #stationAnalyteDataUserFilter0 %>% 
                                                    dplyr::select(Ana_Sam_Fdt_Id, Ana_Sam_Mrs_Container_Id_Desc,  ParameterName, Ana_Uncensored_Value) %>% 
                                                    pivot_wider(id_cols = Ana_Sam_Fdt_Id, 
                                                                names_from = ParameterName, values_from = Ana_Uncensored_Value, values_fn = list()) %>% 
@@ -252,7 +321,8 @@ conventionalsSummary <- function(conventionals, stationFieldDataUserFilter, stat
     # now fix remark fields
     stationAnalyteDataUserFilter2 <- bind_rows(remarkTemplate, 
                                                suppressWarnings(
-                                                 stationAnalyteDataUserFilter %>% 
+                                                 stationAnalyteDataUserFilter0_0 %>% 
+                                                   #stationAnalyteDataUserFilter %>% 
                                                    
                                                    # only keep codes we will do something with to avoid unnecessary data duplication
                                                    
@@ -366,7 +436,8 @@ conventionalsSummary <- function(conventionals, stationFieldDataUserFilter, stat
     
     
     # Step 4: Combine field and analyte data
-    combo <- full_join(stationFieldDataUserFilter1, stationAnalyteDataUserFilter3, by = c("FDT_ID" = "Ana_Sam_Fdt_Id")) %>% 
+    # use left join here bc stationFieldDataUserFilter1 removes any unwanted sample types (incident response, facility data)
+    combo <- left_join(stationFieldDataUserFilter1, stationAnalyteDataUserFilter3, by = c("FDT_ID" = "Ana_Sam_Fdt_Id")) %>% 
       dplyr::select(-FDT_ID) # no longer needed
     
     # Step 5: Combine station and combo data
@@ -380,29 +451,29 @@ conventionalsSummary <- function(conventionals, stationFieldDataUserFilter, stat
   }
 }
     
-
-## Function Demo
-library(tidyverse)
-library(config)
-library(sf)
-library(lubridate)
-library(pool)
-library(pins)
-library(dbplyr)
-
-
-# Server connection things
-conn <- config::get("connectionSettings") # get configuration settings
-
-# set up pool
-pool <- dbPool(
-  drv = odbc::odbc(),
-  Driver = "ODBC Driver 11 for SQL Server",#"SQL Server Native Client 11.0",
-  Server= "DEQ-SQLODS-PROD,50000",
-  dbname = "ODS",
-  trusted_connection = "yes"
-)
-
+# 
+# ## Function Demo
+# library(tidyverse)
+# library(config)
+# library(sf)
+# library(lubridate)
+# library(pool)
+# library(pins)
+# library(dbplyr)
+# 
+# 
+# # Server connection things
+# conn <- config::get("connectionSettings") # get configuration settings
+# 
+# # set up pool
+# pool <- dbPool(
+#   drv = odbc::odbc(),
+#   Driver = "ODBC Driver 11 for SQL Server",#"SQL Server Native Client 11.0",
+#   Server= "DEQ-SQLODS-PROD,50000",
+#   dbname = "ODS",
+#   trusted_connection = "yes"
+# )
+# 
 
 # single station
 # station <- '2-JKS023.61'
