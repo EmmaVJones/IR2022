@@ -63,9 +63,13 @@ collectorHeatmap <- function(stationFieldData, stationGIS_View, assessmentLayer,
                   fillColor= 'yellow', fillOpacity = 0.5,stroke=0.1,
                   group="VAHU6 sampled",label = ~VAHU6) %>% 
       addCircleMarkers(data = stations, color = 'black', fillColor = ~pal(stations$`Station Visited`),
-                       radius = 3, fillOpacity = 1, weight = 1,stroke=T, label = ~Fdt_Sta_Id,
+                       radius = 3, fillOpacity = 1, weight = 1,stroke=T, label = ~Fdt_Sta_Id, group = 'Stations Sampled',
                        popup = leafpop::popupTable(stations, zcol=c('Fdt_Sta_Id', 'Station Visited'))) %>% 
-      addLegend(data = stations,'topright', pal = pal, values = ~`Station Visited`, title = 'Number of <br>Station Visits')
+      addLegend(data = stations,'topright', pal = pal, values = ~`Station Visited`, title = 'Number of <br>Station Visits') %>% 
+      addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+                       overlayGroups = c('Stations Sampled', "VAHU6 sampled"),
+                       options=layersControlOptions(collapsed=T),
+                       position='topleft') 
     
     
   } else { return(NULL)}
@@ -191,3 +195,22 @@ indStatusMap <- function(parameter, status){
 
 # indStatusMap('Overall Status',assessmentSummary)
 # indStatusMap('pH',assessmentSummary)
+
+
+monthlyBreakdown <- function(stationFieldData, byWhat){
+  if(byWhat == 'Run ID'){
+    z <- stationFieldData %>% 
+      mutate(SampleMonth = month(Fdt_Date_Time, label = T, abbr = F)) %>% 
+      dplyr::select(SampleMonth, Fdt_Run_Id, Fdt_Collector_Id) %>% 
+      arrange(SampleMonth, Fdt_Run_Id) %>% 
+      group_by(Fdt_Run_Id, SampleMonth) %>% distinct() 
+  } else {
+    z <- stationFieldData %>% 
+      mutate(SampleMonth = month(Fdt_Date_Time, label = T, abbr = F)) %>% 
+      dplyr::select(SampleMonth, Fdt_Sta_Id, Fdt_Collector_Id) %>% 
+      arrange(SampleMonth, Fdt_Sta_Id) %>% 
+      group_by(Fdt_Sta_Id, SampleMonth) %>% distinct()  }
+  
+  return(z %>% pivot_wider(names_from = SampleMonth, values_from = Fdt_Collector_Id, names_sep = ', ') )
+  
+}

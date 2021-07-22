@@ -64,12 +64,26 @@ shinyUI(fluidPage(tags$head(
                         tabPanel('Monitoring Summary',
                                  fluidRow(column(6,h4('Regional Monitoring Runs By Collector'),
                                                  dataTableOutput('runSummaryTable'), br(),br(),br()),
-                                          column(6, 
+                                          column(6, radioButtons('monScheduleBy', h4('Regional Monitoring Run Schedule'), 
+                                                                 choices = c('Run ID', 'StationID'), inline = T),
+                                                 dataTableOutput('monSchedule'))),
+                                 hr(),
+                                 fluidRow(column(6, 
                                                  fluidRow(column(6,h4('Detailed Monitoring Run Breakdown')),
                                                           column(6,uiOutput('monitorSelection_'))),
-                                                 dataTableOutput('monitorSummaryTable'), br(),br(),br())),
-                                 helpText('Below is a heatmap of stations monitored by the selected monitoring staff member.'),
-                                 leafletOutput('monitorMap'))
+                                                 dataTableOutput('monitorSummaryTable'), br(),br(),br()),
+                                          column(6,
+                                                 helpText('Below is a heatmap of stations monitored by the selected monitoring staff member.'),
+                                                 leafletOutput('monitorMap'))),
+                                 hr(),
+                                 fluidRow(column(6,
+                                                 h4('QA Sample Breakdown'),
+                                                 dataTableOutput('QAbreakdown') ),
+                                          column(6, 
+                                                 h4('QA Samples'),
+                                                 dataTableOutput('QAsamples') ))
+                                 )
+                                 
                                  
                                  
                       )

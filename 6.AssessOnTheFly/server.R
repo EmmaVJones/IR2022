@@ -70,14 +70,28 @@ shinyServer(function(input, output, session) {
   
   output$runSummaryTable <- renderDataTable({req(reactive_objects$runSummary)
     z <- reactive_objects$runSummary %>% 
+      #filter(Fdt_Collector_Id == 'RJS' & Fdt_Run_Id %in% c('W21A1','W21A2', 'W21D1')) %>% 
       group_by(Fdt_Collector_Id) %>% 
-      summarise(`Runs Completed` = sum(`Times Completed`),
-                `Stations Monitored` = sum(`Stations Per Run`))
+      mutate(`Station Count` = `Stations Per Run` * `Times Completed`) %>% 
+      summarise(`Unique Runs Completed` = length(unique(Fdt_Run_Id)),
+                `Total Runs Completed` = sum(`Times Completed`),
+                `Unique Stations Monitored` = sum(`Stations Per Run`),
+                `Total Stations Monitored` = sum(`Station Count`))
     datatable(z, rownames = F, escape= F, extensions = 'Buttons',
               options = list(dom = 'Bit', scrollX = TRUE, scrollY = '350px',selection = 'none',
                              pageLength = nrow(z),
                              buttons=list('copy',
                                           list(extend='excel',filename=paste0('RunSummary',input$regionChoice)))) ) })
+  
+  
+  output$monSchedule <-  renderDataTable({req(reactive_objects$regionResults, input$monScheduleBy)
+    z <- monthlyBreakdown(reactive_objects$regionResults$stationFieldData, input$monScheduleBy)
+    datatable(z, rownames = F, escape= F, extensions = 'Buttons',
+              options = list(dom = 'Bit', scrollX = TRUE, scrollY = '350px',selection = 'none',
+                             pageLength = nrow(z),
+                             buttons=list('copy',
+                                          list(extend='excel',filename=paste0('MonitoringScheduleSummary_',input$monScheduleBy)))) ) })
+  
   
   output$monitorSelection_ <- renderUI({req(reactive_objects$runSummary)
     selectInput('monitorSelection', 'Monitor Details', choices = sort(unique(reactive_objects$runSummary$Fdt_Collector_Id)))})
@@ -97,4 +111,35 @@ shinyServer(function(input, output, session) {
   
   
   
+  # QA breakdown
+  output$QAbreakdown <-  renderDataTable({req(reactive_objects$regionResults)
+    z <- left_join(
+      reactive_objects$regionResults$stationFieldData %>% 
+        distinct(Fdt_Collector_Id) %>% 
+        arrange(Fdt_Collector_Id),
+      reactive_objects$regionResults$stationFieldData %>% 
+        filter(Fdt_Spg_Code == 'QA') %>% 
+        group_by(Fdt_Collector_Id) %>% 
+        summarise(`QA Samples` = length(unique(Fdt_Date_Time))) %>% 
+        left_join(
+          reactive_objects$regionResults$stationFieldData %>% 
+            group_by(Fdt_Collector_Id) %>% 
+            summarise(`Total Samples` = length(unique(Fdt_Date_Time))),
+          by = 'Fdt_Collector_Id'  ) %>% 
+        mutate(`QA Sample Percentage` = format(`QA Samples` / `Total Samples` * 100, digits = 2)),
+      by = 'Fdt_Collector_Id'  ) 
+    datatable(z, rownames = F, escape= F, extensions = 'Buttons',
+              options = list(dom = 'Bit', scrollX = TRUE, scrollY = '310px',selection = 'none',
+                             pageLength = nrow(z),
+                             buttons=list('copy',
+                                          list(extend='excel',filename=paste0('QASummary')))) )})
+  
+  output$QAsamples <-  renderDataTable({req(reactive_objects$regionResults)
+    z <- filter(reactive_objects$regionResults$stationFieldData, Fdt_Spg_Code == 'QA') %>% 
+      dplyr::select(Fdt_Run_Id, Fdt_Collector_Id, Fdt_Sta_Id:Spg_Description, Fdt_Date_Time, Fdt_Depth, Fdt_Temp_Celcius:Fdt_Specific_Conductance)
+    datatable(z, rownames = F, escape= F, extensions = 'Buttons',
+              options = list(dom = 'Bift', scrollX = TRUE, scrollY = '310px',selection = 'none',
+                             pageLength = nrow(z),
+                             buttons=list('copy',
+                                          list(extend='excel',filename=paste0('QASamples')))) )})
 })
