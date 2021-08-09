@@ -185,13 +185,25 @@ averageSCI_windows <- function(benSamps_Filter_fin, SCI_filter, assessmentCycle)
 
 # Make sure input stations are valid
 stationValidation <- function(userUpload){
-  validStations <- filter(benSampsStations, StationID %in% userUpload$StationID)
-  if(nrow(validStations) == nrow(userUpload)){
-    return(userUpload)
-  } else {
-    return(filter(userUpload, StationID %in% validStations$StationID))  }
+  # first make sure no duplicated stations in the uploaded spreadsheet
+  spreadsheetDupes <- userUpload %>% group_by(StationID) %>% mutate(n = n()) %>% filter(n>1) %>% ungroup()
+  if(nrow(spreadsheetDupes) > 0){
+    userUpload <- filter(userUpload, ! StationID %in% spreadsheetDupes$StationID)
+  } 
+  
+  validStations <- filter(benSampsStations, StationID %in% userUpload$StationID) %>% st_drop_geometry()
+  
+  return(list(validStations = validStations, 
+              invalidStations = bind_rows(spreadsheetDupes, 
+                                          filter(userUpload, ! StationID %in% validStations$StationID))))
+  # if(nrow(validStations) == nrow(userUpload)){
+  #   return(userUpload)
+  # } else {
+  #   return(filter(userUpload, StationID %in% validStations$StationID))  }
+    
+  
 }
-#stationValidation(userUploadFail)
+#stationValidation(userUpload)#stationValidation(userUploadFail)
 
 # Check user uploaded data against pinned data
 pinCheck <- function(pinName, userUpload){

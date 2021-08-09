@@ -12,28 +12,39 @@ shinyServer(function(input, output, session) {
   read_excel(inFile$datapath) }) 
   
   # Validate Input data
-  validInputData <- reactive({req(inputFile())
+  userUploadCheck <- reactive({req(inputFile())
     stationValidation(inputFile()) })
+  
+  validInputData <- reactive({req(inputFile(), userUploadCheck())
+    userUploadCheck()$validStations }) #stationValidation(inputFile()) })
     
   output$userStations_ <- renderUI({ req(pinnedDecisions())
     selectInput('userStations', "Choose a station to generate report",
-                   choices = unique(pinnedDecisions()$StationID))  })
+                   choices = sort(unique(pinnedDecisions()$StationID)))  })
   
   observe({req(validInputData())
     updateSelectInput(session, "userStations", "Choose a station to generate report",
                       choices = bind_rows(filter(pinnedDecisions(), StationID %in% validInputData()$StationID),
                                           filter(pinnedDecisions(), ! StationID %in% validInputData()$StationID)) %>%
-                        dplyr::select(StationID) %>% pull() )  })
+                        dplyr::select(StationID) %>% arrange(StationID) %>% pull() )  })
 
   # Display user input data
   output$inputTable <- DT::renderDataTable({req(inputFile())
     # Identify any stations with issues
-    invalidInputData <- filter(inputFile(), ! StationID %in% validInputData()$StationID)
+    invalidInputData <- userUploadCheck()$invalidStations #filter(inputFile(), ! StationID %in% validInputData()$StationID)
     
     if(nrow(invalidInputData) > 0){
-      DT::datatable(mutate(inputFile(), invalidData = case_when(StationID %in% invalidInputData$StationID ~ 1, TRUE ~ 0)),
-                    escape=F, rownames = F, options=list(scrollX = TRUE, scrollY = "800px",pageLength=nrow(inputFile()))) %>%
-        formatStyle('StationID', 'invalidData', backgroundColor = styleEqual(c(0, 1), c(NA, 'yellow'))  )
+      DT::datatable(mutate(inputFile(), Validated = case_when(StationID %in% invalidInputData$StationID ~ FALSE,
+                                                             TRUE ~ TRUE), # for pretty viz
+                           ValidatedColor = case_when(StationID %in% invalidInputData$StationID ~ 0,
+                                                      TRUE ~ 1)) %>% # for color coding with datatables, styleEqual needs numeric not boolean
+                      dplyr::select(Validated, everything()) %>% 
+                      arrange(Validated),
+        #mutate(inputFile(), invalidData = case_when(StationID %in% invalidInputData$StationID ~ 1, TRUE ~ 0)),
+                    escape=F, rownames = F, options=list(scrollX = TRUE, scrollY = "800px",pageLength=nrow(inputFile()),
+                                                         columnDefs = list(list(visible=FALSE, targets=14)))) %>%
+        formatStyle('StationID', 'Validated', backgroundColor = styleEqual(c(0, 1), c('yellow', NA))  )
+        #formatStyle('StationID', 'invalidData', backgroundColor = styleEqual(c(0, 1), c(NA, 'yellow'))  )
     } else {
       DT::datatable(inputFile(),escape=F, rownames = F,
                     options=list(scrollX = TRUE, scrollY = "800px",pageLength=nrow(inputFile())))  }  })

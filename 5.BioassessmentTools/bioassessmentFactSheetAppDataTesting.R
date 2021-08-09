@@ -6,6 +6,10 @@ IR2020 <- read_excel('data/BioassessmentRegionalResultsIR2020.xlsx') %>%
 
 ###########IR2022 <- read_excel('data/BioassessmentRegionalResultsIR2022test.xlsx')
 #IR2022 <- read_excel('data/BioassessmentRegionalResultsIR2022test.xlsx')
+# Brett data test
+#IR2022 <- read_excel('data/BioassessmentRegionalResultsTemplate_2022_BDS.xlsx')
+#IR2022 <- read_excel('data/BioassessmentRegionalResultsTemplate_2022_BDS_EVJ.xlsx') # removed duplicate row
+
 
 # check against pinned data, overwrite if necessary
 # this is the original pin in case it needs to be reset during testing
@@ -15,20 +19,27 @@ IR2020 <- read_excel('data/BioassessmentRegionalResultsIR2020.xlsx') %>%
 #OGpinnedDecisions <- pin_get('IR2022bioassessmentDecisions_test', board = 'rsconnect')
 
 # what user uploads
-userUpload <- IR2022[2:5,]
+userUpload <- IR2022#[2:5,]
 userUploadFail <- mutate(userUpload, StationID = case_when(StationID == "2-CAT026.29" ~ "2-CAT026.00", 
                                                            TRUE ~ as.character(StationID)))
 
 # make sure all uploaded stations are valid
-userUploadValid <- stationValidation(userUploadFail)
+userUploadCheck <- stationValidation(userUpload)#Fail)
+
+userUploadValid <- userUploadCheck$validStations#stationValidation(userUploadFail)
 
 # display any stations that cannot undergo more work
-invalidInputData <- filter(userUpload, ! StationID %in% userUploadValid$StationID)
+invalidInputData <- userUploadCheck$invalidStations#filter(userUpload, ! StationID %in% userUploadValid$StationID)
 
-DT::datatable(mutate(userUpload, invalidData = case_when(StationID %in% invalidInputData$StationID ~ 1,
-                                                         TRUE ~ 0)),
-              escape=F, rownames = F, options=list(scrollX = TRUE, scrollY = "800px",pageLength=nrow(userUpload))) %>%
-  formatStyle('StationID', 'invalidData', backgroundColor = styleEqual(c(0, 1), c(NA, 'yellow'))  )
+DT::datatable(mutate(userUpload, Validated = case_when(StationID %in% invalidInputData$StationID ~ FALSE,
+                                                            TRUE ~ TRUE), # for pretty viz
+                     ValidatedColor = case_when(StationID %in% invalidInputData$StationID ~ 0,
+                                                         TRUE ~ 1)) %>% # for color coding with datatables, styleEqual needs numeric not boolean
+                dplyr::select(Validated, everything()) %>% 
+                arrange(Validated),
+              escape=F, rownames = F, options=list(scrollX = TRUE, scrollY = "800px",pageLength=nrow(userUpload),
+                                                   columnDefs = list(list(visible=FALSE, targets=14)))) %>%
+  formatStyle('StationID', 'ValidatedColor', backgroundColor = styleEqual(c(0, 1), c('yellow',NA))  )
 
 pinCheck('IR2022bioassessmentDecisions_test', userUploadValid) # can change to real deal pin in time
 
