@@ -49,6 +49,11 @@ shinyServer(function(input, output, session) {
       DT::datatable(inputFile(),escape=F, rownames = F,
                     options=list(scrollX = TRUE, scrollY = "800px",pageLength=nrow(inputFile())))  }  })
   
+  # output$test <- renderPrint({
+  #   pinnedDecisions() %>% 
+  #     filter(str_detect(StationID, '4AROA2'))
+  # })
+  
   pinnedDecisions <- reactive({
     if(is.null(inputFile())){
       return(pin_get('IR2022bioassessmentDecisions_test', board = 'rsconnect'))
@@ -58,9 +63,9 @@ shinyServer(function(input, output, session) {
       pinnedDecisions <- pin_get('IR2022bioassessmentDecisions_test', board = 'rsconnect')
       return(pinnedDecisions)
     } })
-  
-  #output$test <- renderPrint({ reactive_objects$SCI_UserSelection })#  assessmentDecision_UserSelection() }) #filter(OGpinnedDecisions(), StationID %in% input$userStations) })#reactive_objects$assessmentDecision_UserSelection})
-  
+  # 
+  # #output$test <- renderPrint({ reactive_objects$SCI_UserSelection })#  assessmentDecision_UserSelection() }) #filter(OGpinnedDecisions(), StationID %in% input$userStations) })#reactive_objects$assessmentDecision_UserSelection})
+
   assessmentDecision_UserSelection <- reactive({req(pinnedDecisions())
     filter(pinnedDecisions(), StationID %in% input$userStations) })
 
@@ -106,20 +111,20 @@ shinyServer(function(input, output, session) {
 
       rmarkdown::render(tempReport,output_file = file,
                         params=params,envir=new.env(parent = globalenv()))})
-  
-  
-  
+
+
+
   ## General Purpose Report
-  
+
   ## filter benSamps by user station
   GPbenSamps <- reactive({req(input$GPuserStation)
     filter(benSampsAll, StationID %in% input$GPuserStation)})
-  
-  ## Benthics Data Date Range 
+
+  ## Benthics Data Date Range
   output$GPuserWindow_ <- renderUI({req(GPbenSamps())
     dateRangeInput('GPuserWindow', label = 'Filter Bethic Information By Date Range (YYYY-MM-DD)',
-                   start = as.Date(min(GPbenSamps()$`Collection Date`)), end = as.Date(max(GPbenSamps()$`Collection Date`))) }) 
-  
+                   start = as.Date(min(GPbenSamps()$`Collection Date`)), end = as.Date(max(GPbenSamps()$`Collection Date`))) })
+
   ## Update benSamps based on date range filter
   GPbenSampsFilter <- reactive({req(input$GPuserWindow)
     filter(GPbenSamps(), between(as.Date(`Collection Date`), input$GPuserWindow[1], input$GPuserWindow[2]) ) })
@@ -140,8 +145,8 @@ shinyServer(function(input, output, session) {
                                by = c('StationID', 'BenSampID')) %>%
                        dplyr::select(StationID, Sta_Desc, BenSampID, `Collection Date`, RepNum, everything())) %>%
              drop_na(StationID) ) })
-  
-  #output$testtest <- renderPrint({glimpse(GPSCI())})               
+
+  #output$testtest <- renderPrint({glimpse(GPSCI())})
 
   habitatUserSelection <- reactive({req(GPbenSampsFilter())
     habitatConsolidation( input$GPuserStation, habSampsAll, habValuesAll) %>%
@@ -155,47 +160,47 @@ shinyServer(function(input, output, session) {
   output$GPhabitatMetrics <- renderDataTable({req(habitatUserSelection())
     if(nrow(habitatUserSelection()) > 0){
       habitatTable <- habitatUserSelection() %>%
-        mutate(`Collection Date` = as.Date(`Collection Date`)) %>% 
+        mutate(`Collection Date` = as.Date(`Collection Date`)) %>%
         dplyr::select(-HabSampID) %>%
         #clean up empty columns with a quick pivot longer (with drop na) and then back to wide
         pivot_longer(cols = `Bank Stability`:`Velocity / Depth Regime`, names_to = 'metric', values_to = 'metricVal', values_drop_na = TRUE) %>%
-        pivot_wider(names_from = metric, values_from = metricVal) %>% ungroup() %>% 
+        pivot_wider(names_from = metric, values_from = metricVal) %>% ungroup() %>%
         arrange(`Collection Date`)
-      
+
       habBreaks<-seq(0,20, 1)
-      habClrs<-c('firebrick', 'firebrick','firebrick','firebrick','firebrick','firebrick', "#F0E442","#F0E442","#F0E442","#F0E442","#F0E442", 
+      habClrs<-c('firebrick', 'firebrick','firebrick','firebrick','firebrick','firebrick', "#F0E442","#F0E442","#F0E442","#F0E442","#F0E442",
                  "#009E73","#009E73","#009E73","#009E73","#009E73", "#0072B2","#0072B2","#0072B2","#0072B2","#0072B2")
-      
+
       DT::datatable(habitatTable, escape=F, rownames = F,  extensions = 'Buttons',
-                    options=list(pageLength=nrow(habitatTable),dom= 'Bit', scrollX=TRUE, buttons=list('copy','colvis'))) %>% 
+                    options=list(pageLength=nrow(habitatTable),dom= 'Bit', scrollX=TRUE, buttons=list('copy','colvis'))) %>%
         formatStyle('Total Habitat Score', backgroundColor = "lightgray") %>%
         formatStyle(names(habitatTable)[5:length(habitatTable)],  backgroundColor = styleEqual(habBreaks, habClrs), alpha=0.1,
                     textAlign = 'center')  }                          })
-  
-  
+
+
   # have to make separate reactive object in order to send appropriate station name to the download title
   GPfileNameForReport <- reactive({paste(as.character(unique(GPSCI()$StationID))," Benthic Fact Sheet.docx", sep = "")})
-  
+
   output$GPdownloadReport <- downloadHandler(
     filename = GPfileNameForReport,
     content= function(file){
       tempReport <- normalizePath('GPbioassessmentFactSheet.Rmd')
       imageToSend1 <- normalizePath('images/riskCategories.PNG') #NEW
       imageToSend2 <- normalizePath('images/HabitatColor.jpg') #NEW
-      
+
       owd <- setwd(tempdir())
       on.exit(setwd(owd))
-      
+
       file.copy(tempReport, 'GPbioassessmentFactSheet.Rmd')
       file.copy(imageToSend1, 'images/riskCategories.PNG') #NEW
       file.copy(imageToSend2, 'images/HabitatColor.jpg') #NEW
-      
+
       params <- list(SCI = GPSCI(),
                      habitat = habitatUserSelection())
-      
+
       rmarkdown::render(tempReport,output_file = file,
                         params=params,envir=new.env(parent = globalenv()))})
 
-  
+
 
 })

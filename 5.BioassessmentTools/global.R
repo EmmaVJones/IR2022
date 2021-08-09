@@ -191,7 +191,8 @@ stationValidation <- function(userUpload){
     userUpload <- filter(userUpload, ! StationID %in% spreadsheetDupes$StationID)
   } 
   
-  validStations <- filter(benSampsStations, StationID %in% userUpload$StationID) %>% st_drop_geometry()
+  validStations <- filter(userUpload, StationID %in% benSampsStations$StationID)
+    ###filter(benSampsStations, StationID %in% userUpload$StationID) %>% st_drop_geometry()
   
   return(list(validStations = validStations, 
               invalidStations = bind_rows(spreadsheetDupes, 

@@ -9,7 +9,7 @@ IR2020 <- read_excel('data/BioassessmentRegionalResultsIR2020.xlsx') %>%
 # Brett data test
 #IR2022 <- read_excel('data/BioassessmentRegionalResultsTemplate_2022_BDS.xlsx')
 #IR2022 <- read_excel('data/BioassessmentRegionalResultsTemplate_2022_BDS_EVJ.xlsx') # removed duplicate row
-
+IR2022 <- read_excel('data/BioassessmentRegionalResultsTemplate_2022_BDS_Final.xlsx')
 
 # check against pinned data, overwrite if necessary
 # this is the original pin in case it needs to be reset during testing
@@ -59,6 +59,8 @@ userStationChoice <- if(exists('userUploadValid')){
             filter(pinnedDecisions, ! StationID %in% userUploadValid$StationID)) %>%
     dplyr::select(StationID) %>% pull()
 } else{unique(pinnedDecisions$StationID)   }
+
+#userStationChoice <- '4AROA224.54'
 
 # organize benthic and habitat data for chosen stations to send to report
 #if(exists('pinnedDecisions')){
