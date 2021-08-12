@@ -2,7 +2,7 @@ shinyUI(fluidPage(tags$head(
   tags$style(
     HTML(".shiny-notification {position:fixed; top: calc(60%); left: calc(10%); }"))),
   theme= "yeti.css",
-  navbarPage("WQM Planning Tool", #id = 'someID',  # key for passing URL to specific Tab
+  navbarPage("CEDS WQM Data Query Tool", #id = 'someID',  # key for passing URL to specific Tab
              
               # tabPanel('How To',
               #          h2(strong('This project is still in beta testing phase.')),
@@ -10,7 +10,7 @@ shinyUI(fluidPage(tags$head(
               #          p('This tool allows users to quickly assess Water Quality Monitoring Station(s) against appropriate 
               #            standards and criteria for a given date range. The more frequent assessment of monitoring data ensures DEQ can improve
               #            QA/QC procedures, planning efforts, and watershed understanding for various projects, among other benefits.') ),
-             tabPanel("Rapid Assessment",
+             tabPanel("Multiple Station Query (Archived Spatial Data Refreshed Weekly)",
                       tabsetPanel(
                         tabPanel("Station Data",
                                  sidebarPanel(
