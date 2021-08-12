@@ -72,7 +72,7 @@ shinyUI(fluidPage(tags$head(
                                    tabsetPanel(
                                      tabPanel('Station Data',
                                               h4('Same same as WQM Data query tool') )))),
-                      tabPanel("Rapid Assessment Results",
+                      tabPanel("Rapid Evaluation",
                                assessmentUI('assessmentModule') ),
                                
                                # sidebarPanel(

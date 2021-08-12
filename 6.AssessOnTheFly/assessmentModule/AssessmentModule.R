@@ -3,26 +3,26 @@ assessmentUI <- function(id){
   ns <- NS(id)
   tagList(
     sidebarPanel(
-      p(span('This area of the application allows users to assess water quality monitoring data on the fly based on
+      p(span('This area of the application allows users to evaluate water quality monitoring data on the fly based on
                                           previous station and date window selections. CEDS does not contain all data necessary to fully assess
-                                          a station and potential date ranges and stations selected may not meet necessary assessment assumptions, so this tool
-                                          is considered a ', strong('PRELIMINARY ASSESSMENT'), 'and is ', strong('NOT VALID AS AN OFFICIAL ASSESSMENT DECISION'),
+                                          a station and potential data windows and stations selected may not meet necessary assessment assumptions, so this tool
+                                          is considered a ', strong('PRELIMINARY EVALUATION'), 'and is ', strong('NOT VALID AS AN OFFICIAL ASSESSMENT DECISION'),
              '; however, understanding how station(s) compare to relevant standards/criteria is useful for monitoring planning
                                           and QA purposes.')),
-      helpText('To perform an assessment on the selected stations and date range, first verify the station information on the 
-                                            `Assessment Station Metadata` tab. Please complete the lake designations (if applicable) information
-                                            to appropriately assess the chosen data. When the metadata is complete, press the `Assess` button and navigate
+      helpText('To perform an evaluation of data from the selected stations and date range, first verify the station information on the 
+                                            `Station Metadata` tab. Please complete the lake designation information (if applicable)
+                                            to appropriately assess the chosen data. When the metadata is complete, press the `Evaluate` button and navigate
                                             to the `Results` tab to view station summary.')),
     mainPanel(
       tabsetPanel(
-        tabPanel('Assessment Station Metadata',
+        tabPanel('Station Metadata',
                  # modFunctionUI(ns("editable")),
                  DT::dataTableOutput(ns('stationReview')),
                  br(),
                  fluidRow(column(4,wellPanel(uiOutput(ns('lakeStationSelection_')) )),
                           column(4,wellPanel(uiOutput(ns('lacustrineZoneSelection_')) ) ),
-                          column(4, wellPanel(h5('Once metadata verification is complete, click the button below to begin rapid assessment.'),
-                                              actionButton(ns('rapidAssessmentRun'), 'Assess', class='btn-block'))))),
+                          column(4, wellPanel(h5('Once metadata verification is complete, click the button below to begin rapid evaluation.'),
+                                              actionButton(ns('rapidAssessmentRun'), 'Evaluate', class='btn-block'))))),
         tabPanel('Results',
                  DT::dataTableOutput(ns('stationTableResults')),
                  verbatimTextOutput(ns('test'))),

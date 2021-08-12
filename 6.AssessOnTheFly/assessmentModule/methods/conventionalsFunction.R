@@ -59,42 +59,43 @@ fixMultipleParameterResultsFunction <- function(newMethod){
   return(nonIssues %>% arrange(Ana_Id))
 }
 
+# From Steve, slick way to create template with all character NA values
+char_name_fun=function(x){
+  tibble(!!sym(x) := NA_character_)
+}
+dbl_name_fun=function(x){
+  tibble(!!sym(x) := NA_real_)
+}
 
 # Conventionals Summary
 conventionalsSummary <- function(conventionals, stationFieldDataUserFilter, stationAnalyteDataUserFilter, stationInfo, stationGIS_View, dropCodes){
   # make template to provide columns that may not exist for coalesce step
-  parameterTemplate <- tibble(#Ana_Id = as.character(NA), 
-    Ana_Sam_Fdt_Id = as.character(NA), Ana_Sam_Mrs_Container_Id_Desc = as.character(NA), 
-    `TOTAL_SUSPENDED_SOLIDS_00530_mg_L` = as.numeric(NA), `NITROGEN_TOTAL_00600_mg_L` = as.numeric(NA), 
-    `NITROGEN_AMMONIA_DISSOLVED_00608_mg_L` = as.numeric(NA), `NITROGEN_AMMONIA_TOTAL_00610_mg_L` = as.numeric(NA), 
-    `NITROGEN_NITRITE_DISSOLVED_00613_mg_L` = as.numeric(NA), `NITROGEN_NITRITE_TOTAL_00615_mg_L` = as.numeric(NA), 
-    `NITROGEN_NITRATE_DISSOLVED_00618_mg_L` = as.numeric(NA), `NITROGEN_NITRATE_TOTAL_00620_mg_L` = as.numeric(NA), 
-    `NITROGEN_KJELDAHL_TOTAL_00625_mg_L` = as.numeric(NA), `NITRITE+NITRATE_TOTAL_00630_mg_L` = as.numeric(NA), 
-    `NITRITE+NITRATE_DISSOLVED_00631_mg_L` = as.numeric(NA), `PHOSPHORUS_TOTAL_00665_mg_L` = as.numeric(NA), 
-    `PHOSPHORUS_DISSOLVED_00666_mg_L` = as.numeric(NA), `PHOSPHORUS_DISSOLVED_ORTHOPHOSPHATE_00671_mg_L` = as.numeric(NA), 
-    `HARDNESS_TOTAL_00900_mg_L` = as.numeric(NA), `CHLORIDE_TOTAL_00940_mg_L` = as.numeric(NA), 
-    `CHLORIDE_DISSOLVED_00941_mg_L` = as.numeric(NA), `SULFATE_TOTAL_00945_mg_L` = as.numeric(NA), 
-    `SULFATE_DISSOLVED_00946_mg_L` = as.numeric(NA), `FECAL_COLIFORM_31616_NO_100mL` = as.numeric(NA), 
-    `E._COLI_31648_NO_100mL` = as.numeric(NA), `ENTEROCOCCI_31649_NO_100mL` = as.numeric(NA), 
-    `CHLOROPHYLL_32211_ug_L` = as.numeric(NA), `PHOSPHOROUS_PARTICULATE_49567_mg_L` = as.numeric(NA), 
-    `NITROGEN_PARTICULATE_49570_mg_L` = as.numeric(NA), `NITROGEN_TOTAL_DISSOLVED_49571_mg_L` = as.numeric(NA), 
-    `PHOSPHOROUS_TOTAL_DISSOLVED_49572_mg_L` = as.numeric(NA), `PHOSPHORUS_TOTAL_ORTHOPHOSPHATE_70507_mg_L` = as.numeric(NA), 
-    `E.COLI_ECOLI_CFU_100mL` = as.numeric(NA), `ORTHOPHOSPHATE_DISSOLVED_OPWLF_mg_L` = as.numeric(NA), 
-    `PHOSPHORUS_SUSPENDED_INORGANIC_PIPLF_mg_L` = as.numeric(NA), `PHOSPHORUS_PARTICULATE_PPWLF_mg_L` = as.numeric(NA), 
-    `SSC-TOTAL_00530_mg_L` = as.numeric(NA), `NITROGEN_TOTAL_DISSOLVED_TDNLF_mg_L` = as.numeric(NA), 
-    `PHOSPHORUS_TOTAL_DISSOLVED_TDPLF_mg_L` = as.numeric(NA), `TOTAL_SUSPENDED_SOLIDS_TSS45_mg_L` = as.numeric(NA) )
-  remarkTemplate <- tibble(#Ana_Id = as.character(NA), 
-    Ana_Sam_Fdt_Id = as.character(NA), Ana_Sam_Mrs_Container_Id_Desc = as.character(NA), 
-    `RMK_00530` = as.character(NA), `RMK_00600` = as.character(NA), `RMK_00608` = as.character(NA), `RMK_00610` = as.character(NA), 
-    `RMK_00613` = as.character(NA), `RMK_00615` = as.character(NA), `RMK_00618` = as.character(NA), `RMK_00620` = as.character(NA), 
-    `RMK_00625` = as.character(NA), `RMK_00630` = as.character(NA), `RMK_00631` = as.character(NA), `RMK_00665` = as.character(NA), 
-    `RMK_00666` = as.character(NA), `RMK_00671` = as.character(NA), `RMK_00900` = as.character(NA), `RMK_00940` = as.character(NA), 
-    `RMK_00941` = as.character(NA), `RMK_00945` = as.character(NA), `RMK_00946` = as.character(NA), `RMK_31616` = as.character(NA), 
-    `RMK_31648` = as.character(NA), `RMK_31649` = as.character(NA), `RMK_32211` = as.character(NA), `RMK_49567` = as.character(NA), 
-    `RMK_49570` = as.character(NA), `RMK_49571` = as.character(NA), `RMK_49572` = as.character(NA), `RMK_70507` = as.character(NA), 
-    `RMK_ECOLI` = as.character(NA), `RMK_OPWLF` = as.character(NA), `RMK_PIPLF` = as.character(NA), `RMK_PPWLF` = as.character(NA), 
-    `RMK_SSC_TOTAL_00530` = as.character(NA), `RMK_TDNLF` = as.character(NA), `RMK_TDPLF` = as.character(NA), `RMK_TSS45` = as.character(NA))
-  
+  parameterTemplate <- bind_cols(map_dfc(c("Ana_Sam_Fdt_Id", "Ana_Sam_Mrs_Container_Id_Desc"), ~char_name_fun(.x)),
+                                 map_dfc(c("TOTAL_SUSPENDED_SOLIDS_00530_mg_L", "NITROGEN_TOTAL_00600_mg_L", 
+                                           "NITROGEN_AMMONIA_DISSOLVED_00608_mg_L", "NITROGEN_AMMONIA_TOTAL_00610_mg_L", 
+                                           "NITROGEN_NITRITE_DISSOLVED_00613_mg_L", "NITROGEN_NITRITE_TOTAL_00615_mg_L", 
+                                           "NITROGEN_NITRATE_DISSOLVED_00618_mg_L", "NITROGEN_NITRATE_TOTAL_00620_mg_L", 
+                                           "NITROGEN_KJELDAHL_TOTAL_00625_mg_L", "NITRITE+NITRATE_TOTAL_00630_mg_L", 
+                                           "NITRITE+NITRATE_DISSOLVED_00631_mg_L", "PHOSPHORUS_TOTAL_00665_mg_L", 
+                                           "PHOSPHORUS_DISSOLVED_00666_mg_L", "PHOSPHORUS_DISSOLVED_ORTHOPHOSPHATE_00671_mg_L", 
+                                           "HARDNESS_TOTAL_00900_mg_L", "CHLORIDE_TOTAL_00940_mg_L", 
+                                           "CHLORIDE_DISSOLVED_00941_mg_L", "SULFATE_TOTAL_00945_mg_L", 
+                                           "SULFATE_DISSOLVED_00946_mg_L", "FECAL_COLIFORM_31616_NO_100mL", 
+                                           "E._COLI_31648_NO_100mL", "ENTEROCOCCI_31649_NO_100mL", 
+                                           "CHLOROPHYLL_32211_ug_L", "PHOSPHOROUS_PARTICULATE_49567_mg_L", 
+                                           "NITROGEN_PARTICULATE_49570_mg_L", "NITROGEN_TOTAL_DISSOLVED_49571_mg_L", 
+                                           "PHOSPHOROUS_TOTAL_DISSOLVED_49572_mg_L", "PHOSPHORUS_TOTAL_ORTHOPHOSPHATE_70507_mg_L", 
+                                           "E.COLI_ECOLI_CFU_100mL", "ORTHOPHOSPHATE_DISSOLVED_OPWLF_mg_L", 
+                                           "PHOSPHORUS_SUSPENDED_INORGANIC_PIPLF_mg_L", "PHOSPHORUS_PARTICULATE_PPWLF_mg_L", 
+                                           "SSC-TOTAL_00530_mg_L", "NITROGEN_TOTAL_DISSOLVED_TDNLF_mg_L", 
+                                           "PHOSPHORUS_TOTAL_DISSOLVED_TDPLF_mg_L", "TOTAL_SUSPENDED_SOLIDS_TSS45_mg_L"),  ~dbl_name_fun(.x)) )
+  remarkTemplate <-  map_dfc(c("Ana_Sam_Fdt_Id", "Ana_Sam_Mrs_Container_Id_Desc", "RMK_00530", "RMK_00600", "RMK_00608", "RMK_00610", 
+                               "RMK_00613", "RMK_00615", "RMK_00618", "RMK_00620", "RMK_00625", "RMK_00630", "RMK_00631", "RMK_00665", 
+                               "RMK_00666", "RMK_00671", "RMK_00900", "RMK_00940", "RMK_00941", "RMK_00945", "RMK_00946", "RMK_31616", 
+                               "RMK_31648", "RMK_31649", "RMK_32211", "RMK_49567", "RMK_49570", "RMK_49571", "RMK_49572", "RMK_70507", 
+                               "RMK_ECOLI", "RMK_OPWLF", "RMK_PIPLF", "RMK_PPWLF", "RMK_SSC_TOTAL_00530","RMK_TDNLF","RMK_TDPLF","RMK_TSS45"),
+                             ~char_name_fun(.x))
+    
   # Step 1: Organize station information to match conventionals format
   stationData <- left_join(stationInfo, stationGIS_View, by = c('Sta_Id' = 'Station_Id')) %>%
     filter(! Sta_Lv1_Code %in% c('LND', 'PIPE', 'UNK', 'WELL')) %>% #drop unwanted Level 1 Codes
@@ -473,20 +474,20 @@ conventionalsSummary <- function(conventionals, stationFieldDataUserFilter, stat
 #   dbname = "ODS",
 #   trusted_connection = "yes"
 # )
-# 
+
 
 # single station
 # station <- '2-JKS023.61'
 # dateRange <- c(as.Date('2015-01-01'), as.Date('2021-01-01'))
 # stationFieldData <- pool %>% tbl(in_schema("wqm", "Wqm_Field_Data_View")) %>%
 #   filter(Fdt_Sta_Id %in% !! station &
-#            between(as.Date(Fdt_Date_Time), !! dateRange[1], !! dateRange[2]) ) %>% 
-#   as_tibble() %>% 
+#            between(as.Date(Fdt_Date_Time), !! dateRange[1], !! dateRange[2]) ) %>%
+#   as_tibble() %>%
 #   filter(! Ssc_Description %in% "INVALID DATA SET QUALITY ASSURANCE FAILURE")
 # stationAnalyteData <- pool %>% tbl(in_schema("wqm", "Wqm_Analytes_View")) %>%
 #   filter(Ana_Sam_Fdt_Id %in% !! stationFieldData$Fdt_Id  &
 #            between(as.Date(Ana_Received_Date), !! dateRange[1], !! dateRange[2]) & # x >= left & x <= right
-#            Pg_Parm_Name != "STORET STORAGE TRANSACTION DATE YR/MO/DAY") %>% 
+#            Pg_Parm_Name != "STORET STORAGE TRANSACTION DATE YR/MO/DAY") %>%
 #   as_tibble() %>%
 #   left_join(dplyr::select(stationFieldData, Fdt_Id, Fdt_Sta_Id, Fdt_Date_Time), by = c("Ana_Sam_Fdt_Id" = "Fdt_Id"))
 # stationInfo <- pool %>% tbl(in_schema("wqm",  "Wqm_Stations_View")) %>%
@@ -495,7 +496,7 @@ conventionalsSummary <- function(conventionals, stationFieldDataUserFilter, stat
 # stationGIS_View <-  pool %>% tbl(in_schema("wqm",  "Wqm_Sta_GIS_View")) %>%
 #   filter(Station_Id %in% !! toupper(station)) %>%
 #   as_tibble()
-# 
+#
 # zz <- conventionalsSummary(conventionals = pin_get("conventionals2022IRfinalWithSecchi", board = "rsconnect")[0,],
 #                            stationFieldData,
 #                            stationAnalyteData,
