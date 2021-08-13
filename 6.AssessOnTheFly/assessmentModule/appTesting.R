@@ -246,3 +246,18 @@ stationTableUI <- dplyr::select(stationTable, STATION_ID, Lakes_187B, CLASS) %>%
 
 glimpse(stationTableUI)
 
+
+
+
+assessmentResults <- automatedAssessmentFunction(stationTable, conventionals,
+                                                 lakeStations = filter(stationTable, STATION_ID %in% c('2-JKS053.48', '2-JKS044.60', '2-JKS044.60','2-JKS048.90')),
+                                                 lacustrineDesignation = filter(stationTable, STATION_ID %in% c('2-JKS044.60', '2-JKS044.60')),
+                                                 VSCIresults = VSCIresults)
+
+
+
+
+AUdata <- left_join( conventionals, dplyr::select(stationTable, STATION_ID:VAHU6,
+                                                  WQS_ID:US_L3NAME),
+                   by = c('FDT_STA_ID' = 'STATION_ID')) %>%
+  pHSpecialStandardsCorrection()

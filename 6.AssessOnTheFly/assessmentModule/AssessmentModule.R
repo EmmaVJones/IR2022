@@ -24,8 +24,26 @@ assessmentUI <- function(id){
                           column(4, wellPanel(h5('Once metadata verification is complete, click the button below to begin rapid evaluation.'),
                                               actionButton(ns('rapidAssessmentRun'), 'Evaluate', class='btn-block'))))),
         tabPanel('Results',
-                 DT::dataTableOutput(ns('stationTableResults')),
+                 DT::dataTableOutput(ns('stationTableResults')), br(),br(),br(),
                  verbatimTextOutput(ns('test'))),
+        tabPanel('Visualization',
+                 helpText("Select parameters are available for visualization below. These modules are from DEQ's assessment applications but", 
+                          span(strong("do not constitute any official assessment decisions.")), " These modules are intended to provide
+                          standardized assessment tools to all DEQ staff in order to improve monitoring data understanding."),
+                 uiOutput(ns('stationSelection_')),
+                 #verbatimTextOutput(ns('testtest')),
+                 tabsetPanel(
+                   tabPanel("E. Coli",
+                            helpText('Review each site using the single site visualization section. Both the old and the new E. coli assessment
+                                                                        methods are presented in the station visualization section. The results from the new analysis method are reflected
+                                                                        in the ECOLI_EXC, ECOLI_SAMP, ECOLI_GM_EXC, ECOLI_GM_SAMP, and ECOLI_STAT columns in the results table.'),
+                            EcoliPlotlySingleStationUI(ns('Ecoli'))),
+                   tabPanel("Enterococci",
+                            helpText('Review each site using the single site visualization section. Both the old and the new Enterococci assessment
+                                                                        methods are presented in the station visualization section. The results from the new analysis method are reflected
+                                                                        in the ENTER_EXC, ENTER_SAMP, ENTER_GM_EXC, ENTER_GM_SAMP, and ENTER_STAT columns in the results table.'),
+                            EnteroPlotlySingleStationUI(ns('Entero')))
+                 )),
         tabPanel("Conventionals Dataset",
                  helpText("Below is the conventionals dataset for the chosen stations and data window."),
                  DT::dataTableOutput(ns('conventionalsDataset'))  ) 
@@ -138,7 +156,8 @@ assessment <- function(input,output,session, multistationFieldDataUserFilter, mu
   
   ## Results Tab
   output$stationTableResults <- DT::renderDataTable({req(modal_reactive$assessmentResults)
-    datatable(modal_reactive$assessmentResults$stationTableResults, escape = FALSE, selection = 'none', extensions = 'Buttons',
+    datatable(modal_reactive$assessmentResults$stationTableResults %>% arrange(STATION_ID), 
+              escape = FALSE, selection = 'none', extensions = 'Buttons',
               options = list(dom = 'Bit', scrollX= TRUE, scrollY = '500px', pageLength = nrow(modal_reactive$assessmentResults$stationTableResults),
                              buttons=list('copy',
                                           list(extend='csv',filename=paste('rapidStationAssessment',Sys.Date(),sep='')),
@@ -151,6 +170,38 @@ assessment <- function(input,output,session, multistationFieldDataUserFilter, mu
       formatStyle(c('AMMONIA_EXC','AMMONIA_STAT'), 'AMMONIA_STAT', backgroundColor = styleEqual(c('Review', 'IM'), c('yellow','red'))) %>%
       formatStyle(c('BENTHIC_STAT'), 'BENTHIC_STAT', backgroundColor = styleEqual(c('Review'), c('yellow'))) %>%
       formatStyle(c('NUT_TP_EXC','NUT_TP_SAMP'), 'NUT_TP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red')))  })
+  
+  ## Visualization Tab
+  
+  output$stationSelection_ <- renderUI({ req(modal_reactive$conventionals)
+    z <- distinct(modal_reactive$conventionals, FDT_STA_ID) %>% pull()
+    selectInput(ns('stationSelection'), 'Station Selection', choices = sort(unique(z)))})
+  
+  # Need this as a reactive to regenerate below modules when user changes station 
+  stationSelected <- reactive({input$stationSelection})
+  
+  
+  ### Ecoli Module
+  # Run longer analyses first
+  ecoli <- reactive({req(stationSelected())
+    filter(modal_reactive$conventionals, FDT_STA_ID %in% stationSelected()) %>% 
+      bacteriaAssessmentDecision( 'ECOLI', 'LEVEL_ECOLI', 10, 410, 126) })
+  enter <- reactive({req(stationSelected())
+    filter(modal_reactive$conventionals, FDT_STA_ID %in% stationSelected()) %>% 
+      bacteriaAssessmentDecision('ENTEROCOCCI', 'LEVEL_ENTEROCOCCI', 10, 130, 35)})
+  moduleData <- reactive({req(stationSelected())
+    filter(modal_reactive$conventionals, FDT_STA_ID %in% stationSelected()) %>%
+      left_join(dplyr::select(stationTable(), STATION_ID:VAHU6, WQS_ID:US_L3NAME),
+                by = c('FDT_STA_ID' = 'STATION_ID')) %>%
+      pHSpecialStandardsCorrection() })
+
+  #output$testtest<- renderPrint({ecoli()})
+
+  callModule(EcoliPlotlySingleStation,'Ecoli', moduleData, stationSelected, ecoli)
+  
+  callModule(EnteroPlotlySingleStation,'Entero', moduleData, stationSelected, enter)
+  
+  
   
   ## Conventionals Tab
   output$conventionalsDataset <- DT::renderDataTable({req(modal_reactive$conventionals)

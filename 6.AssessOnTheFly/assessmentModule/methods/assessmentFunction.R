@@ -90,6 +90,16 @@ automatedAssessmentFunction <- function(stationTable, conventionals, lakeStation
         # this will be removed for lake stations later since it does not apply
         pHExceedances(stationData) %>% quickStats('PH'),
         bacteriaAssessmentDecisionClass(stationData),
+        
+        # old bacteria methods 
+        bacteriaExceedances_OLD(bacteria_Assessment_OLD(stationData, 'ECOLI', 126, 235),'E.COLI') %>%
+          dplyr::select(-contains("exceedanceRate")) %>% 
+          rename_all(function(x){paste0("OLD_", x)}), #for dplyr>1.0.4 rename_with(everything(), function(x){paste0("OLD_", x)})
+        bacteriaExceedances_OLD(bacteria_Assessment_OLD(stationData, 'ENTEROCOCCI', 35, 104),'ENTER') %>%
+          dplyr::select(-contains("exceedanceRate")) %>% 
+          rename_all(function(x){paste0("OLD_", x)}), #for dplyr>1.0.4 rename_with(everything(), function(x){paste0("OLD_", x)})
+        
+        
         ammoniaDecision(list(acute = freshwaterNH3Assessment(ammoniaAnalysisStation, 'acute'),
                              chronic = freshwaterNH3Assessment(ammoniaAnalysisStation, 'chronic'),
                              fourDay = freshwaterNH3Assessment(ammoniaAnalysisStation, 'four-day'))), 
@@ -99,7 +109,11 @@ automatedAssessmentFunction <- function(stationTable, conventionals, lakeStation
         # PCB and fish info can only be incorporated when data migrated into CEDS
         
         # Benthics, just a flag that benthic data exists
-        benthicAssessment(stationData, VSCIresults),
+        benthicAssessment(stationData, VSCIresults) %>% 
+          mutate(BENTHIC_STAT = case_when(BENTHIC_STAT == 'Review' ~ paste0("<b><a href='https://rconnect.deq.virginia.gov/CEDSBenthicDataQueryTool/?StationID=",
+                                                                            unique(stationData$FDT_STA_ID),"'",
+                                                                            " target= '_blank'> See results in CEDS Benthic Data Query Tool</a></b>"),
+                                          TRUE ~ NA_character_)),
         
         # Nutrient Assessment done above by waterbody type
         TP,

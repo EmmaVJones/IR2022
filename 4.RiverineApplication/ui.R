@@ -241,7 +241,7 @@ shinyUI(fluidPage(theme="yeti.css",
                                                                 EcoliPlotlySingleStationUI('Ecoli')),
                                                        tabPanel("Enterococci",
                                                                 #verbatimTextOutput('testOutside'),
-                                                                helpText('Review each site using the single site visualization section. Both the old and the new E. coli assessment
+                                                                helpText('Review each site using the single site visualization section. Both the old and the new Enterococci assessment
                                                                         methods are presented in the station visualization section. The results from the new analysis method are reflected
                                                                         in the ENTER_EXC, ENTER_SAMP, ENTER_GM_EXC, ENTER_GM_SAMP, and ENTER_STAT columns in the station table.'),
                                                                 EnteroPlotlySingleStationUI('Entero')),
