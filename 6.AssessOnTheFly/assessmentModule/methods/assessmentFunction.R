@@ -57,12 +57,12 @@ automatedAssessmentFunction <- function(stationTable, conventionals, lakeStation
       } else {chlorideFreshwater <- tibble(CHL_EXC = NA, CHL_STAT= NA)}
       
       # Nutrients based on station type
-      # Nutrient: TP (lakes have real standards; riverine no longer uses 0.2 mg/L as an observed effect for Aquatic life use but will use it as flag for this)
+      # Nutrient: TP (lakes have real standards; riverine no longer uses 0.2 mg/L as an observed effect for Aquatic life use 
       if(unique(stationData$lakeStation) == TRUE){
         TP <- TP_Assessment(stationData) 
       } else {
-        TP <- countNutrients(stationData, PHOSPHORUS_mg_L, LEVEL_PHOSPHORUS, 0.2) %>% quickStats('NUT_TP') %>%   # using 0.2mg/L as flag for this "assessment"
-          mutate(NUT_TP_STAT = ifelse(NUT_TP_STAT != "S", "Review", NA)) } # flag OE but don't show a real assessment decision
+        TP <- countNutrients(stationData, PHOSPHORUS_mg_L, LEVEL_PHOSPHORUS, NA) %>% quickStats('NUT_TP') %>% 
+          mutate(NUT_TP_STAT = ifelse(NUT_TP_STAT == 'IM', "Review", NA)) } # flag OE but don't show a real assessment decision
       
       # Nutrients: Chl a (lakes)
       if(unique(stationData$lakeStation) == TRUE){

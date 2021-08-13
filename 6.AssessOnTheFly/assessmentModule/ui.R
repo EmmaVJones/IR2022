@@ -2,6 +2,12 @@ shinyUI(fluidPage(tags$head(
   tags$style(
     HTML(".shiny-notification {position:fixed; top: calc(60%); left: calc(10%); }"))),
   theme= "yeti.css",
+  
+  
+  shinyjs::useShinyjs(), # critical for ammonia module
+  
+  
+  
   navbarPage("CEDS WQM Data Query Tool", #id = 'someID',  # key for passing URL to specific Tab
              
               # tabPanel('How To',

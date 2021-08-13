@@ -42,7 +42,11 @@ assessmentUI <- function(id){
                             helpText('Review each site using the single site visualization section. Both the old and the new Enterococci assessment
                                                                         methods are presented in the station visualization section. The results from the new analysis method are reflected
                                                                         in the ENTER_EXC, ENTER_SAMP, ENTER_GM_EXC, ENTER_GM_SAMP, and ENTER_STAT columns in the results table.'),
-                            EnteroPlotlySingleStationUI(ns('Entero')))
+                            EnteroPlotlySingleStationUI(ns('Entero'))),
+                   tabPanel("Ammonia",
+                            helpText('Review each site using the single site visualization section. The results from this analysis are reflected
+                                                                        in the AMMONIA_EXC and AMMONIA_STAT columns in the results table.'),
+                            AmmoniaPlotlySingleStationUI(ns('Ammonia')))
                  )),
         tabPanel("Conventionals Dataset",
                  helpText("Below is the conventionals dataset for the chosen stations and data window."),
@@ -112,7 +116,7 @@ assessment <- function(input,output,session, multistationFieldDataUserFilter, mu
   #   })
   
   output$stationReview <-  DT::renderDataTable({req(stationTable())
-    datatable(stationTable(), escape = FALSE, selection = 'none',
+    datatable(stationTable() %>% arrange(STATION_ID), escape = FALSE, rownames = F, selection = 'none', 
               options = list(dom = 'it', scrollX= TRUE, scrollY = '300px', pageLength = nrow(stationTable())))})
   
   
@@ -157,7 +161,7 @@ assessment <- function(input,output,session, multistationFieldDataUserFilter, mu
   ## Results Tab
   output$stationTableResults <- DT::renderDataTable({req(modal_reactive$assessmentResults)
     datatable(modal_reactive$assessmentResults$stationTableResults %>% arrange(STATION_ID), 
-              escape = FALSE, selection = 'none', extensions = 'Buttons',
+              escape = FALSE, selection = 'none', extensions = 'Buttons', rownames = F,
               options = list(dom = 'Bit', scrollX= TRUE, scrollY = '500px', pageLength = nrow(modal_reactive$assessmentResults$stationTableResults),
                              buttons=list('copy',
                                           list(extend='csv',filename=paste('rapidStationAssessment',Sys.Date(),sep='')),
@@ -194,18 +198,28 @@ assessment <- function(input,output,session, multistationFieldDataUserFilter, mu
       left_join(dplyr::select(stationTable(), STATION_ID:VAHU6, WQS_ID:US_L3NAME),
                 by = c('FDT_STA_ID' = 'STATION_ID')) %>%
       pHSpecialStandardsCorrection() })
+  # ammoniaAnalysisStation <- reactive({req(modal_reactive$assessmentResults$ammoniaAnalysis)
+  #   z <- filter(modal_reactive$assessmentResults$ammoniaAnalysis, StationID %in% stationSelected()) %>%
+  #     map(1) 
+  #   z$AmmoniaAnalysis })
+  
 
-  #output$testtest<- renderPrint({ecoli()})
+  #output$testtest<- renderPrint({ammoniaAnalysisStation()})
 
   callModule(EcoliPlotlySingleStation,'Ecoli', moduleData, stationSelected, ecoli)
   
   callModule(EnteroPlotlySingleStation,'Entero', moduleData, stationSelected, enter)
   
+  callModule(AmmoniaPlotlySingleStation,'Ammonia', moduleData, stationSelected, 
+             ammoniaAnalysis = modal_reactive$assessmentResults$ammoniaAnalysis )
+               #filter(modal_reactive$assessmentResults$ammoniaAnalysis, StationID %in% input$stationSelection)$AmmoniaAnalysis[[1]] )
+  
+  
   
   
   ## Conventionals Tab
   output$conventionalsDataset <- DT::renderDataTable({req(modal_reactive$conventionals)
-    datatable(modal_reactive$conventionals, escape = FALSE, selection = 'none', extensions = 'Buttons',
+    datatable(modal_reactive$conventionals, escape = FALSE, selection = 'none', extensions = 'Buttons', rownames = F, 
               options = list(dom = 'Bit', scrollX= TRUE, scrollY = '500px', pageLength = nrow(modal_reactive$conventionals),
                              buttons=list('copy',
                                           list(extend='csv',filename=paste('conventionals',Sys.Date(),sep='')),
