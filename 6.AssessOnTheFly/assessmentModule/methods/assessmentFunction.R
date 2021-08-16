@@ -21,7 +21,7 @@ automatedAssessmentFunction <- function(stationTable, conventionals, lakeStation
             thermoclineDepth())) # adds thermocline information and SampleDate
         else mutate(., lakeStation = FALSE) } %>% 
       # manually add lacustrine designation per user input
-      mutate(LACUSTRINE = ifelse(stationTable$STATION_ID[i] %in% lacustrineDesignation$STATION_ID, TRUE, FALSE))
+      mutate(LACUSTRINE = ifelse(stationTable$STATION_ID[i] %in% lacustrineDesignation$STATION_ID, 'Y', NA))
     
     
     # If data exists for station, run it

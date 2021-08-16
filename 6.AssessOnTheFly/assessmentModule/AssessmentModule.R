@@ -19,11 +19,25 @@ assessmentUI <- function(id){
                  # modFunctionUI(ns("editable")),
                  DT::dataTableOutput(ns('stationReview')),
                  br(),
-                 fluidRow(column(4,wellPanel(uiOutput(ns('lakeStationSelection_')) )),
-                          column(4,wellPanel(uiOutput(ns('lacustrineZoneSelection_')) ) ),
+                 fluidRow(column(4,wellPanel(helpText('Once the 2022 IR is completed, this step will no longer be necessary.'),
+                                             uiOutput(ns('lakeStationSelection_')) )),
+                          column(4,wellPanel(helpText('Once the 2022 IR is completed, this step will no longer be necessary.'),
+                                             uiOutput(ns('lacustrineZoneSelection_')) ) ),
                           column(4, wellPanel(h5('Once metadata verification is complete, click the button below to begin rapid evaluation.'),
                                               actionButton(ns('rapidAssessmentRun'), 'Evaluate', class='btn-block'))))),
         tabPanel('Results',
+                 helpText("The station summary reporting structure for parameters evaluated below follows current assessment reporting convetions. 
+                          For most parameters, _EXC indicates the number of times the given parameter exceeded its criteria standard and _SAMP indicates 
+                          the total number of samples taken of the given parameter at this station."),
+                 helpText("Both the old and new bacteria standards are evaluated for the chosen data window. Results applicable to the old bacteria standard
+                          utilize a OLD_[bacteria type]_ reporting convention while the new bacteria standard use a [bacteria type]_ convention. The new
+                          bacteria standard reports the following information:
+                          ECOLI/ENTER_EXC = Number of samples that exceed the STV within the assessment window at a station.
+                          ECOLI/ENTER_SAMP = Total number of 90-day periods (samples) within the assessment window.
+                          ECOLI/ENTER_GM_EXC = Number of 90-day periods with an exceedance of the geometric mean (126/100 ml for E. coli and 35/100 ml for Enterococci). If there are no 90-day periods with 10+ samples this field should be blank.
+                          ECOLI/ENTER_GM_SAMP = Total number of 90-day periods with 10+ samples within the assessment window. If there are no 90-day periods with 10+ samples this field should be blank.
+                          ECOLI/ENTER_STAT = Both the STV and geometric mean criteria must be assessed for each bacteria parameter. Based on the results of the analysis the status should be entered here and a corresponding comment added."),
+                 helpText(strong("Please consult your regional assessor should you have questions about how criteria are applied.")),
                  DT::dataTableOutput(ns('stationTableResults')), br(),br(),br(),
                  verbatimTextOutput(ns('test'))),
         tabPanel('Visualization',
@@ -121,10 +135,10 @@ assessment <- function(input,output,session, multistationFieldDataUserFilter, mu
   
   
   output$lakeStationSelection_ <- renderUI({req(nrow(stationTable()) > 0)
-    checkboxGroupInput('lakeStationSelection', "Identify all lake stations", choices = sort(unique(stationTable()$STATION_ID)))  })
+    checkboxGroupInput(ns('lakeStationSelection'), "Identify all lake stations", choices = sort(unique(stationTable()$STATION_ID)))  })
   
   output$lacustrineZoneSelection_ <- renderUI({req(nrow(stationTable()) > 0)
-    checkboxGroupInput('lacustrineZoneSelection', "Identify all lake stations that fall in the lacustrine zone", 
+    checkboxGroupInput(ns('lacustrineZoneSelection'), "Identify all lake stations that fall in the lacustrine zone", 
                        choices = sort(unique(stationTable()$STATION_ID)))  })
   
   
@@ -162,7 +176,7 @@ assessment <- function(input,output,session, multistationFieldDataUserFilter, mu
   output$stationTableResults <- DT::renderDataTable({req(modal_reactive$assessmentResults)
     datatable(modal_reactive$assessmentResults$stationTableResults %>% arrange(STATION_ID), 
               escape = FALSE, selection = 'none', extensions = 'Buttons', rownames = F,
-              options = list(dom = 'Bit', scrollX= TRUE, scrollY = '500px', pageLength = nrow(modal_reactive$assessmentResults$stationTableResults),
+              options = list(dom = 'Bti', scrollX= TRUE, scrollY = '500px', pageLength = nrow(modal_reactive$assessmentResults$stationTableResults),
                              buttons=list('copy',
                                           list(extend='csv',filename=paste('rapidStationAssessment',Sys.Date(),sep='')),
                                           list(extend='excel',filename=paste('rapidStationAssessment',Sys.Date(),sep='')))) ) %>% 
