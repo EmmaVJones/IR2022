@@ -4,13 +4,23 @@ VDH <- read_excel('data/final2022data/Citizen Monitoring Data/22IR VDH Beach Dat
                 sheet = 'VDH Beach Enterococci') %>% 
   mutate(#FDT_DATE_TIME = paste())
     LEVEL_ENTEROCOCCI = 'Level III')
+
+
 # make sure all data is accepted first
 unique(VDH$ResultStatusIdentifier )
 # simplify data for analysis, will join full dataset back later
-VDHsimple <- dplyr::select(VDH, FDT_STA_ID = MonitoringLocationIdentifier,
+VDHsimple <- bind_rows(dplyr::select(VDH, FDT_STA_ID = MonitoringLocationIdentifier,
                            FDT_DATE_TIME = ActivityStartDate,
                            ENTEROCOCCI = ResultMeasureValue, 
-                           LEVEL_ENTEROCOCCI)
+                           LEVEL_ENTEROCOCCI),
+                       # Kristie organized this version for run in Sept 2021
+                       read_csv('data/final2022data/Citizen Monitoring Data/2020IR_VDHdatafor 22IR.csv') %>%  
+                         mutate(FDT_DATE_TIME = as.Date(`Date time`, format = '%m/%d/%Y')) %>% 
+                         dplyr::select(FDT_STA_ID = `Station ID`, FDT_DATE_TIME, 
+                                       ENTEROCOCCI = `Enterococcus per 100ml`, 
+                                       LEVEL_ENTEROCOCCI = `Enterococcus Method`) ) %>% 
+  mutate(ENTEROCOCCI = na_if(ENTEROCOCCI, 0)) # force 0's to 1 so geomean function can work properly
+
 
 stationTableResults <- stationsTemplate %>% 
   dplyr::select(STATION_ID, ENTER_EXC:ENTER_STAT)
@@ -39,6 +49,8 @@ stationTableResults <- left_join(VDH %>%
                                   stationTableResults, by = c('MonitoringLocationIdentifier' = 'STATION_ID'))
 
 write_csv(stationTableResults,'dataForAssessors/VDHbacteriaResults.csv', na = "") # dont write out a character NA in csv
+
+write_csv(stationTableResults,'dataForAssessors/VDHbacteriaResults2015-2020.csv', na = "") # dont write out a character NA in csv
 
 
 

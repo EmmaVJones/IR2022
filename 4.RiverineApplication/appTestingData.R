@@ -89,9 +89,9 @@ pinnedDecisions <- pin_get('IR2022bioassessmentDecisions_test', board = 'rsconne
 
 
 
-DEQregionSelection <- 'BRRO'
-basinSelection <- 'Roanoke'#"James-Middle"#'James-Upper'#'Roanoke'#"Small Coastal" ##"Roanoke"#"Roanoke"#'James-Upper'#
-HUC6Selection <- "RU24"#"JM01"#'JU21'#"RU14"#"CB47"#'JM16'#'RU09'#'RL12'#
+DEQregionSelection <- "PRO"#'BRRO'
+basinSelection <- "Chowan-Dismal"#'Roanoke'#"James-Middle"#'James-Upper'#'Roanoke'#"Small Coastal" ##"Roanoke"#"Roanoke"#'James-Upper'#
+HUC6Selection <- "CM01"#"RD15"#"RU24"#"JM01"#'JU21'#"RU14"#"CB47"#'JM16'#'RU09'#'RL12'#
 
 # z <- filter(vahu6, ASSESS_REG %in% c(DEQregionSelection, 'CO')) %>%
 #   left_join(dplyr::select(subbasinToVAHU6, VAHU6, Basin, BASIN_CODE, Basin_Code))
@@ -154,7 +154,8 @@ carryoverStations <- filter(stationTable, VAHU6 %in% huc6_filter$VAHU6 & str_det
 
 ## Assessment Unit Review Tab
 
-conventionals_HUC <- conventionals %>% # filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>%
+conventionals_HUC <- #conventionals %>% # 
+  filter(conventionals, Huc6_Vahu6 %in% huc6_filter$VAHU6) %>%
     left_join(dplyr::select(stationTable, STATION_ID:VAHU6,lakeStation,
                             WQS_ID:EPA_ECO_US_L3NAME),
                             #WQS_ID:`Max Temperature (C)`), 

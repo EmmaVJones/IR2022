@@ -666,9 +666,9 @@ shinyServer(function(input, output, session) {
   observe({req(nrow(assessmentDecision_UserSelection())> 0)
     reactive_objects$SCI_UserSelection <- filter(VSCIresults, StationID %in% filter(assessmentDecision_UserSelection(), AssessmentMethod == 'VSCI')$StationID) %>%
       bind_rows(
-        filter(VCPMI63results, StationID %in% filter(assessmentDecision_UserSelection(), AssessmentMethod == 'VCPMI + 63')$StationID)  ) %>%
+        filter(VCPMI63results, StationID %in% filter(assessmentDecision_UserSelection(), AssessmentMethod == 'VCPMI63 + Chowan')$StationID)  ) %>%
       bind_rows(
-        filter(VCPMI65results, StationID %in% filter(assessmentDecision_UserSelection(), AssessmentMethod == 'VCPMI - 65')$StationID)  ) %>%
+        filter(VCPMI65results, StationID %in% filter(assessmentDecision_UserSelection(), AssessmentMethod == 'VCPMI65 - Chowan')$StationID)  ) %>%
       # add back in description information
       left_join(filter(benSamps, StationID %in% input$stationSelection) %>%
                   dplyr::select(StationID, Sta_Desc, BenSampID,US_L3CODE, US_L3NAME, HUC_12, VAHU6, Basin, Basin_Code),

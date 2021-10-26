@@ -12,18 +12,18 @@ shinyUI(fluidPage(tags$head(
                       h4('This tool allows users to quickly review region-specific water quality monitoring data. More frequent review of monitoring data ensures DEQ can improve
                         QA/QC procedures, planning efforts, and watershed understanding for various projects, among other benefits.'),
                       p('The data presented reflects monitoring data queried from the start of the current year to ',statewideResults$BRRO$pullDate, '. This dataset and analysis
-                        is refreshed on the 15th of every month. All results are run through automated assessment scripts to identify any parameter exceedances, where appropriate
+                        is refreshed on the 15th of every month. All results are run through automated analysis scripts to identify any parameter exceedances, where appropriate
                         WQS metadata exist for a station. Please contact Emma Jones and your regional assessor if you find a station that does not have the appropriate WQS information
                         attributed.'),
                       p('The parameters analyzed include: Temperature, Dissolved Oxygen, pH, E.coli STV, E.coli Geomean, Enterococci STV, Enterococci Geomean, Ammonia,
                         Total Phosphorus, and Chlorophyll a.'),
                       p("The Regional Map Tab allows users to explore parameter exceedances spatially across a selected monitoring region."),
-                      p('The Exceedance Summary Tab provides preliminary assessment information across all stations in the top table. The lower table reflects all stations that 
+                      p('The Exceedance Summary Tab provides preliminary understanding of sampled stations in the top table. The lower table reflects all stations that 
                         have an exceedance in any parameter analyzed. '),
                       p('The Monitoring Summary Tab allows users to explore regional monitoring efforts by collector ID with a heatmap of stations visited by collector ID.')),
              tabPanel("Regional Review",
-                      h4(span('Preliminary assessment information presented in this tool reflects data available in ODS as of ', strong(statewideResults$BRRO$pullDate), '. All information
-                                                 is based on automated assessment results and do not indicate final assessment decisions made by regional assessment staff.')),
+                      h4(span('Preliminary analysis information presented in this tool reflects data available in ODS as of ', strong(statewideResults$BRRO$pullDate), '. All information
+                                                 is based on automated assessment scripts and do not indicate final assessment decisions made by regional assessment staff.')),
                       fluidRow(column(4, helpText("Select a region of interest from the drop down to the right and click the `Analyze Region` button to visualize monitoring 
                                                   results as of the query date noted above.")  ),
                                column(4, selectInput('regionChoice', 'Choose a region to review monitoring data collected from the start of the year',
@@ -35,7 +35,7 @@ shinyUI(fluidPage(tags$head(
                                  #verbatimTextOutput('test'),
                                  
                                  fluidRow(column(4, helpText("This map allows users to quickly preview station exceedance results as of the last query date. By default, the map presents a station overview where 
-                                                             the station is colored based on the most harmful preliminary assessment status category (e.g. if a station has 8 Supporting parameter statuses, 
+                                                             the station is colored based on the most harmful preliminary results category (e.g. if a station has 8 Supporting parameter statuses, 
                                                              2 Insufficient parameter statuses, and 1 Impaired status, the station will be colored red to reflect the Impaired status). 
                                                              The number of parameter exceedances in the most harmful category is reported for each station in the popup window (accessed by clicking
                                                              the station in the map). If a specific parameter is chosen, the map reflects the number of exceedances for that parameter for each station.")),
@@ -52,8 +52,8 @@ shinyUI(fluidPage(tags$head(
                                  leafletOutput('regionalMap'),
                                  br(), br(),br()),
                         tabPanel('Exceedance Summary',
-                                 h4('Preliminary Station Assessment Results'),
-                                 helpText('The table below presents preliminary assessment results for all stations monitored in the query window for the selected region.'),
+                                 h4('Preliminary Station Status Results'),
+                                 helpText('The table below presents preliminary station summary results for all stations monitored in the query window for the selected region.'),
                                  dataTableOutput('stationTable'),
                                  br(), hr(),br(),
                                  h4('Stations with Exceedances'),

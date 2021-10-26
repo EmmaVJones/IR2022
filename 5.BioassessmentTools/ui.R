@@ -65,7 +65,7 @@ shinyUI(fluidPage(theme="yeti.css",
                                         selectInput('GPuserStation', "Choose a station to generate report",
                                                     choices = unique(benSamps$StationID)),
                                         selectInput('GPuserSCIMethod', "Choose a SCI method to generate report",
-                                                    choices = c('VSCI', 'VCPMI + 63', 'VCPMI - 65')),
+                                                    choices = c('VSCI', 'VCPMI63 + Chowan', 'VCPMI65 - Chowan')),
                                         uiOutput('GPuserWindow_'),
                                         h4('Generate Report for selected station'),
                                         downloadButton('GPdownloadReport', 'Generate Report')

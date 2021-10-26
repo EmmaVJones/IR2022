@@ -334,11 +334,13 @@ benthicResultsMetrics <- function(x, SCIresults, wadeableOnly, rep1Only){
 #benthicResultsMetrics(x, VCPMI63results, TRUE, TRUE)
 
 SCIchooser <- function(x){
-  if(unique(x$EPA_ECO_US_L3CODE) %in% 63 | 
-     str_detect(unique(x$Basin_Code), 'Chowan')){return('VCPMI 63 + Chowan')}
-  if(unique(x$EPA_ECO_US_L3CODE)  %in% 65  & 
-     !str_detect(unique(x$Basin_Code), 'Chowan')){return('VCPMI 65 - Chowan')}
-  if(unique(x$EPA_ECO_US_L3CODE) %in% c(NA, 45, 64, 66, 67, 69)){return('VSCI')}
+  if(unique(x$EPA_ECO_US_L3CODE %in% c(NA, 45, 64, 66, 67, 69))){return('VSCI')
+  } else {
+    if(unique(x$EPA_ECO_US_L3CODE) %in% 63 | 
+       str_detect(unique(x$Basin_Code), 'Chowan')){return('VCPMI 63 + Chowan')}
+    if(unique(x$EPA_ECO_US_L3CODE)  %in% 65  #& !str_detect(unique(x$Basin_Code), 'Chowan')
+       ){return('VCPMI 65 - Chowan')}
+    }
 }
 #SCIchooser(x)
 
@@ -461,27 +463,52 @@ SCIstatistics <- function(SCI1){
 # SCI plot for report
 SCIresultsPlot <- function(SCI, assessmentMethod){
   if(unique(assessmentMethod) == 'VSCI'){
-    mutate(SCI, `Collection Date` = as.Date(`Collection Date`)) %>% 
-      ggplot(aes(x = `Collection Date`, y = `SCI Score`, fill=Season)) +
-      geom_col()+
-      scale_fill_manual("Season", values = c("Fall" = "black", "Spring" = "dark grey"))+
-      labs(x="Collection Year", y="VSCI Score") +
-      scale_y_continuous(#name="VSCI", 
-        breaks=seq(0, 100, 10),limits=c(0,100)) +
-      scale_x_date(date_labels = '%Y') +
-      geom_hline(yintercept=60, color="red", size=1)+
-      theme(axis.text.x=element_text(angle=45,hjust=1))
+    if("Outside Sample Window" %in% SCI$Season){
+      mutate(SCI, `Collection Date` = as.Date(`Collection Date`)) %>% 
+        ggplot(aes(x = `Collection Date`, y = `SCI Score`, fill=Season)) +
+        geom_col()+
+        scale_fill_manual("Season", values = c("Fall" = "black", "Spring" = "dark grey", "Outside Sample Window" = "light grey"))+
+        labs(x="Collection Year", y="VSCI Score") +
+        scale_y_continuous(#name="VSCI", 
+          breaks=seq(0, 100, 10),limits=c(0,100)) +
+        scale_x_date(date_labels = '%Y') +
+        geom_hline(yintercept=60, color="red", size=1)+
+        theme(axis.text.x=element_text(angle=45,hjust=1))
+    } else {
+      mutate(SCI, `Collection Date` = as.Date(`Collection Date`)) %>% 
+        ggplot(aes(x = `Collection Date`, y = `SCI Score`, fill=Season)) +
+        geom_col()+
+        scale_fill_manual("Season", values = c("Fall" = "black", "Spring" = "dark grey"))+
+        labs(x="Collection Year", y="VSCI Score") +
+        scale_y_continuous(#name="VSCI", 
+          breaks=seq(0, 100, 10),limits=c(0,100)) +
+        scale_x_date(date_labels = '%Y') +
+        geom_hline(yintercept=60, color="red", size=1)+
+        theme(axis.text.x=element_text(angle=45,hjust=1)) }
+    
   } else {
-    mutate(SCI, `Collection Date` = as.Date(`Collection Date`)) %>% 
-      ggplot(aes(x = `Collection Date`, y = `SCI Score`, fill=Season)) +
-      geom_col()+
-      scale_fill_manual("Season", values = c("Fall" = "black", "Spring" = "dark grey"))+
-      labs(x="Collection Year", y="VCPMI Score") +
-      scale_y_continuous(#name="VSCI", 
-        breaks=seq(0, 100, 10),limits=c(0,100)) +
-      scale_x_date(date_labels = '%Y') +
-      geom_hline(yintercept=40, color="red", size=1)+
-      theme(axis.text.x=element_text(angle=45,hjust=1))
+    if("Outside Sample Window" %in% SCI$Season){
+      mutate(SCI, `Collection Date` = as.Date(`Collection Date`)) %>% 
+        ggplot(aes(x = `Collection Date`, y = `SCI Score`, fill=Season)) +
+        geom_col()+
+        scale_fill_manual("Season", values = c("Fall" = "black", "Spring" = "dark grey", "Outside Sample Window" = "light grey"))+
+        labs(x="Collection Year", y="VCPMI Score") +
+        scale_y_continuous(#name="VSCI", 
+          breaks=seq(0, 100, 10),limits=c(0,100)) +
+        scale_x_date(date_labels = '%Y') +
+        geom_hline(yintercept=40, color="red", size=1)+
+        theme(axis.text.x=element_text(angle=45,hjust=1))
+    } else {
+      mutate(SCI, `Collection Date` = as.Date(`Collection Date`)) %>% 
+        ggplot(aes(x = `Collection Date`, y = `SCI Score`, fill=Season)) +
+        geom_col()+
+        scale_fill_manual("Season", values = c("Fall" = "black", "Spring" = "dark grey"))+
+        labs(x="Collection Year", y="VCPMI Score") +
+        scale_y_continuous(#name="VSCI", 
+          breaks=seq(0, 100, 10),limits=c(0,100)) +
+        scale_x_date(date_labels = '%Y') +
+        geom_hline(yintercept=40, color="red", size=1)+
+        theme(axis.text.x=element_text(angle=45,hjust=1)) }
   }
 }
 

@@ -72,9 +72,9 @@ shinyServer(function(input, output, session) {
   observe({req(assessmentDecision_UserSelection())
     reactive_objects$SCI_UserSelection <- filter(VSCIresults, StationID %in% filter(assessmentDecision_UserSelection(), AssessmentMethod == 'VSCI')$StationID) %>%
       bind_rows(
-        filter(VCPMI63results, StationID %in% filter(assessmentDecision_UserSelection(), AssessmentMethod == 'VCPMI + 63')$StationID)  ) %>%
+        filter(VCPMI63results, StationID %in% filter(assessmentDecision_UserSelection(), AssessmentMethod == 'VCPMI63 + Chowan')$StationID)  ) %>%
       bind_rows(
-        filter(VCPMI65results, StationID %in% filter(assessmentDecision_UserSelection(), AssessmentMethod == 'VCPMI - 65')$StationID)  ) %>%
+        filter(VCPMI65results, StationID %in% filter(assessmentDecision_UserSelection(), AssessmentMethod == 'VCPMI65 - Chowan')$StationID)  ) %>%
       # add back in description information
       left_join(filter(benSamps, StationID %in% input$userStations) %>%
                   dplyr::select(StationID, Sta_Desc, BenSampID,US_L3CODE, US_L3NAME, HUC_12, VAHU6, Basin, Basin_Code),
@@ -133,9 +133,9 @@ shinyServer(function(input, output, session) {
   GPSCI <- reactive({req(GPbenSampsFilter())
     if(input$GPuserSCIMethod == 'VSCI'){
       GPSCI <- filter(VSCIresultsAll, BenSampID %in% GPbenSampsFilter()$BenSampID) }
-    if(input$GPuserSCIMethod == 'VCPMI + 63'){
+    if(input$GPuserSCIMethod == 'VCPMI63 + Chowan'){
       GPSCI <- filter(VCPMI63resultsAll, BenSampID %in% GPbenSampsFilter()$BenSampID) }
-    if(input$GPuserSCIMethod == 'VCPMI - 65'){
+    if(input$GPuserSCIMethod == 'VCPMI65 - Chowan'){
       GPSCI <- filter(VCPMI65resultsAll, BenSampID %in% GPbenSampsFilter()$BenSampID) }
     # add back in description information
     return(bind_rows(SCItemplate,

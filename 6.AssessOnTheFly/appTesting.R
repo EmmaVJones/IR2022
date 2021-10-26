@@ -4,7 +4,7 @@ assessmentLayer <- st_read('data/GIS/AssessmentRegions_VA84_basins.shp') %>%
   st_transform( st_crs(4326))
 
 
-regionResults <- statewideResults[['BRRO']]  
+regionResults <- statewideResults[['TRO']]  
 
 stationTableResults <- left_join(regionResults$`Assessment Results`$stationTableResults,
                                  dplyr::select(regionResults$stationGIS_View,
@@ -23,6 +23,10 @@ runSummary %>%
             `Unique Stations Monitored` = sum(`Stations Per Run`),
             `Total Stations Monitored` = sum(`Station Count`))
 )
+
+
+# View map of regional overview
+indStatusMap('Overall Status', assessmentSummary)
 
 
 # summarize monitoring by run or station month

@@ -3,9 +3,9 @@ source('global.R')
 assessmentRegions <- st_read( 'data/GIS/AssessmentRegions_simple.shp')
 ecoregion <- st_read('data/GIS/vaECOREGIONlevel3__proj84.shp') 
 
-collectorFilter <- sort(unique(benSamps$`Collected By`))[6] #NULL
-basinFilter <- 'New'#NULL#"Potomac-Lower" #NULL # sort(unique(benSamps$Basin_Code))[3]
-stationFilter <- '9-ADR000.13'# NULL#c('1AWOT000.92', '1ACAA001.18') #sort(unique(benSamps$StationID))
+collectorFilter <- sort(unique(benSamps$`Collected By`))[22] #NULL
+basinFilter <- NULL# 'New'#NULL#"Potomac-Lower" #NULL # sort(unique(benSamps$Basin_Code))[3]
+stationFilter <- NULL# '9-ADR000.13'# NULL#c('1AWOT000.92', '1ACAA001.18') #sort(unique(benSamps$StationID))
 repFilter <- NULL #sort(unique(benSamps$RepNum))
 
 benSampsFilter <- benSamps %>%
@@ -52,9 +52,9 @@ benSampsFilterStations <- filter(benSampsStations, StationID %in% benSampsFilter
 # choose appropriate SCI based on Ecoregion
 SCI_filter <- filter(VSCIresults, BenSampID %in% filter(benSampsFilter, ! US_L3CODE %in% c(63,65))$BenSampID) %>%
   bind_rows(
-    filter(VCPMI63results, BenSampID %in% filter(benSampsFilter,  US_L3CODE %in% c(63))$BenSampID)  ) %>%
+    filter(VCPMI63results, BenSampID %in% filter(benSampsFilter,  US_L3CODE %in% c(63) | str_detect(Basin, "Chowan"))$BenSampID)  ) %>%
   bind_rows(
-    filter(VCPMI65results, BenSampID %in% filter(benSampsFilter,  US_L3CODE %in% c(65))$BenSampID)  ) %>%
+    filter(VCPMI65results, BenSampID %in% filter(benSampsFilter,  US_L3CODE %in% c(65) & !str_detect(Basin, "Chowan"))$BenSampID)  ) %>%
   mutate(SeasonGradient = as.factor(paste0(Season, " (",Gradient,")")),
          SeasonGradientColor = case_when(SeasonGradient == "Spring (Riffle)" ~  "#66C2A5",
                                          SeasonGradient == "Spring (Boatable)" ~  "#66C2A5",
@@ -102,7 +102,7 @@ plot_ly(#SCI_filter,
     add_segments(., x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'), y = 60, yend = 60, 
                  text = 'VSCI Criteria = 60', name = 'VSCI Criteria = 60',line = list(color = 'red'))
     else . } %>%
-  {if(any(c('VCPMI + 63', 'VCPMI - 65') %in% SCI_filter$SCI))
+  {if(any(c('VCPMI63 + Chowan', 'VCPMI65 - Chowan') %in% SCI_filter$SCI))
     add_segments(., x = as.Date('2015-01-01'), xend =as.Date('2020-12-31'), y = 40, yend = 40, 
                  text = 'VCPMI Criteria = 40', name = 'VCPMI Criteria = 40',  line = list(color = 'red'))
     else . }%>%
