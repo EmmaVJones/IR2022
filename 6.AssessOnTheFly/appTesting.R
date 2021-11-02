@@ -4,7 +4,7 @@ assessmentLayer <- st_read('data/GIS/AssessmentRegions_VA84_basins.shp') %>%
   st_transform( st_crs(4326))
 
 
-regionResults <- statewideResults[['TRO']]  
+regionResults <- statewideResults[['BRRO']]  
 
 stationTableResults <- left_join(regionResults$`Assessment Results`$stationTableResults,
                                  dplyr::select(regionResults$stationGIS_View,
@@ -27,7 +27,7 @@ runSummary %>%
 
 # View map of regional overview
 indStatusMap('Overall Status', assessmentSummary)
-
+indStatusMap('E.coli Geomean', assessmentSummary)
 
 # summarize monitoring by run or station month
 stationFieldData <- regionResults$stationFieldData

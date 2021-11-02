@@ -1,4 +1,4 @@
-httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
+#httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
 
 library(tidyverse)
 library(shiny)
@@ -17,16 +17,16 @@ library(sqldf)
 library(dbplyr)
 
 # Server connection things
-conn <- config::get("connectionSettings") # get configuration settings
+#conn <- config::get("connectionSettings") # get configuration settings
 
 
-board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_KEY"),
-                         server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
+#board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_KEY"),
+#                         server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
 
 
 
 # Pull latest assessment Run
-statewideResults <- pin_get("ejones/statewideResults", board = "rsconnect")
+#statewideResults <- pin_get("ejones/statewideResults", board = "rsconnect")
 
 
 summarizeRuns <- function(stationFieldData){
@@ -81,7 +81,7 @@ parameterEXCcrosswalk <- tibble(Parameter = c("Temperature", 'Dissolved Oxygen',
                                               'Ammonia', 'Water Column Metals',
                                               'Water Column Toxics', 'Sediment Metals', 'Sediment Toxics', 'Fish Tissue Metals', 'Fish Tissue Toxics',
                                               'Benthics', 'Total Phosphorus', 'Chlorophyll a'),
-                                ParameterEXC = c("TEMP_EXC", "DO_EXC", "PH_EXC", "ECOLI_EXC", "ECOLI_GM_EXC ","ENTER_EXC", "ENTER_GM_EXC",
+                                ParameterEXC = c("TEMP_EXC", "DO_EXC", "PH_EXC", "ECOLI_EXC", "ECOLI_GM_EXC","ENTER_EXC", "ENTER_GM_EXC",
                                                  "AMMONIA_EXC", "WAT_MET_EXC", 
                                                  "WAT_TOX_EXC", "SED_MET_EXC", "SED_TOX_EXC", "FISH_MET_EXC", "FISH_TOX_EXC", "BENTHIC_EXC",
                                                  "NUT_TP_EXC", "NUT_CHLA_EXC"))

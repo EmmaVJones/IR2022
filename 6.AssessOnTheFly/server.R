@@ -8,7 +8,7 @@ shinyServer(function(input, output, session) {
   # empty reactive objects list
   reactive_objects = reactiveValues() 
   
-  # Subset statewideResults by chosen Region
+ # Subset statewideResults by chosen Region
   
   observeEvent(input$runData, {
     reactive_objects$regionResults <- statewideResults[[input$regionChoice]]    })
@@ -22,6 +22,16 @@ shinyServer(function(input, output, session) {
     reactive_objects$assessmentSummary <- stationSummary(reactive_objects$stationTableResults, parameterEXCcrosswalk)  })
   
   
+  # Display date ranges for each tab
+  output$oneYearDateRange <- renderUI({req(reactive_objects$regionResults)
+    fluidRow(h3('This tab presents data from ', paste0('01-01-', year(min(reactive_objects$regionResults$stationFieldData$Fdt_Date_Time)), ' to ',
+           format(statewideResults$BRRO$pullDate, "%m-%d-%Y"))))    })
+  
+  # output$twoYearDateRange <- renderUI({req(reactive_objects$regionResults)
+  #   fluidRow(h3('This tab presents data from ', paste0('01-01-', year(min(reactive_objects$regionResults$stationFieldData$Fdt_Date_Time)), ' to ',
+  #                                                      format(statewideResults$BRRO$pullDate, "%m-%d-%Y"))))    })
+  
+  
   
   ### Regional Map Tab
   output$regionalMap <- renderLeaflet({req(reactive_objects$assessmentSummary, input$parameterChoice)
@@ -29,6 +39,8 @@ shinyServer(function(input, output, session) {
   
   #output$test <- renderPrint({dplyr::select(reactive_objects$stationTableResults, STATION_ID, Sta_Desc, TEMP_EXC:LONGITUDE, everything())  })
   
+  
+  # add in click information from map to subset station table results in table here
   
   
     
