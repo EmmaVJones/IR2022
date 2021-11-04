@@ -29,6 +29,14 @@ runSummary %>%
 indStatusMap('Overall Status', assessmentSummary)
 indStatusMap('E.coli Geomean', assessmentSummary)
 
+z <- filter(stationTableResults, STATION_ID %in% '2-JKS023.61') %>% #input$regionalMap_marker_click$id) %>% 
+  #filter_at(vars(ends_with("_EXC")), any_vars( . > 0)) %>% 
+  dplyr::select(STATION_ID, Sta_Desc, TEMP_EXC:LONGITUDE, everything())
+datatable(z, rownames = F, escape= F, extensions = 'Buttons',
+          options = list(dom = 'Bit', scrollX = TRUE, scrollY = '350px',selection = 'none',
+                         pageLength = nrow(z),
+                         columDefs = list(list(visible=FALSE, targets= c(2)))))
+
 # summarize monitoring by run or station month
 stationFieldData <- regionResults$stationFieldData
 byWhat <- 'Run ID'
@@ -55,6 +63,8 @@ z <- monthlyBreakdown(regionResults$stationFieldData, 'StationID')
 datatable(z, rownames = F, escape= F, extensions = 'Buttons',
           options = list(dom = 'Bit', scrollX = TRUE, scrollY = '350px',selection = 'none',
                          pageLength = nrow(z) ))
+
+                         
 
  
  

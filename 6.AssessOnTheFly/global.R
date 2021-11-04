@@ -1,4 +1,4 @@
-#httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
+httr::set_config(httr::config(ssl_verifypeer = FALSE, ssl_verifyhost = FALSE))
 
 library(tidyverse)
 library(shiny)
@@ -17,16 +17,18 @@ library(sqldf)
 library(dbplyr)
 
 # Server connection things
-#conn <- config::get("connectionSettings") # get configuration settings
+conn <- config::get("connectionSettings") # get configuration settings
 
 
-#board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_KEY"),
-#                         server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
+board_register_rsconnect(key = conn$CONNECT_API_KEY,  #Sys.getenv("CONNECT_API_KEY"),
+                         server = conn$CONNECT_SERVER)#Sys.getenv("CONNECT_SERVER"))
 
+
+source('regionalReviewModule.R')
 
 
 # Pull latest assessment Run
-#statewideResults <- pin_get("ejones/statewideResults", board = "rsconnect")
+statewideResults <- pin_get("ejones/statewideResults", board = "rsconnect")
 
 
 summarizeRuns <- function(stationFieldData){
@@ -127,6 +129,18 @@ stationSummary <- function(stationTableResults, parameterSTATcrosswalk){
              left_join(parameterEXCcrosswalk, by = 'ParameterEXC' ) %>%
              left_join(dplyr::select(stationTableResults, STATION_ID, LATITUDE, LONGITUDE), by = 'STATION_ID') %>%
              ungroup() %>%
+             
+             # add link to data and add link to internal GIS web app with WQS layer on there
+             mutate(`CEDS WQM Data Query Tool` =  paste0("<b><a href='https://rconnect.deq.virginia.gov/CEDSWQMDataQueryTool/?StationID=", STATION_ID,
+                                                            "'", " target= '_blank'> View Monitoring Station in CEDS WQM Data Query Tool</a></b>"),
+                    `CEDS Station View` = paste0("<b><a href='https://ceds.deq.virginia.gov/ui#wqmStations/",
+                                                      STATION_ID,"'", 
+                                                      " target= '_blank'> View Monitoring Station in CEDS</a></b>"),
+                    `DEQ GIS Web App` =  paste0("<b><a href='https://gis.deq.virginia.gov/GISStaffApplication/?query=WQM%20Stations%20(All%20stations%20with%20full%20attributes),STATION_ID,",
+                                                     STATION_ID, 
+                                                     "&showLayers=DEQInternalDataViewer_1723;WATER%20LAYERS;WQM%20Stations%20(All%20stations%20with%20full%20attributes);", 
+                                                     ";2020%20Draft%20ADB%20WQA%20Layers;2020%20Rivers%20(Any%20Use)&level=14' target='_blank'>View Monitoring Station in DEQ Staff App</a></b>" )) %>%
+
              st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
                       remove = T, # remove these lat/lon cols from df
                       crs = 4326) ) # add projection, needs to be geographic for now bc entering lat/lng
@@ -144,7 +158,8 @@ stationSummary <- function(stationTableResults, parameterSTATcrosswalk){
     #return(overall)
   } else {
     return(tibble(STATION_ID = NA, ParameterEXC = NA, Status = NA, individualColor = NA, 
-                  individualScore = NA, stationOverallScore = NA, stationColor = NA, Parameter = NA)) }
+                  individualScore = NA, stationOverallScore = NA, stationColor = NA, Parameter = NA,
+                  `CEDS WQM Data Query Tool` = NA, `CEDS Station View` = NA, `DEQ GIS Web App` = NA)) }
   #return(tibble(STATION_ID = NA, individualColor = NA, individualScore = NA, n = NA)) }
 }
 
@@ -164,7 +179,9 @@ indStatusMap <- function(parameter, status){
       addCircleMarkers(data = status, color='black', fillColor=~pal(status$stationOverallScore), radius = 6,
                        fillOpacity = 0.5,opacity=1,weight = 2,stroke=T,group="Overall Station Status Summary",
                        label = ~STATION_ID, layerId = ~STATION_ID,
-                       popup = leafpop::popupTable(status, zcol=c( "STATION_ID", "Overall Station Result", "n Parameters of lowest status"))  ) %>% 
+                       popup = leafpop::popupTable(status, zcol=c( "STATION_ID", "Overall Station Result", "n Parameters of lowest status",
+                                                                   "CEDS WQM Data Query Tool", "CEDS Station View",       
+                                                                   "DEQ GIS Web App"))   ) %>% 
       addLegend('topright', colors = c('red', 'yellow','green', 'gray'),
                 labels = c('Station contains at least <br>one parameter with 2 or more exceedances',
                            'Station contains at least <br>one parameter with one exceedance',
@@ -181,7 +198,9 @@ indStatusMap <- function(parameter, status){
       addCircleMarkers(data = indParameter , color='black', fillColor=~pal(indParameter$individualScore), radius = 6,
                        fillOpacity = 0.5,opacity=1,weight = 2,stroke=T,group=paste(parameter, "Station Summary"),
                        label = ~STATION_ID, layerId = ~STATION_ID,
-                       popup = leafpop::popupTable(indParameter , zcol=c( "STATION_ID", "Parameter", "Exceedance"))  ) %>% 
+                       popup = leafpop::popupTable(indParameter , zcol=c( "STATION_ID", "Parameter", "Exceedance",
+                                                                          "CEDS WQM Data Query Tool", "CEDS Station View",       
+                                                                          "DEQ GIS Web App"))  ) %>% 
       addLegend('topright', colors = c('red', 'yellow','green', 'gray'),
                 labels = c('Station has 2 or more exceedances',
                            'Station has one exceedance',
