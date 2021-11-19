@@ -10,14 +10,14 @@ regionalReviewMapUI <- function(id){
 }
 
 
-regionalReviewMap <- function(input,output,session, assessmentSummary, parameterChoice, stationTableResults){
+regionalReviewMap <- function(input,output,session, assessmentSummary, parameterChoice, SPGchoice, stationTableResults){
   ns <- session$ns
   
   #output$test <- renderPrint({assessmentSummary()})
   
   ### Regional Map Tab
   output$regionalMap <- renderLeaflet({req(assessmentSummary(), parameterChoice())
-    indStatusMap(parameterChoice(), assessmentSummary())})
+    indStatusMap(parameterChoice(), assessmentSummary(), SPGchoice())})
   
   output$stationTableParameterSummary <- renderDataTable({ req(input$regionalMap_marker_click)
     z <- filter(stationTableResults(), STATION_ID %in% input$regionalMap_marker_click$id) %>% 
@@ -62,13 +62,13 @@ regionalReviewStationStatus <-  function(input,output,session, stationTableResul
   
   ### Exceedance Summary Tab
   output$stationTable <- renderDataTable({req(stationTableResults())
-    z <- stationTableResults() %>% 
-      left_join(conventionals() %>% 
-                  group_by(FDT_STA_ID) %>% 
-                  summarise(SPGsummary = paste0(unique(FDT_SPG_CODE, collapse = ' | '))) %>% 
-                  summarise(SPGsummary = paste0(SPGsummary, collapse = ' | ')),
-                by = c('STATION_ID' = 'FDT_STA_ID')) %>% 
-      dplyr::select(STATION_ID, Sta_Desc, SPGsummary, TEMP_EXC:LONGITUDE, everything()) 
+    z <- stationTableResults()# %>% 
+      # left_join(conventionals() %>% 
+      #             group_by(FDT_STA_ID) %>% 
+      #             summarise(SPGsummary = paste0(unique(FDT_SPG_CODE, collapse = ' | '))) %>% 
+      #             summarise(SPGsummary = paste0(SPGsummary, collapse = ' | ')),
+      #           by = c('STATION_ID' = 'FDT_STA_ID')) %>% 
+      # dplyr::select(STATION_ID, Sta_Desc, SPGsummary, TEMP_EXC:LONGITUDE, everything()) 
     
     #dplyr::select(stationTableResults(), STATION_ID, Sta_Desc, TEMP_EXC:LONGITUDE, everything())
     datatable(z, rownames = F, escape= F, extensions = c('Buttons','FixedColumns'),

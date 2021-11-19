@@ -19,13 +19,25 @@ shinyServer(function(input, output, session) {
                                                                     STATION_ID = Station_Id, LATITUDE = Latitude, LONGITUDE = Longitude),
                                                       by = 'STATION_ID') %>% 
       dplyr::select(-contains("_STAT")) %>% # don't give user status info
-      rename(`Bacteria STV Stats` = BACTERIASTATS, `Preliminary Bacteria Decision` = BACTERIADECISION)
+      rename(`Bacteria STV Stats` = BACTERIASTATS, `Preliminary Bacteria Decision` = BACTERIADECISION) %>% 
+      left_join(reactive_objects$regionResults$Conventionals %>% 
+                  group_by(FDT_STA_ID) %>% 
+                  summarise(SPGsummary = paste0(unique(FDT_SPG_CODE, collapse = ' | '))) %>% 
+                  summarise(SPGsummary = paste0(SPGsummary, collapse = ' | ')),
+                by = c('STATION_ID' = 'FDT_STA_ID')) %>% 
+      dplyr::select(STATION_ID, Sta_Desc, SPGsummary, TEMP_EXC:LONGITUDE, everything()) 
     reactive_objects$stationTableResultsYTD <- left_join(reactive_objects$regionResults$`Assessment Results YTD`$stationTableResults,
                                                       dplyr::select(reactive_objects$regionResults$stationGIS_ViewYTD,
                                                                     STATION_ID = Station_Id, LATITUDE = Latitude, LONGITUDE = Longitude),
                                                       by = 'STATION_ID') %>% 
       dplyr::select(-contains("_STAT")) %>% # don't give user status info
-      rename(`Bacteria STV Stats` = BACTERIASTATS, `Preliminary Bacteria Decision` = BACTERIADECISION)
+      rename(`Bacteria STV Stats` = BACTERIASTATS, `Preliminary Bacteria Decision` = BACTERIADECISION) %>% 
+      left_join(reactive_objects$regionResults$ConventionalsYTD %>% 
+                  group_by(FDT_STA_ID) %>% 
+                  summarise(SPGsummary = paste0(unique(FDT_SPG_CODE, collapse = ' | '))) %>% 
+                  summarise(SPGsummary = paste0(SPGsummary, collapse = ' | ')),
+                by = c('STATION_ID' = 'FDT_STA_ID')) %>% 
+      dplyr::select(STATION_ID, Sta_Desc, SPGsummary, TEMP_EXC:LONGITUDE, everything()) 
     reactive_objects$runSummaryTwoYear <- summarizeRuns(reactive_objects$regionResults$stationFieldData)
     reactive_objects$runSummaryYTD <- summarizeRuns(reactive_objects$regionResults$stationFieldDataYTD)
     
@@ -33,12 +45,20 @@ shinyServer(function(input, output, session) {
     reactive_objects$assessmentSummaryYTD <- stationSummary(reactive_objects$stationTableResultsYTD, parameterEXCcrosswalk)  })
 
   
+    output$SPGchoice_ <- renderUI({req(reactive_objects$regionResults)
+    selectizeInput('SPGchoice', 'Choose a specific program to visualize regional exceedances.',
+                   choices = c('All Stations', sort(reactive_objects$regionResults$SPGcodes)))    })
+    output$SPGchoiceYTD_ <- renderUI({req(reactive_objects$regionResults)
+      selectizeInput('SPGchoiceYTD', 'Choose a specific program to visualize regional exceedances.',
+                     choices = c('All Stations', sort(reactive_objects$regionResults$SPGcodesYTD)) )    })
+    
+    
  
   callModule(regionalReviewMap,'regionalReviewMapYTD', reactive(reactive_objects$assessmentSummaryYTD), reactive(input$parameterChoiceYTD),
-             reactive(reactive_objects$stationTableResultsYTD))
+             reactive(input$SPGchoiceYTD), reactive(reactive_objects$stationTableResultsYTD))
   
   callModule(regionalReviewMap,'regionalReviewMapTwoYear', reactive(reactive_objects$assessmentSummaryTwoYear), reactive(input$parameterChoiceTwoYear),
-             reactive(reactive_objects$stationTableResultsTwoYear))
+             reactive(input$SPGchoice), reactive(reactive_objects$stationTableResultsTwoYear))
   
   callModule(regionalReviewStationStatus,'regionalReviewStationStatusYTD', reactive(reactive_objects$stationTableResultsYTD),
              reactive(reactive_objects$regionResults$ConventionalsYTD))

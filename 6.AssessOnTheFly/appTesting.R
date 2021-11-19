@@ -9,7 +9,18 @@ regionResults <- statewideResults[['BRRO']]
 stationTableResults <- left_join(regionResults$`Assessment Results`$stationTableResults,
                                  dplyr::select(regionResults$stationGIS_View,
                                                STATION_ID = Station_Id, LATITUDE = Latitude, LONGITUDE = Longitude),
-                                 by = 'STATION_ID')
+                                 by = 'STATION_ID') %>% 
+  dplyr::select(-contains("_STAT")) %>% # don't give user status info
+  rename(`Bacteria STV Stats` = BACTERIASTATS, `Preliminary Bacteria Decision` = BACTERIADECISION) %>% 
+  left_join(regionResults$Conventionals %>% 
+              group_by(FDT_STA_ID) %>% 
+              summarise(SPGsummary = paste0(unique(FDT_SPG_CODE, collapse = ' | '))) %>% 
+              summarise(SPGsummary = paste0(SPGsummary, collapse = ' | ')),
+            by = c('STATION_ID' = 'FDT_STA_ID')) %>% 
+  dplyr::select(STATION_ID, Sta_Desc, SPGsummary, TEMP_EXC:LONGITUDE, everything()) 
+
+#filter(stationTableResults, str_detect(SPGsummary, 'AW'))
+
 runSummary <- summarizeRuns(regionResults$stationFieldData)
 assessmentSummary <- stationSummary(stationTableResults, parameterEXCcrosswalk) 
 
@@ -26,8 +37,8 @@ runSummary %>%
 
 
 # View map of regional overview
-indStatusMap('Overall Status', assessmentSummary)
-indStatusMap('E.coli Geomean', assessmentSummary)
+indStatusMap('Overall Status', assessmentSummary, 'IM')
+indStatusMap('E.coli Geomean', assessmentSummary, NA)
 
 z <- filter(stationTableResults, STATION_ID %in% '2-JKS023.61') %>% #input$regionalMap_marker_click$id) %>% 
   #filter_at(vars(ends_with("_EXC")), any_vars( . > 0)) %>% 

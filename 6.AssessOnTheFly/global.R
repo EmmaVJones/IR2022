@@ -111,7 +111,7 @@ stationSummary <- function(stationTableResults, parameterSTATcrosswalk){
     # Gives one "rank" per station
     overall <- stationTableResults1 %>%
       group_by(STATION_ID, individualColor, individualScore) %>%
-      dplyr::summarise(`n Parameters of lowest status` = n()) 
+      dplyr::summarise(`n Parameters of lowest status` = n())
     # join number of ranks causing color info
     overall2 <- overall %>%
       group_by(STATION_ID) %>%
@@ -132,6 +132,9 @@ stationSummary <- function(stationTableResults, parameterSTATcrosswalk){
              left_join(parameterEXCcrosswalk, by = 'ParameterEXC' ) %>%
              left_join(dplyr::select(stationTableResults, STATION_ID, LATITUDE, LONGITUDE), by = 'STATION_ID') %>%
              ungroup() %>%
+             left_join(stationTableResults %>% 
+                         dplyr::select(STATION_ID, SPGsummary) %>% 
+                         distinct(STATION_ID, .keep_all = T)) %>% 
              
              # add link to data and add link to internal GIS web app with WQS layer on there
              mutate(`CEDS WQM Data Query Tool` =  paste0("<b><a href='https://rconnect.deq.virginia.gov/CEDSWQMDataQueryTool/?StationID=", STATION_ID,
@@ -172,10 +175,16 @@ stationSummary <- function(stationTableResults, parameterSTATcrosswalk){
 #                                     parameterEXCcrosswalk)
 
 # Station Status Map Function
-indStatusMap <- function(parameter, status){
+indStatusMap <- function(parameter, status, SPGcode){
   pal <- colorFactor(
     palette = c('red', 'yellow','green', 'gray'),
     domain = c(1, 2, 3, 4))
+  
+  if(SPGcode == 'All Stations'){
+    status <- status
+    }else{
+      status <- filter(status,  str_detect(SPGsummary, SPGcode))
+      }
   
   if(parameter == 'Overall Status'){
     CreateWebMap(maps = c("Topo","Imagery","Hydrography"), collapsed = TRUE) %>%
