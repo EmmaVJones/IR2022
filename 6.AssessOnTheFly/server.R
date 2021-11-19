@@ -17,11 +17,15 @@ shinyServer(function(input, output, session) {
     reactive_objects$stationTableResultsTwoYear <- left_join(reactive_objects$regionResults$`Assessment Results`$stationTableResults,
                                                       dplyr::select(reactive_objects$regionResults$stationGIS_View,
                                                                     STATION_ID = Station_Id, LATITUDE = Latitude, LONGITUDE = Longitude),
-                                                      by = 'STATION_ID')
+                                                      by = 'STATION_ID') %>% 
+      dplyr::select(-contains("_STAT")) %>% # don't give user status info
+      rename(`Bacteria STV Stats` = BACTERIASTATS, `Preliminary Bacteria Decision` = BACTERIADECISION)
     reactive_objects$stationTableResultsYTD <- left_join(reactive_objects$regionResults$`Assessment Results YTD`$stationTableResults,
                                                       dplyr::select(reactive_objects$regionResults$stationGIS_ViewYTD,
                                                                     STATION_ID = Station_Id, LATITUDE = Latitude, LONGITUDE = Longitude),
-                                                      by = 'STATION_ID')
+                                                      by = 'STATION_ID') %>% 
+      dplyr::select(-contains("_STAT")) %>% # don't give user status info
+      rename(`Bacteria STV Stats` = BACTERIASTATS, `Preliminary Bacteria Decision` = BACTERIADECISION)
     reactive_objects$runSummaryTwoYear <- summarizeRuns(reactive_objects$regionResults$stationFieldData)
     reactive_objects$runSummaryYTD <- summarizeRuns(reactive_objects$regionResults$stationFieldDataYTD)
     

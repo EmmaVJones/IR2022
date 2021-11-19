@@ -22,20 +22,23 @@ regionalReviewMap <- function(input,output,session, assessmentSummary, parameter
   output$stationTableParameterSummary <- renderDataTable({ req(input$regionalMap_marker_click)
     z <- filter(stationTableResults(), STATION_ID %in% input$regionalMap_marker_click$id) %>% 
       #filter_at(vars(ends_with("_EXC")), any_vars( . > 0)) %>% 
-      dplyr::select(STATION_ID, Sta_Desc, TEMP_EXC:LONGITUDE, everything())
+      dplyr::select(STATION_ID, Sta_Desc, TEMP_EXC:LONGITUDE, everything()) 
+    
     datatable(z, rownames = F, escape= F, extensions = c('Buttons','FixedColumns'),
               options = list(dom = 'Bift', scrollX = TRUE, scrollY = '350px',selection = 'none',
                              pageLength = nrow(z), fixedColumns = list(leftColumns = 1),
                              buttons=list('copy',
-                                          list(extend='excel',filename=paste0('ExceedanceSummary',input$regionChoice)))) ) %>% 
-      formatStyle(c('TEMP_EXC','TEMP_SAMP','TEMP_STAT'), 'TEMP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
-      formatStyle(c('DO_EXC','DO_SAMP','DO_STAT'), 'DO_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
-      formatStyle(c('PH_EXC','PH_SAMP','PH_STAT'), 'PH_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
-      formatStyle(c('ECOLI_EXC','ECOLI_SAMP','ECOLI_GM_EXC','ECOLI_GM_SAMP','ECOLI_STAT'), 'ECOLI_STAT', backgroundColor = styleEqual(c('IM'), c('red'))) %>%
-      formatStyle(c('ENTER_SAMP','ENTER_EXC',"ENTER_GM_EXC","ENTER_GM_SAMP",'ENTER_STAT'), 'ENTER_STAT', backgroundColor = styleEqual(c('IM'), c('red'))) %>%
-      formatStyle(c('AMMONIA_EXC','AMMONIA_STAT'), 'AMMONIA_STAT', backgroundColor = styleEqual(c('Review', 'IM'), c('yellow','red'))) %>%
-      formatStyle(c('NUT_TP_EXC','NUT_TP_SAMP'), 'NUT_TP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>% 
-      formatStyle(c('NUT_CHLA_EXC','NUT_CHLA_SAMP'), 'NUT_CHLA_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) })
+                                          list(extend='excel',filename=paste0('StationSummary',input$regionChoice)))) ) %>% 
+      formatStyle(c('TEMP_EXC','TEMP_SAMP'), 'TEMP_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow')))  %>%
+      formatStyle(c('DO_EXC','DO_SAMP'), 'DO_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow')))  %>%
+      formatStyle(c('PH_EXC','PH_SAMP'), 'PH_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow')))  %>%
+      formatStyle(c('ECOLI_EXC','ECOLI_SAMP'), 'ECOLI_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow')))  %>%
+      formatStyle(c('ECOLI_GM_EXC','ECOLI_GM_SAMP'), 'ECOLI_GM_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow'))) %>%
+      formatStyle(c('ENTER_SAMP','ENTER_EXC'), 'ENTER_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow')))  %>%
+      formatStyle(c("ENTER_GM_EXC","ENTER_GM_SAMP"), 'ENTER_GM_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow'))) %>%
+      formatStyle(c('AMMONIA_EXC'), 'AMMONIA_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow'))) %>%
+      formatStyle(c('NUT_TP_EXC','NUT_TP_SAMP'), 'NUT_TP_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow'))) %>% 
+      formatStyle(c('NUT_CHLA_EXC','NUT_CHLA_SAMP'), 'NUT_CHLA_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow'))) })
 }
 
 
@@ -65,7 +68,8 @@ regionalReviewStationStatus <-  function(input,output,session, stationTableResul
                   summarise(SPGsummary = paste0(unique(FDT_SPG_CODE, collapse = ' | '))) %>% 
                   summarise(SPGsummary = paste0(SPGsummary, collapse = ' | ')),
                 by = c('STATION_ID' = 'FDT_STA_ID')) %>% 
-      dplyr::select(STATION_ID, Sta_Desc, SPGsummary, TEMP_EXC:LONGITUDE, everything())
+      dplyr::select(STATION_ID, Sta_Desc, SPGsummary, TEMP_EXC:LONGITUDE, everything()) 
+    
     #dplyr::select(stationTableResults(), STATION_ID, Sta_Desc, TEMP_EXC:LONGITUDE, everything())
     datatable(z, rownames = F, escape= F, extensions = c('Buttons','FixedColumns'),
               options = list(dom = 'Bift', scrollX = TRUE, scrollY = '350px',selection = 'none',
@@ -75,20 +79,23 @@ regionalReviewStationStatus <-  function(input,output,session, stationTableResul
   
   output$exceedanceTable <- renderDataTable({req(stationTableResults())
     z <- filter_at(stationTableResults(), vars(ends_with("_EXC")), any_vars( . > 0)) %>% 
-      dplyr::select(STATION_ID, Sta_Desc, TEMP_EXC:LONGITUDE, everything())
+      dplyr::select(STATION_ID, Sta_Desc, TEMP_EXC:LONGITUDE, everything()) 
+    
     datatable(z, rownames = F, escape= F, extensions = c('Buttons','FixedColumns'),
               options = list(dom = 'Bift', scrollX = TRUE, scrollY = '350px',selection = 'none',
                              pageLength = nrow(z), fixedColumns = list(leftColumns = 1),
                              buttons=list('copy',
-                                          list(extend='excel',filename=paste0('ExceedanceSummary',input$regionChoice)))) ) %>% 
-      formatStyle(c('TEMP_EXC','TEMP_SAMP','TEMP_STAT'), 'TEMP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
-      formatStyle(c('DO_EXC','DO_SAMP','DO_STAT'), 'DO_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
-      formatStyle(c('PH_EXC','PH_SAMP','PH_STAT'), 'PH_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>%
-      formatStyle(c('ECOLI_EXC','ECOLI_SAMP','ECOLI_GM_EXC','ECOLI_GM_SAMP','ECOLI_STAT'), 'ECOLI_STAT', backgroundColor = styleEqual(c('IM'), c('red'))) %>%
-      formatStyle(c('ENTER_SAMP','ENTER_EXC',"ENTER_GM_EXC","ENTER_GM_SAMP",'ENTER_STAT'), 'ENTER_STAT', backgroundColor = styleEqual(c('IM'), c('red'))) %>%
-      formatStyle(c('AMMONIA_EXC','AMMONIA_STAT'), 'AMMONIA_STAT', backgroundColor = styleEqual(c('Review', 'IM'), c('yellow','red'))) %>%
-      formatStyle(c('NUT_TP_EXC','NUT_TP_SAMP'), 'NUT_TP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) %>% 
-      formatStyle(c('NUT_CHLA_EXC','NUT_CHLA_SAMP'), 'NUT_CHLA_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow','red'))) })
+                                          list(extend='excel',filename=paste0('StationSummary',input$regionChoice)))) ) %>% 
+      formatStyle(c('TEMP_EXC','TEMP_SAMP'), 'TEMP_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow')))  %>%
+      formatStyle(c('DO_EXC','DO_SAMP'), 'DO_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow')))  %>%
+      formatStyle(c('PH_EXC','PH_SAMP'), 'PH_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow')))  %>%
+      formatStyle(c('ECOLI_EXC','ECOLI_SAMP'), 'ECOLI_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow')))  %>%
+      formatStyle(c('ECOLI_GM_EXC','ECOLI_GM_SAMP'), 'ECOLI_GM_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow'))) %>%
+      formatStyle(c('ENTER_SAMP','ENTER_EXC'), 'ENTER_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow')))  %>%
+      formatStyle(c("ENTER_GM_EXC","ENTER_GM_SAMP"), 'ENTER_GM_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow'))) %>%
+      formatStyle(c('AMMONIA_EXC'), 'AMMONIA_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow'))) %>%
+      formatStyle(c('NUT_TP_EXC','NUT_TP_SAMP'), 'NUT_TP_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow'))) %>% 
+      formatStyle(c('NUT_CHLA_EXC','NUT_CHLA_SAMP'), 'NUT_CHLA_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow'))) })
   
 }
   

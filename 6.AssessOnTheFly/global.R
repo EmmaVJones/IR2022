@@ -30,6 +30,9 @@ source('regionalReviewModule.R')
 # Pull latest assessment Run
 statewideResults <- pin_get("ejones/statewideResults", board = "rsconnect")
 
+# don't show user status fields
+columnsToHide <- dplyr::select(statewideResults$BRRO$`Assessment Results`$stationTableResults, contains('_STAT')) %>% 
+  names()
 
 summarizeRuns <- function(stationFieldData){
   stationFieldData %>% 

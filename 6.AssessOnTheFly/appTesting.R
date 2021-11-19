@@ -91,5 +91,35 @@ regionResults$stationFieldData %>%
 
   
 
+
+
+
+z <- stationTableResults %>% #filter(stationTableResults, STATION_ID %in% input$regionalMap_marker_click$id) %>% 
+  #filter_at(vars(ends_with("_EXC")), any_vars( . > 0)) %>% 
+  dplyr::select(STATION_ID, Sta_Desc, TEMP_EXC:LONGITUDE, everything()) %>% 
+  dplyr::select(-contains("_STAT"))
+  arrange(desc(TEMP_EXC))
+datatable(z, rownames = F, escape= F, extensions = c('Buttons','FixedColumns'),
+          options = list(dom = 'Bift', scrollX = TRUE, scrollY = '350px',selection = 'none',
+                         pageLength = nrow(z), fixedColumns = list(leftColumns = 1),
+                         columnDefs = list(list(visible=FALSE, targets=c("TEMP_STAT" ,    "DO_STAT" ,      "PH_STAT"))), #columnsToHide)),
+                         buttons=list('copy')) ) %>% #,
+                                      #list(extend='excel',filename=paste0('ExceedanceSummary',input$regionChoice)))) ) %>% 
+  formatStyle(c('TEMP_EXC','TEMP_SAMP'), 'TEMP_EXC', backgroundColor = styleInterval(0, c(NA, 'yellow'))) # highlight all exceedances yellow
+  
+  
+  
+  formatStyle(c('TEMP_EXC','TEMP_SAMP','TEMP_STAT'), 'TEMP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow', 'yellow'))) %>%
+  formatStyle(c('DO_EXC','DO_SAMP','DO_STAT'), 'DO_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow', 'yellow'))) %>%
+  formatStyle(c('PH_EXC','PH_SAMP','PH_STAT'), 'PH_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow', 'yellow'))) %>%
+  formatStyle(c('ECOLI_EXC','ECOLI_SAMP','ECOLI_GM_EXC','ECOLI_GM_SAMP','ECOLI_STAT'), 'ECOLI_STAT', backgroundColor = styleEqual(c('IM'), c('yellow'))) %>%
+  formatStyle(c('ENTER_SAMP','ENTER_EXC',"ENTER_GM_EXC","ENTER_GM_SAMP",'ENTER_STAT'), 'ENTER_STAT', backgroundColor = styleEqual(c('IM'), c('yellow'))) %>%
+  formatStyle(c('AMMONIA_EXC','AMMONIA_STAT'), 'AMMONIA_STAT', backgroundColor = styleEqual(c('Review', 'IM'), c('yellow'))) %>%
+  formatStyle(c('NUT_TP_EXC','NUT_TP_SAMP'), 'NUT_TP_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow'))) %>% 
+  formatStyle(c('NUT_CHLA_EXC','NUT_CHLA_SAMP'), 'NUT_CHLA_STAT', backgroundColor = styleEqual(c('Review', '10.5% Exceedance'), c('yellow'))) 
+
+
+
+
  
  
