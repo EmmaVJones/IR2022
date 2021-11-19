@@ -4,7 +4,7 @@ regionalReviewMapUI <- function(id){
   tagList(
     #verbatimTextOutput(ns('test')),
     leafletOutput(ns('regionalMap')),
-    h5('Click on a station above to view parameter information in table below.'),
+    h5('Click on a station above to view parameter information in table below. Parameters with exceedances of a WQS are highlighted in yellow.'),
     dataTableOutput(ns('stationTableParameterSummary')),
     br(), br(),br())
 }
@@ -51,8 +51,8 @@ regionalReviewStationStatusUI <- function(id){
     dataTableOutput(ns('stationTable')),
     br(), hr(),br(),
     h4('Stations with Exceedances'),
-    helpText('Below is a summary table of all monitored stations with exceedances. Exceeding parameters are highlighted yellow 
-              if one parameter exceedance is noted while parameters projected to surpass the the 10.5% rule are highlighted in red.'),
+    helpText('Below is a summary table of all monitored stations with exceedances. Exceeding parameters are highlighted yellow.'), 
+#              if one parameter exceedance is noted while parameters projected to surpass the the 10.5% rule are highlighted in red.'),
     dataTableOutput(ns('exceedanceTable')),
     br(), br(),br())
 }

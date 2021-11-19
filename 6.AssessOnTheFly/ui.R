@@ -6,25 +6,27 @@ shinyUI(fluidPage(tags$head(
   theme= "yeti.css",
   navbarPage("WQM Planning Tool", #id = 'someID',  # key for passing URL to specific Tab
              
-             # tabPanel('How To',
-             #          h2(strong('This project is still in beta testing phase.')),
-             #          h3('Please report any data or application issues to Emma Jones emma.jones@deq.virginia.gov.'),
-             #          
-             #          # just using statewideResults$BRRO$pullDate as default for all regions bc the BRRO logic was built first. all pull dates identical
-             #          
-             #          
-             #          h4('This tool allows users to quickly review region-specific water quality monitoring data. More frequent review of monitoring data ensures DEQ can improve
-             #            QA/QC procedures, planning efforts, and watershed understanding for various projects, among other benefits.'),
-             #          p('The data presented reflects monitoring data queried from the start of the current year to ',format(statewideResults$BRRO$pullDate, "%m-%d-%Y"), '. This dataset and analysis
-             #            is refreshed on the 15th of every month. All results are run through automated analysis scripts to identify any parameter exceedances, where appropriate
-             #            WQS metadata exist for a station. Please contact Emma Jones and your regional assessor if you find a station that does not have the appropriate WQS information
-             #            attributed.'),
-             #          p('The parameters analyzed include: Temperature, Dissolved Oxygen, pH, E.coli STV, E.coli Geomean, Enterococci STV, Enterococci Geomean, Ammonia,
-             #            Total Phosphorus, and Chlorophyll a.'),
-             #          p("The Regional Map Tab allows users to explore parameter exceedances spatially across a selected monitoring region."),
-             #          p('The Exceedance Summary Tab provides preliminary understanding of sampled stations in the top table. The lower table reflects all stations that 
-             #            have an exceedance in any parameter analyzed. '),
-             #          p('The Monitoring Summary Tab allows users to explore regional monitoring efforts by collector ID with a heatmap of stations visited by collector ID.')),
+             tabPanel('How To',
+                      h2(strong('This project is still in beta testing phase.')),
+                      h3('Please report any data or application issues to Emma Jones emma.jones@deq.virginia.gov.'),
+
+                      # just using statewideResults$BRRO$pullDate as default for all regions bc the BRRO logic was built first. all pull dates identical
+
+
+                      h4('This tool allows users to quickly review region-specific water quality monitoring data. More frequent review of monitoring data ensures DEQ can improve
+                        QA/QC procedures, planning efforts, and watershed understanding for various projects, among other benefits.'),
+                      p('The data presented reflects monitoring data queried in two distinct data windows. The Year to Date tab overviews results from the start of the current year to ',
+                      format(statewideResults$BRRO$pullDate, "%m-%d-%Y"), '. The Two Year Summary to Date tab overviews results from the January 1, ',year(statewideResults$BRRO$`Date Range`[1]),' to ',
+                      format(statewideResults$BRRO$pullDate, "%m-%d-%Y"), ' These dataset and analysis
+                        are refreshed on the 15th of every month. All results are run through automated analysis scripts to identify any parameter exceedances, where appropriate
+                        WQS metadata exist for a station. Please contact Emma Jones and your regional assessor if you find a station that does not have the appropriate WQS information
+                        attributed.'),
+                      p('The parameters analyzed include some of the most commonly collected monitoring data: Temperature, Dissolved Oxygen, pH, E.coli STV, 
+                        E.coli Geomean, Enterococci STV, Enterococci Geomean, Ammonia, Total Phosphorus, and Chlorophyll a.'),
+                      p("The Regional Map Tab allows users to explore station summaries spatially across a selected monitoring region by specific monitoring programs."),
+                      p('The Exceedance Summary Tab provides a preliminary understanding of sampled stations in the top table. The lower table reflects all stations that
+                        have an exceedance in any parameter analyzed. '),
+                      p('The Monitoring Summary Tab allows users to explore regional monitoring information by Run ID or Collector ID as well as QA sample information.')),
              tabPanel("Regional Review",
                       h4(span('Preliminary analysis information presented in this tool reflects data available in ODS from two windows. The `Year to Date`
                               tab (below, left) overviews data collected by the selected region from ', 
