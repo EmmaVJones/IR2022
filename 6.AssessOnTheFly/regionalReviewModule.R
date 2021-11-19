@@ -16,7 +16,7 @@ regionalReviewMap <- function(input,output,session, assessmentSummary, parameter
   #output$test <- renderPrint({assessmentSummary()})
   
   ### Regional Map Tab
-  output$regionalMap <- renderLeaflet({req(assessmentSummary(), parameterChoice())
+  output$regionalMap <- renderLeaflet({req(assessmentSummary(), parameterChoice(), SPGchoice())
     indStatusMap(parameterChoice(), assessmentSummary(), SPGchoice())})
   
   output$stationTableParameterSummary <- renderDataTable({ req(input$regionalMap_marker_click)

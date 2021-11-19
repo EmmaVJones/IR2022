@@ -4,7 +4,7 @@ assessmentLayer <- st_read('data/GIS/AssessmentRegions_VA84_basins.shp') %>%
   st_transform( st_crs(4326))
 
 
-regionResults <- statewideResults[['BRRO']]  
+regionResults <- statewideResults[['PRO']]  
 
 stationTableResults <- left_join(regionResults$`Assessment Results`$stationTableResults,
                                  dplyr::select(regionResults$stationGIS_View,
@@ -17,12 +17,30 @@ stationTableResults <- left_join(regionResults$`Assessment Results`$stationTable
               summarise(SPGsummary = paste0(unique(FDT_SPG_CODE, collapse = ' | '))) %>% 
               summarise(SPGsummary = paste0(SPGsummary, collapse = ' | ')),
             by = c('STATION_ID' = 'FDT_STA_ID')) %>% 
-  dplyr::select(STATION_ID, Sta_Desc, SPGsummary, TEMP_EXC:LONGITUDE, everything()) 
+  dplyr::select(STATION_ID, Sta_Desc, SPGsummary, TEMP_EXC:LONGITUDE, everything())  %>% 
+  filter(!is.na(LATITUDE) | !is.na(LONGITUDE))
+
+stationTableResultsYTD <- left_join(regionResults$`Assessment Results YTD`$stationTableResults,
+                                 dplyr::select(regionResults$stationGIS_ViewYTD,
+                                               STATION_ID = Station_Id, LATITUDE = Latitude, LONGITUDE = Longitude),
+                                 by = 'STATION_ID') %>% 
+  dplyr::select(-contains("_STAT")) %>% # don't give user status info
+  rename(`Bacteria STV Stats` = BACTERIASTATS, `Preliminary Bacteria Decision` = BACTERIADECISION) %>% 
+  left_join(regionResults$ConventionalsYTD %>% 
+              group_by(FDT_STA_ID) %>% 
+              summarise(SPGsummary = paste0(unique(FDT_SPG_CODE, collapse = ' | '))) %>% 
+              summarise(SPGsummary = paste0(SPGsummary, collapse = ' | ')),
+            by = c('STATION_ID' = 'FDT_STA_ID')) %>% 
+  dplyr::select(STATION_ID, Sta_Desc, SPGsummary, TEMP_EXC:LONGITUDE, everything())  %>% 
+  filter(!is.na(LATITUDE) | !is.na(LONGITUDE))
+
 
 #filter(stationTableResults, str_detect(SPGsummary, 'AW'))
 
 runSummary <- summarizeRuns(regionResults$stationFieldData)
 assessmentSummary <- stationSummary(stationTableResults, parameterEXCcrosswalk) 
+stationSummary_ <- stationSummary(stationTableResultsYTD, parameterEXCcrosswalk) 
+
 
 View(
 runSummary %>% 
@@ -37,8 +55,8 @@ runSummary %>%
 
 
 # View map of regional overview
-indStatusMap('Overall Status', assessmentSummary, 'IM')
-indStatusMap('E.coli Geomean', assessmentSummary, NA)
+indStatusMap('Overall Status', assessmentSummary, 'All Stations')
+indStatusMap('E.coli Geomean', assessmentSummary, 'HF')
 
 z <- filter(stationTableResults, STATION_ID %in% '2-JKS023.61') %>% #input$regionalMap_marker_click$id) %>% 
   #filter_at(vars(ends_with("_EXC")), any_vars( . > 0)) %>% 

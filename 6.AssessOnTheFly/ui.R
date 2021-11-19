@@ -46,7 +46,8 @@ shinyUI(fluidPage(tags$head(
                                    #regionalReviewUI('regionalReviewYTD')),
                                    tabPanel('Regional Map',
                                             # doing this outside the module bc issue with conditionalpanel and module logic
-                                            fluidRow(column(3, helpText("This map allows users to quickly preview station exceedance results as of the last query date. By default, the map presents a station overview where 
+                                            fluidRow(column(3, h5(strong('Quick Reference Guide to Map')),
+                                                        helpText("This map allows users to quickly preview station exceedance results as of the last query date. By default, the map presents a station overview where 
                                                              the station is colored based on the most harmful preliminary results category (e.g. if a station has 8 parameters with no exceedances, 
                                                              2 parameters with one exceedance each, and 1 parameter with two or more exceedances, the station will be colored red to reflect the station contains at least one
                                                              parameter with two or more exceedances). 
@@ -59,6 +60,7 @@ shinyUI(fluidPage(tags$head(
                                                                                                                                                                   'Benthics')]))),
                                                      column(3, uiOutput('SPGchoiceYTD_')),                           
                                                      column(3,
+                                                            helpText('Stations colored gray are either lacking WQS attribution in order to properly analyze the data or have no data for the parameter specified.'),
                                                             conditionalPanel(condition = "input.parameterChoiceYTD == 'Total Phosphorus'",
                                                                              helpText('For non-lake stations, a Total Phosphorus threshold of 0.2 mg/L was used as a threshold to indicate the potential
                                                                     for nutrient problems.')),
@@ -75,7 +77,8 @@ shinyUI(fluidPage(tags$head(
                                  tabsetPanel(
                                    tabPanel('Regional Map',
                                             # doing this outside the module bc issue with conditionalpanel and module logic
-                                            fluidRow(column(3, helpText("This map allows users to quickly preview station exceedance results as of the last query date. By default, the map presents a station overview where 
+                                            fluidRow(column(3, h5(strong('Quick Reference Guide to Map')),
+                                                        helpText("This map allows users to quickly preview station exceedance results as of the last query date. By default, the map presents a station overview where 
                                                              the station is colored based on the most harmful preliminary results category (e.g. if a station has 8 parameters with no exceedances, 
                                                              2 parameters with one exceedance each, and 1 parameter with two or more exceedances, the station will be colored red to reflect the station contains at least one
                                                              parameter with two or more exceedances). 
@@ -88,6 +91,7 @@ shinyUI(fluidPage(tags$head(
                                                                                                                                                                   'Benthics')]))),
                                                      column(3, uiOutput('SPGchoice_')),
                                                      column(3,
+                                                            helpText('Stations colored gray are either lacking WQS attribution in order to properly analyze the data or have no data for the parameter specified.'),
                                                             conditionalPanel(condition = "input.parameterChoiceTwoYear == 'Total Phosphorus'",
                                                                              helpText('For non-lake stations, a Total Phosphorus threshold of 0.2 mg/L was used as a threshold to indicate the potential
                                                                     for nutrient problems.')),
