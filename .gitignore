@@ -92,6 +92,10 @@ vignettes/*.pdf
 6.AssessOnTheFly/data/
 6.AssessOnTheFly/assessmentModule/data/
 
+
+BlackwaterNestingRationale/data/
+BlackwaterNestingRationale/rosm.cache/
+
 bookdown/
 WQSlookupTable/
 
@@ -101,6 +105,8 @@ rsconnect/
 *.Rproj
 *.yml
 *.html
+*.csv
+*.xlsx
 
 # R Environment Variables
 .Renviron

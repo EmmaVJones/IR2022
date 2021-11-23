@@ -1,0 +1,231 @@
+---
+title: "Blackwater Nesting Rationale"
+author: "Emma Jones"
+date: "11/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+# R 4.1.2
+library(tidyverse)
+library(sf)
+library(ggspatial)
+library(leaflet)
+library(inlmisc)
+library(ggrepel)
+library(raster)
+
+
+
+```
+
+## Background
+
+This script details the steps taken to supplement the original Blackwater River nesting rationale with additional maps and landcover statistics. 
+
+The nesting rationale is stored in C:\HardDriveBackup\Assessment\IR2022\Nesting Rationale\Nesting Rationale Blackwater.docx and overviews the intention to add the Blackwater river arm of SML (VAW-L10L-BWR03A10) to the existing Blackwater River ecoli TMDL (project ID 0073). Existing AU's in that TMDL are:
+- VAW-L08R_BWR01A00
+- VAW-L08R_BWR01B06
+- VAW-L08R_BWR02A00
+- VAW-L10L_BWR03B14
+- VAW-L10R_BWR01A00 
+- VAW-L10R_BWR02A00 
+- VAW-L10R_BWR03A00
+- VAW-L10R_FGC01A00
+
+
+## Project Goals
+
+Two additions are identified for CO in order to complete this project. 
+
+### Anne Request
+
+Create a map of current land use in the newly impaired watershed
+- show old watershed and newly impaired watershed
+- run landuse stats on both and present in tabular format?
+- Use NCLD 2006 for old watershed (bc TMDL initiated in early 2000s) and NCLD 2016 (most recent NLCD) for new watershed for stats
+
+### Amanda Request
+
+Create map with impairment layers from original TMDL and new proposed nested impairment. Visualize the original TMDL points, streams in red (listing stations) and proposed nested watershed differently (point and polygon AU).
+
+## Pull Spatial data
+
+First, pull the IR2020 riverine AUs, lake AUs, streams, TMDL watershed
+
+```{r spatial data}
+# IR 2020 Riverine AUs
+
+TMDL0073r <- st_read('data/Rivers_(2020_Final_WQA_IR_Assessment).shp') %>% 
+  filter(ID305B %in% c('VAW-L08R_BWR01A00', 'VAW-L08R_BWR01B06', 'VAW-L08R_BWR02A00', 'VAW-L10L_BWR03B14', 
+                       'VAW-L10R_BWR01A00', 'VAW-L10R_BWR02A00', 'VAW-L10R_BWR03A00', 'VAW-L10R_FGC01A00')) %>% 
+  st_transform('+proj=longlat +datum=WGS84')
+TMDLwshd <- st_read('data/TMDL_Watersheds/TMDL_Watersheds.shp')%>% 
+  st_transform('+proj=longlat +datum=WGS84')
+allTMDL_AU <- st_read('data/Rivers_(2020_Final_WQA_IR_Assessment).shp') %>% 
+   st_transform('+proj=longlat +datum=WGS84') %>% 
+  st_intersection(TMDLwshd)
+
+# IR 2020 Lake AUs
+TMDL0073l <- st_read('C:/HardDriveBackup/R/GitHub/IR2022/4.LakesApplication/data/draft2020BRROlakeAUs/Lakes_AUs.shp') %>% 
+  filter(ID305B == 'VAW-L10L_BWR03B14') %>% 
+  st_transform('+proj=longlat +datum=WGS84')
+
+
+# IR 2022 Lacustrine AU to add
+lakeAU <- st_read('C:/HardDriveBackup/R/GitHub/IR2022/4.LakesApplication/data/draft2020BRROlakeAUs/Lakes_AUs.shp') %>% 
+  filter(ID305B == 'VAW-L10L_BWR03A10') %>% 
+  st_transform('+proj=longlat +datum=WGS84')
+
+lakeAU <- cbind(lakeAU, st_coordinates(st_centroid(lakeAU))) %>% 
+  mutate(nudge_y = -0.027)
+```
+
+Monitoring stations from 2020 IR stations table (bc citmon stations aren't in pinned data).
+
+```{r monitoring stations}
+stations <- read.csv('C:/HardDriveBackup/R/GitHub/IR2022/4.LakesApplication/userDataToUpload/processedStationData/stationTableResults.csv') %>% 
+  filter(STATION_ID %in% c('4ABWR-14-2-FC', '4ABWR-14-1-FC', '4ABWR017.42')) %>% 
+  dplyr::select(STATION_ID, LATITUDE, LONGITUDE) %>% 
+  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), 
+                      remove = F, # remove these lat/lon cols from df
+                      crs = 4326)  # add projection, needs to be geographic for now bc entering lat/lng
+```
+
+
+
+```{r map}
+# pal <- colorFactor(
+#     palette = topo.colors(7), #c('red', 'yellow','green', 'purple'),
+#     domain = c(unique(TMDL0073r$ID305B), unique(TMDL0073l$ID305B)))
+# 
+# CreateWebMap(maps = c("Topo","Imagery", 'Hydrography'), collapsed = TRUE) %>% 
+#   addPolylines(data= allTMDL_AU, group = 'TMDL AUs',label = ~ID305B, color = 'red',weight = 2) %>%
+#   addPolygons(data= TMDL0073l, group = 'TMDL AUs',label = ~ID305B, color = 'red',weight = 2) %>%
+#   #addPolylines(data= TMDL0073, group = 'TMDL Listing AUs',label = ~ID305B, color = ~pal(ID305B)) %>%
+#   addPolygons(data = lakeAU, group = "VAW-L10L_BWR03A10", label = ~ID305B, color = 'red', fill = 'gray', 
+#                fillOpacity = 0.2,opacity=1,weight = 4) %>% 
+#   addPolygons(data = TMDLwshd, group = "TMDL watershed", label = ~PJ_NAME, color = 'black', fill = 'gray', 
+#                fillOpacity = 0.2,opacity=1,weight = 2) %>% 
+#   addLayersControl(baseGroups=c("Topo","Imagery","Hydrography"),
+#                        overlayGroups = c('TMDL AUs', #'TMDL Listing AUs',
+#                        "VAW-L10L_BWR03A10",'TMDL watershed'),
+#                        options=layersControlOptions(collapsed=T),
+#                        position='topleft')
+
+ggplot() +
+  geom_sf(data = TMDLwshd) +
+  #geom_sf(data = allTMDL_AU, colour = "red") + #, aes(color = 'red'))+#fill = ID305B)) 
+  geom_sf(data = TMDL0073r, colour = "red") + #, aes(color = 'red'))+#fill = ID305B)) 
+  geom_sf(data = TMDL0073l, colour = "red", fill = 'red') + #aes(color = 'red', fill = 'red')) +
+  geom_sf(data = lakeAU, colour = "gray", fill = 'gray') + #aes(color = 'gray', fill = 'gray')) 
+  geom_text_repel(data = lakeAU, aes(X, Y, label = ID305B), 
+        fontface = "bold", size = 2.8, nudge_x = c(0), nudge_y = c(-0.04)) +
+  #geom_label(data = lakeAU, aes(X, Y, label = ID305B), size = 2.0, fontface = "bold", 
+  #      nudge_y = lakeAU$nudge_y) +
+  geom_sf(data = stations, colour = "black", size = 0.6) +
+  geom_text_repel(data = stations, aes(x = LONGITUDE, y = LATITUDE, label = STATION_ID), 
+        fontface = "bold", size = 2.8, nudge_x = c(0.02, -0.04, -0.016), nudge_y = c(0.04, 0.06, 0.09)) +
+  theme_bw()+
+  theme(axis.title.x=element_blank(),
+        axis.title.y=element_blank()) # remove axis titles (X, and Y)
+  
+```
+
+## landuse
+
+Create a map of current land use in the newly impaired watershed
+- show old watershed and newly impaired watershed
+
+I delineated this new watershed in streamstats from the bottom of the AU to be nested. Since the watershed also included the Poplar Branch watershed (that already has a TMDL on it), I subtracted that area from the new watershed in ArcMap to not blow up new area included in Blackwater TMDL.
+
+```{r new TMDL}
+newTMDLwshd <- st_read('data/endOfAU/globalwatershed.shp') %>% 
+  mutate(StationID = 'New TMDL Watershed') # give it a name to work with landcover calcs
+```
+
+quick map
+
+```{r tmdl watershed diff}
+
+ggplot() +
+  # annotation_map_tile(type = "osm") +
+  #geom_tile(data = landcover2006)#, aes(fill=factor(value),alpha=0.8))
+  geom_sf(data = newTMDLwshd, colour = 'black') +
+  geom_sf(data = TMDLwshd, colour = 'red') +
+   theme_bw()
+```
+
+## landcover analysis time
+
+Bringing in methods from elsewhere
+
+```{r raster math}
+source('C:/HardDriveBackup/R/GitHub/LandcoverAnalysis/landcoverFunctions_rebuild.R')
+
+# first bring in pop2000 bc relatively tiny and has appropriate crs to match further layers
+pop2000 <- st_read('C:/HardDriveBackup/GIS/ProbMonGIS/GISdata/pop2000final.shp')
+
+
+# raster info
+landcover2006 <- raster("C:/HardDriveBackup/GIS/ProbMonGIS/GISdata/NLCD2006.TIF")
+landcover2016 <- raster("C:/HardDriveBackup/GIS/ProbMonGIS/GISdata/nlcd2016.TIF")
+
+# combine watersheds into single object
+wshdPolys <- rbind(dplyr::select(TMDLwshd, StationID = TMDL_EQ_ID),
+                    dplyr::select(newTMDLwshd, StationID)) %>% 
+  # again so get total 4 watersheds for analysis
+  rbind(dplyr::select(TMDLwshd, StationID = TMDL_EQ_ID),
+                    dplyr::select(newTMDLwshd, StationID)) %>% 
+  st_transform(st_crs(pop2000)) %>% 
+  # make NLCD years to compare data
+  mutate(NLCD = c(2006, 2006, 2016, 2016),
+         YearSampled = NA_integer_)
+
+# use this variable for sifting through, unique NLCD years to efficiently calculate landcover, riparian, and imperviousness metrics
+uniqueWshdListNLCD <- wshdPolys %>%
+  st_drop_geometry() %>%
+  group_by(StationID, NLCD) %>%
+  distinct(StationID) %>%ungroup()
+# and this version has all the important data
+uniqueWshdListNLCDYear <- wshdPolys %>%
+  st_drop_geometry() %>%
+  group_by(StationID, YearSampled, NLCD) %>%
+  distinct(StationID) %>%ungroup()
+
+#### LANDUSE CALCULATIONS
+# Set up dataframe to store landcover data
+template <- tibble(StationID = 'template', VALUE_11=0,VALUE_21=0,VALUE_22=0, VALUE_23=0,VALUE_24=0
+                   ,VALUE_31=0,VALUE_41=0,VALUE_42=0,VALUE_43=0,VALUE_52=0,VALUE_71=0
+                   ,VALUE_81=0,VALUE_82=0,VALUE_90=0,VALUE_95=0)
+
+
+# Run the functions
+df <- mutate(template,StationID=NA,NLCD=NA, sqMi=NA)%>%
+  dplyr::select(StationID,NLCD,everything(), sqMi)
+
+for( i in 1:nrow(uniqueWshdListNLCD)){
+  # Status update
+  print(paste0('Processing site ',i, ' of ', nrow(uniqueWshdListNLCD)))
+  
+  # get watershed polygon based on StationID and NLCDyear combination
+  wshdPolyOptions <- filter(wshdPolys, StationID %in% uniqueWshdListNLCD$StationID[i] &
+                              NLCD %in% uniqueWshdListNLCD$NLCD[i])
+  
+  l <- landcoverCounts(template, base::get(paste0('landcover',unique(wshdPolyOptions$NLCD))),
+                       wshdPolyOptions[1,]) # only need to use one polygon to do analysis
+  df <- rbind(df,l) # must use rbind() instead of df[i,] <- l because l could be multiple rows
+  df <- df[complete.cases(df[,1]),]#remove any placeholder rows
+}
+
+
+# now reorganize counts and join (potentially smaller dataframe) to full watershed list
+landusewide <- landuseDataManagement(df, uniqueWshdListNLCDYear) %>% 
+  dplyr::select(-YearSampled)
+
+write.csv(landusewide,'landusewide.csv', row.names= F)
+rm(l); rm(df);rm(wshdPolyOptions)
+
+```
+
