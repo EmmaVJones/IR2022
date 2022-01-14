@@ -61,6 +61,8 @@ TMDL0073r <- st_read('data/Rivers_(2020_Final_WQA_IR_Assessment).shp') %>%
   filter(ID305B %in% c('VAW-L08R_BWR01A00', 'VAW-L08R_BWR01B06', 'VAW-L08R_BWR02A00', 'VAW-L10L_BWR03B14', 
                        'VAW-L10R_BWR01A00', 'VAW-L10R_BWR02A00', 'VAW-L10R_BWR03A00', 'VAW-L10R_FGC01A00')) %>% 
   st_transform('+proj=longlat +datum=WGS84')
+TMDL0073rcentroid <- cbind(TMDL0073r, st_coordinates(st_centroid(TMDL0073r)))  # for labeling
+
 TMDLwshd <- st_read('data/TMDL_Watersheds/TMDL_Watersheds.shp')%>% 
   st_transform('+proj=longlat +datum=WGS84')
 allTMDL_AU <- st_read('data/Rivers_(2020_Final_WQA_IR_Assessment).shp') %>% 
@@ -71,6 +73,7 @@ allTMDL_AU <- st_read('data/Rivers_(2020_Final_WQA_IR_Assessment).shp') %>%
 TMDL0073l <- st_read('C:/HardDriveBackup/R/GitHub/IR2022/4.LakesApplication/data/draft2020BRROlakeAUs/Lakes_AUs.shp') %>% 
   filter(ID305B == 'VAW-L10L_BWR03B14') %>% 
   st_transform('+proj=longlat +datum=WGS84')
+TMDL0073lcentroid <- cbind(TMDL0073l, st_coordinates(st_centroid(TMDL0073l)))  # for labeling
 
 
 # IR 2022 Lacustrine AU to add
@@ -115,16 +118,25 @@ stations <- read.csv('C:/HardDriveBackup/R/GitHub/IR2022/4.LakesApplication/user
 #                        position='topleft')
 
 ggplot() +
-  geom_sf(data = TMDLwshd) +
+  geom_sf(data = newTMDLwshd,  colour = "gray", fill = 'gray') + # from below
+  geom_sf(data = TMDLwshd,  colour = "red", fill = 'gray93') +
   #geom_sf(data = allTMDL_AU, colour = "red") + #, aes(color = 'red'))+#fill = ID305B)) 
   geom_sf(data = TMDL0073r, colour = "red") + #, aes(color = 'red'))+#fill = ID305B)) 
   geom_sf(data = TMDL0073l, colour = "red", fill = 'red') + #aes(color = 'red', fill = 'red')) +
-  geom_sf(data = lakeAU, colour = "gray", fill = 'gray') + #aes(color = 'gray', fill = 'gray')) 
+  geom_sf(data = lakeAU, colour = "black", fill = 'gray45') + #aes(color = 'gray', fill = 'gray')) 
   geom_text_repel(data = lakeAU, aes(X, Y, label = ID305B), 
         fontface = "bold", size = 2.8, nudge_x = c(0), nudge_y = c(-0.04)) +
   #geom_label(data = lakeAU, aes(X, Y, label = ID305B), size = 2.0, fontface = "bold", 
   #      nudge_y = lakeAU$nudge_y) +
   geom_sf(data = stations, colour = "black", size = 0.6) +
+  geom_text_repel(data = TMDL0073lcentroid, aes(x = X, y = Y, label = ID305B), colour = "red",
+        fontface = "bold", size = 2.8, nudge_x = c(-0.08), nudge_y = c(0.02)) +
+
+  
+  # geom_text_repel(data = TMDL0073rcentroid, aes(x = X, y = Y, label = ID305B), colour = "red", 
+  #       fontface = "bold", size = 2.8, nudge_x = c(-0.1, 0.0, 0.0, 0.0, 0.0, 0.0), nudge_y = c(0.0, 0.0, 0.0, 0.0, 0.0,0.0, 0.0)) +
+  
+  
   geom_text_repel(data = stations, aes(x = LONGITUDE, y = LATITUDE, label = STATION_ID), 
         fontface = "bold", size = 2.8, nudge_x = c(0.02, -0.04, -0.016), nudge_y = c(0.04, 0.06, 0.09)) +
   theme_bw()+
@@ -156,6 +168,36 @@ ggplot() +
   geom_sf(data = TMDLwshd, colour = 'red') +
    theme_bw()
 ```
+
+## Plot landcover 
+
+```{r}
+landcover2016 <- raster("C:/HardDriveBackup/GIS/ProbMonGIS/GISdata/nlcd2016.TIF") 
+# better to reproject vector data to raster for better processing and no resampling
+newTMDLwshdprj <- st_transform(newTMDLwshd, st_crs(landcover2016))
+landcoverClip <-  crop(landcover2016, newTMDLwshdprj)# extent(newTMDLwshdprj))
+landcoverMask <- mask(landcoverClip, newTMDLwshdprj)
+  #extract(landcover2016, newTMDLwshd, small=T, na.rm=F)
+landcoverClipdf <- as.data.frame(landcoverMask, xy = TRUE) #convert it to a dataframe for plotting
+
+writeRaster(landcoverMask,'test.tif')#,options=c('TFW=YES'))
+
+plot(landcoverMask) + plot(newTMDLwshd, add=TRUE, lwd=2)
+plot(landcoverMask)
+
+ggplot() +
+  # annotation_map_tile(type = "osm") +
+  #geom_tile(data = landcover2016) +#, aes(fill=factor(value),alpha=0.8))
+  geom_raster(data = landcoverClipdf,
+              aes(x = x, y = y, alpha = nlcd2016)) + 
+  geom_sf(data = newTMDLwshd, colour = 'black', fill = NA) +
+  #geom_sf(data = TMDLwshd, colour = 'red') +
+   theme_bw()
+
+
+```
+
+
 
 ## landcover analysis time
 

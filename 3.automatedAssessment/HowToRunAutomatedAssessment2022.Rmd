@@ -179,7 +179,9 @@ stationTable <- left_join(stationTable, WQSlookup, by = c('STATION_ID'='StationI
                                             TRUE ~ as.numeric(`Chlorophyll a (ug/L)`)),
          `Total Phosphorus (ug/L)` = case_when(Lake_Name %in% c('Lake Drummond') ~ 40,
                                                TRUE ~ as.numeric(`Total Phosphorus (ug/L)`))) %>% 
-  dplyr::select(STATION_ID:StreamType, Lakes_187B, `Description Of Waters`:`Total Phosphorus (ug/L)`)
+  dplyr::select(STATION_ID:StreamType, Lakes_187B, `Description Of Waters`:`Total Phosphorus (ug/L)`)%>% 
+  # match lake limit to TP data unit
+  mutate(`Total Phosphorus (mg/L)` = `Total Phosphorus (ug/L)` / 1000)
 
 
 

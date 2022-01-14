@@ -460,7 +460,7 @@ TP_analysis <- function(x){
   TP <- filter(x, !is.na(PHOSPHORUS_mg_L)) %>%
     filter(FDT_DEPTH <= 1) %>% # Guidance calls for top meter only
     filter(!( LEVEL_PHOSPHORUS %in% c('Level II', 'Level I'))) %>% # get lower levels out
-    dplyr::select(FDT_STA_ID, FDT_DEPTH, FDT_DATE_TIME, SampleDate, PHOSPHORUS_mg_L, `Total Phosphorus (mg/L)`, LACUSTRINE)%>%
+    dplyr::select(FDT_STA_ID, FDT_DEPTH, FDT_DATE_TIME, SampleDate, PHOSPHORUS_mg_L, `Total Phosphorus (ug/L)`, LACUSTRINE)%>%
     mutate(Year= year(FDT_DATE_TIME), Month=month(FDT_DATE_TIME)) %>%
     filter(Month %in% c(4, 5, 6, 7, 8, 9, 10)) # make sure only assess valid sample months
   if(length(unique(TP$FDT_STA_ID)) > 1){
@@ -468,14 +468,14 @@ TP_analysis <- function(x){
       group_by(Month, Year) %>%
       summarise(samplesPerMonth = n(),
                 medianPHOSPHORUS_mg_L = median(PHOSPHORUS_mg_L, na.rm = T),
-                `Total Phosphorus (mg/L)` = unique(`Total Phosphorus (mg/L)`)) %>%
+                `Total Phosphorus (ug/L)` = unique(`Total Phosphorus (ug/L)`)) %>%
       ungroup() %>%
       group_by(Year) %>%
       summarise(samplesPerYear = n(),
                 `Annual Median TP` = median(medianPHOSPHORUS_mg_L, na.rm = TRUE),
-                `Total Phosphorus (mg/L)` = unique(`Total Phosphorus (mg/L)`)) %>%
+                `Total Phosphorus (ug/L)` = unique(`Total Phosphorus (ug/L)`)) %>%
       mutate(`Annual Median TP Rounded to WQS Format` = signif(`Annual Median TP`, digits = 1),  # one significant figures based on WQS https://lis.virginia.gov/cgi-bin/legp604.exe?000+reg+9VAC25-260-187&000+reg+9VAC25-260-187
-             TP_Exceedance = ifelse(`Annual Median TP Rounded to WQS Format` > `Total Phosphorus (mg/L)`, T, F),
+             TP_Exceedance = ifelse(`Annual Median TP Rounded to WQS Format` > `Total Phosphorus (ug/L)`, T, F),
              ID305B = unique(x$ID305B_1))  %>%
       dplyr::select(ID305B, Year, samplesPerYear, `Annual Median TP`, `Annual Median TP Rounded to WQS Format`, everything())
   } else {
@@ -484,8 +484,8 @@ TP_analysis <- function(x){
       mutate(samplesPerYear = n(),
              `Annual Median TP` = median(PHOSPHORUS_mg_L, na.rm = TRUE),
              `Annual Median TP Rounded to WQS Format` = signif(`Annual Median TP`, digits = 1),  # one significant figures based on WQS https://lis.virginia.gov/cgi-bin/legp604.exe?000+reg+9VAC25-260-187&000+reg+9VAC25-260-187
-             TP_Exceedance = ifelse(`Annual Median TP Rounded to WQS Format` > `Total Phosphorus (mg/L)`, T, F)) %>%
-      dplyr::select(FDT_STA_ID, Year, samplesPerYear, `Annual Median TP`, `Annual Median TP Rounded to WQS Format`,`Total Phosphorus (mg/L)`, TP_Exceedance, LACUSTRINE) %>%
+             TP_Exceedance = ifelse(`Annual Median TP Rounded to WQS Format` > `Total Phosphorus (ug/L)`, T, F)) %>%
+      dplyr::select(FDT_STA_ID, Year, samplesPerYear, `Annual Median TP`, `Annual Median TP Rounded to WQS Format`,`Total Phosphorus (ug/L)`, TP_Exceedance, LACUSTRINE) %>%
       distinct(Year, .keep_all=T)
   }
   return(TPResults)
@@ -497,23 +497,23 @@ TP_Assessment <- function(x){
   TP_Results <- TP_analysis(x) %>% ungroup()
   
   if(nrow(TP_Results) > 0){
-    if(is.na(unique(TP_Results$`Total Phosphorus (mg/L)`))){ # bail out if nutrient standards didn't join properly
+    if(is.na(unique(TP_Results$`Total Phosphorus (ug/L)`))){ # bail out if nutrient standards didn't join properly
       return(tibble(NUT_TP_EXC= NA, NUT_TP_SAMP = NA,	NUT_TP_STAT = NA))}
     validYears <- filter(TP_Results, samplesPerYear >= 6) # need at least 6 samples per year
     mostRecent2years <- slice_max(validYears, Year, n = 2) # get most recent two years of results
     if(nrow(mostRecent2years) == 2){ 
-      if(all(unique(mostRecent2years$TP_Exceedance) == FALSE)){ # no exceedances in last two years
+      if(all(unique(mostRecent2years$TP_Exceedance)) == FALSE){ # no exceedances in last two years
         return(tibble(NUT_TP_EXC= 0, NUT_TP_SAMP = nrow(mostRecent2years),	NUT_TP_STAT = 'S') )
       } else { # at least one TP_Exceedance exists
-        if(all(unique(mostRecent2years$TP_Exceedance) == TRUE)){ # both years exceed
+        if(all(unique(mostRecent2years$TP_Exceedance)) == TRUE){ # both years exceed
           return(tibble(NUT_TP_EXC= nrow(mostRecent2years), NUT_TP_SAMP = nrow(mostRecent2years),	NUT_TP_STAT = 'IM'))
         } else { # run a tiebreak with third most recent year
-          mostRecent3years <- slice_max(validYears, Year, n = 3)  # get most recent three years of results
-          mostRecent3yearsExceed <- filter(mostRecent3years, TP_Exceedance == TRUE)
-          if(nrow(mostRecent3yearsExceed) >= 2){
-            return(tibble(NUT_TP_EXC= nrow(mostRecent3yearsExceed), NUT_TP_SAMP = nrow(mostRecent3years),	NUT_TP_STAT = 'IM'))
+          mostRecent3years <- slice_max(validYears, Year, n = 3) %>% # get most recent three years of results
+            filter(TP_Exceedance == TRUE)
+          if(nrow(mostRecent3years) >= 2){
+            return(tibble(NUT_TP_EXC= nrow(mostRecent3years), NUT_TP_SAMP = nrow(mostRecent3years),	NUT_TP_STAT = 'IM'))
           } else {
-            return(tibble(NUT_TP_EXC= nrow(mostRecent3yearsExceed), NUT_TP_SAMP = nrow(mostRecent3years),	NUT_TP_STAT = 'Review')) }
+            return(tibble(NUT_TP_EXC= nrow(mostRecent3years), NUT_TP_SAMP = nrow(mostRecent3years),	NUT_TP_STAT = 'Review')) }
         }}} else {return(tibble(NUT_TP_EXC= NA, NUT_TP_SAMP = nrow(validYears),	NUT_TP_STAT = 'IN') ) }
   } else {    return(tibble(NUT_TP_EXC= NA, NUT_TP_SAMP = NA,	NUT_TP_STAT = NA) )  }
 }

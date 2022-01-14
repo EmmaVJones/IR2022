@@ -99,7 +99,7 @@ TPPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   
   output$plotly <- renderPlotly({
     req(input$oneStationSelection, oneStation())
-    dat <- mutate(oneStation(), top = `Total Phosphorus (ug/L)`,
+    dat <- mutate(oneStation(), top = `Total Phosphorus (mg/L)`,
                   LakeStratification = replace_na(LakeStratification,"NA")) %>%
       mutate(LakeStratification = factor(LakeStratification,levels=c("Epilimnion",'NA',"Hypolimnion")))#,ordered=T)
     
@@ -126,7 +126,7 @@ TPPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   
   output$annualMedianTableSingleSite <- renderDataTable({req(oneStation())
     z <- TP_analysis(oneStation()) %>%
-      rename('Total Phosphorus Limit' = 'Total Phosphorus (ug/L)')
+      rename('Total Phosphorus Limit' = 'Total Phosphorus (mg/L)')
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t'),
               selection = 'none') })
   
@@ -143,7 +143,7 @@ TPPlotlySingleStation <- function(input,output,session, AUdata, stationSelectedA
   
   output$annualMedianTableAU <- renderDataTable({req(justAUID305B_1())
     z <- TP_analysis(justAUID305B_1()) %>%
-      rename('Total Phosphorus Limit' = 'Total Phosphorus (ug/L)')
+      rename('Total Phosphorus Limit' = 'Total Phosphorus (mg/L)')
     datatable(z, rownames = FALSE, options= list(pageLength = nrow(z), scrollX = TRUE, scrollY = "200px", dom='t'),
               selection = 'none') })
   

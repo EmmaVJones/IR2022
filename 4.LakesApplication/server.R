@@ -136,6 +136,8 @@ shinyServer(function(input, output, session) {
              `Total Phosphorus (ug/L)` = case_when(Lake_Name %in% c('Lake Drummond') ~ 40,
                                                    TRUE ~ as.numeric(`Total Phosphorus (ug/L)`))) %>% 
       dplyr::select(STATION_ID:StreamType, Lakes_187B, `Description Of Waters`:`Total Phosphorus (ug/L)`) %>%
+      # match lake limit to TP data unit
+      mutate(`Total Phosphorus (mg/L)` = `Total Phosphorus (ug/L)` / 1000) %>% 
       mutate(lakeStation = TRUE)
   })
   
@@ -239,7 +241,7 @@ shinyServer(function(input, output, session) {
   conventionalsLake <- reactive({ req(lake_filter())
     filter(conventionals, FDT_STA_ID %in% lake_filter()$STATION_ID) %>%
       left_join(dplyr::select(stationTable(), STATION_ID:VAHU6, lakeStation,
-                              WQS_ID:`Total Phosphorus (ug/L)`),
+                              WQS_ID:`Total Phosphorus (mg/L)`),
                 #WQS_ID:`Max Temperature (C)`), 
                 by = c('FDT_STA_ID' = 'STATION_ID')) %>%
       filter(!is.na(ID305B_1)) %>%
@@ -276,7 +278,7 @@ shinyServer(function(input, output, session) {
   
   stationInfo <- reactive({req(input$stationSelection, AUData())
     filter(stationTable(), STATION_ID == input$stationSelection) %>% 
-      select(STATION_ID:VAHU6, WQS_ID:`Total Phosphorus (ug/L)`)})
+      select(STATION_ID:VAHU6, WQS_ID:`Total Phosphorus (mg/L)`)})
   
   
   output$stationInfo <- DT::renderDataTable({ req(stationInfo())
