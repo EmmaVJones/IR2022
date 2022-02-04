@@ -89,9 +89,9 @@ pinnedDecisions <- pin_get('IR2022bioassessmentDecisions_test', board = 'rsconne
 
 
 
-DEQregionSelection <- "PRO"#'BRRO'
-basinSelection <- "Chowan-Dismal"#'Roanoke'#"James-Middle"#'James-Upper'#'Roanoke'#"Small Coastal" ##"Roanoke"#"Roanoke"#'James-Upper'#
-HUC6Selection <- "CM01"#"RD15"#"RU24"#"JM01"#'JU21'#"RU14"#"CB47"#'JM16'#'RU09'#'RL12'#
+DEQregionSelection <- 'BRRO'#"PRO"#'BRRO'
+basinSelection <- "James-Upper"#"Chowan-Dismal"#'Roanoke'#"James-Middle"#'James-Upper'#'Roanoke'#"Small Coastal" ##"Roanoke"#"Roanoke"#'James-Upper'#
+HUC6Selection <- "JU41"#"CM01"#"RD15"#"RU24"#"JM01"#'JU21'#"RU14"#"CB47"#'JM16'#'RU09'#'RL12'#
 
 # z <- filter(vahu6, ASSESS_REG %in% c(DEQregionSelection, 'CO')) %>%
 #   left_join(dplyr::select(subbasinToVAHU6, VAHU6, Basin, BASIN_CODE, Basin_Code))
@@ -171,7 +171,7 @@ AUselection <- unique(c(conventionals_HUC$ID305B_1,
                           mutate_at(vars(starts_with("ID305B")), as.character) %>%
                           pivot_longer(ID305B_1:ID305B_10, names_to = 'ID305B', values_to = 'keep') %>%
                           pull(keep) ))
-AUselection <- AUselection[!is.na(AUselection) & !(AUselection %in% c("NA", "character(0)", "logical(0)"))][1]
+AUselection <- AUselection[!is.na(AUselection) & !(AUselection %in% c("NA", "character(0)", "logical(0)"))][2]
 
 
 
@@ -611,7 +611,7 @@ plot_ly(data=windowData) %>%
 #               `Assessment Decision` = paste0('Dataset contains one 3 year window with at least one ', assessmentType, ' exceedance.')),
 #        `Exceedance Results` = exceedancesIn3YrWindow)     )
     
-  }
+ # }
 #} else { # No exceedances
 #  return(
 #    list(

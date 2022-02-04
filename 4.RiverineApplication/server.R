@@ -669,6 +669,8 @@ shinyServer(function(input, output, session) {
         filter(VCPMI63results, StationID %in% filter(assessmentDecision_UserSelection(), AssessmentMethod == 'VCPMI63 + Chowan')$StationID)  ) %>%
       bind_rows(
         filter(VCPMI65results, StationID %in% filter(assessmentDecision_UserSelection(), AssessmentMethod == 'VCPMI65 - Chowan')$StationID)  ) %>%
+      # only use family level rarified data
+      filter(`Target Count` == 110) %>% 
       # add back in description information
       left_join(filter(benSamps, StationID %in% input$stationSelection) %>%
                   dplyr::select(StationID, Sta_Desc, BenSampID,US_L3CODE, US_L3NAME, HUC_12, VAHU6, Basin, Basin_Code),
