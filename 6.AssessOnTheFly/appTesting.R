@@ -4,7 +4,7 @@ assessmentLayer <- st_read('data/GIS/AssessmentRegions_VA84_basins.shp') %>%
   st_transform( st_crs(4326))
 
 
-regionResults <- statewideResults[['PRO']]  
+regionResults <- statewideResults[['BRRO']]  
 
 stationTableResults <- left_join(regionResults$`Assessment Results`$stationTableResults,
                                  dplyr::select(regionResults$stationGIS_View,
@@ -29,6 +29,7 @@ stationTableResultsYTD <- left_join(regionResults$`Assessment Results YTD`$stati
   left_join(regionResults$ConventionalsYTD %>% 
               group_by(FDT_STA_ID) %>% 
               summarise(SPGsummary = paste0(unique(FDT_SPG_CODE, collapse = ' | '))) %>% 
+              group_by(FDT_STA_ID) %>%
               summarise(SPGsummary = paste0(SPGsummary, collapse = ' | ')),
             by = c('STATION_ID' = 'FDT_STA_ID')) %>% 
   dplyr::select(STATION_ID, Sta_Desc, SPGsummary, TEMP_EXC:LONGITUDE, everything())  %>% 

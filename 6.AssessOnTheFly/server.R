@@ -23,6 +23,7 @@ shinyServer(function(input, output, session) {
       left_join(reactive_objects$regionResults$Conventionals %>% 
                   group_by(FDT_STA_ID) %>% 
                   summarise(SPGsummary = paste0(unique(FDT_SPG_CODE, collapse = ' | '))) %>% 
+                  group_by(FDT_STA_ID) %>% 
                   summarise(SPGsummary = paste0(SPGsummary, collapse = ' | ')),
                 by = c('STATION_ID' = 'FDT_STA_ID')) %>% 
       dplyr::select(STATION_ID, Sta_Desc, SPGsummary, TEMP_EXC:LONGITUDE, everything())  %>% 
@@ -36,6 +37,7 @@ shinyServer(function(input, output, session) {
       left_join(reactive_objects$regionResults$ConventionalsYTD %>%
                   group_by(FDT_STA_ID) %>%
                   summarise(SPGsummary = paste0(unique(FDT_SPG_CODE, collapse = ' | '))) %>%
+                  group_by(FDT_STA_ID) %>% 
                   summarise(SPGsummary = paste0(SPGsummary, collapse = ' | ')),
                 by = c('STATION_ID' = 'FDT_STA_ID')) %>%
       dplyr::select(STATION_ID, Sta_Desc, SPGsummary, TEMP_EXC:LONGITUDE, everything()) %>% 
