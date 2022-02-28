@@ -693,7 +693,9 @@ freshwaterNH3limit <- function(x, # dataframe with station data
       filter(., FDT_DEPTH <= 1)
       else . } %>%
     filter(!is.na(AMMONIA_mg_L)) %>% #get rid of NA's
-    dplyr::select(FDT_DATE_TIME, FDT_DEPTH, FDT_TEMP_CELCIUS, FDT_FIELD_PH, AMMONIA_mg_L)
+    dplyr::select(FDT_DATE_TIME, FDT_DEPTH, FDT_TEMP_CELCIUS, FDT_FIELD_PH, AMMONIA_mg_L) %>% 
+    # can only run analysis if all above variable are populated for a given date/time
+    filter(!is.na(FDT_TEMP_CELCIUS) & !is.na(FDT_FIELD_PH))
   # If no data, return nothing
   if(nrow(x)==0){return(NULL)}
   

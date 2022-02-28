@@ -76,7 +76,7 @@ Much faster method and makes sure data used by assessors is same for testing.
 # official March Data releases
 conventionals <- pin_get("conventionals2022IRfinalWithSecchi", board = "rsconnect")
 conventionalsFOSR <- read_csv('Reid/FOSR_conventionals.csv') %>% 
-  mutate(FDT_DATE_TIME = as.POSIXct(FDT_DATE_TIME, format = '%m/%d/%Y %H:%M'))
+  mutate(FDT_DATE_TIME = as.POSIXct(FDT_DATE_TIME, format = '%m/%d/%Y %H:%M')) 
 conventionals <- conventionalsFOSR
 
 
@@ -270,18 +270,18 @@ bothTypesE <- filter(estuarineStations, str_detect(ID305B_1, 'R_') | str_detect(
 For testing reduce stationTable to just BRRO for now
 
 ```{r}
-#stationTable <- filter(stationTable, REGION == "BRRO")
-
-# just run what is new based on citmon and may update
-citmon <- read_excel('C:/HardDriveBackup/R/GitHub/IR2022/2.organizeMetadata/data/final2022data/Citizen Monitoring Data/20192020CitMonData_20210611.xlsx') %>% distinct(FDT_STA_ID)
-conventionals_distinctMarch <- pin_get("conventionals-distinct-final", board = "rsconnect") %>% 
-  filter(! FDT_STA_ID %in% conventionals_distinct$FDT_STA_ID) %>% 
-  distinct(FDT_STA_ID)
-justNew <- bind_rows(citmon, conventionals_distinctMarch) %>% 
-  bind_rows(readRDS('data/mayUpdateSites.RDS')) %>% 
-  distinct(FDT_STA_ID)
-
-#stationTable <- filter(stationTable, STATION_ID %in% justNew$FDT_STA_ID)
+# #stationTable <- filter(stationTable, REGION == "BRRO")
+# 
+# # just run what is new based on citmon and may update
+# citmon <- read_excel('C:/HardDriveBackup/R/GitHub/IR2022/2.organizeMetadata/data/final2022data/Citizen Monitoring Data/20192020CitMonData_20210611.xlsx') %>% distinct(FDT_STA_ID)
+# conventionals_distinctMarch <- pin_get("conventionals-distinct-final", board = "rsconnect") %>% 
+#   filter(! FDT_STA_ID %in% conventionals_distinct$FDT_STA_ID) %>% 
+#   distinct(FDT_STA_ID)
+# justNew <- bind_rows(citmon, conventionals_distinctMarch) %>% 
+#   bind_rows(readRDS('data/mayUpdateSites.RDS')) %>% 
+#   distinct(FDT_STA_ID)
+# 
+# #stationTable <- filter(stationTable, STATION_ID %in% justNew$FDT_STA_ID)
 
 ```
 
